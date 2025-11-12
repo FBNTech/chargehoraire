@@ -28,7 +28,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-)xdy_c*jt&y1l0m%u7ge8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,fabonk.pythonanywhere.com', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,fabonk.pythonanywhere.com,.onrender.com', cast=Csv())
 
 
 # Application definition
@@ -178,7 +178,7 @@ LOGIN_REDIRECT_URL = 'tracking:dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
 # CSRF settings
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://127.0.0.1:8000,http://localhost:8000,https://fabonk.pythonanywhere.com', cast=Csv())
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://127.0.0.1:8000,http://localhost:8000,https://fabonk.pythonanywhere.com,https://*.onrender.com', cast=Csv())
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 
