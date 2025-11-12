@@ -316,7 +316,7 @@ function loadUEsByClasse(classe) {
     ueSelect.disabled = true;
     
     // Faire une requête AJAX pour récupérer les UE de la classe sélectionnée
-    fetch(`/attribution/get_ues_by_classe/?classe=${encodeURIComponent(classe)}`)
+    fetch(`/attribution/api/ues/by-classe/?classe=${encodeURIComponent(classe)}`)
         .then(response => response.json())
         .then(data => {
             // Vider les options actuelles
@@ -335,11 +335,8 @@ function loadUEsByClasse(classe) {
                 data.ues.forEach(ue => {
                     const option = document.createElement('option');
                     option.value = ue.id;
-                    // Afficher l'EC et le nom de l'enseignant si disponibles
-                    const displayText = ue.ec ? 
-                        `${ue.code} - ${ue.ec} (${ue.enseignant || 'Enseignant non défini'})` : 
-                        ue.text;
-                    option.textContent = displayText;
+                    // Utiliser le texte d'affichage préparé par la vue
+                    option.textContent = ue.display_text || `${ue.code} - ${ue.intitule}`;
                     ueSelect.appendChild(option);
                 });
                 
