@@ -1,0 +1,46 @@
+.dashboard-card {
+    border: none;
+    margin-bottom: 1rem;
+}
+
+.dashboard-header {
+    background-color: #2596be;
+    padding: 0.5rem 1rem;
+}
+
+.dashboard-header h6 {
+    color: white;
+    margin: 0;
+}
+
+.stat-card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-card.total {
+    background-color: #2196F3;
+    color: white;
+}
+
+.stat-card.grade-1 { background-color: #4CAF50; }
+.stat-card.grade-2 { background-color: #2196F3; }
+.stat-card.grade-3 { background-color: #FF9800; }
+.stat-card.grade-4 { background-color: #9C27B0; }
+.stat-card.grade-5 { background-color: #E91E63; }
+.stat-card.grade-6 { background-color: #607D8B; }
+
+.stat-card .card-body {
+    padding: 0.5rem;
+    text-align: center;
+    color: white;
+}
+
+.stat-card h6 {
+    margin: 0;
+    font-weight: bold;
+}
+
+.stat-card small {
+    font-size: 0.875rem;
+}

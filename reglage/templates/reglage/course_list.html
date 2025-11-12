@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .table-bordered {
+        border: 1px solid #181c34;
+    }
+    .table-bordered th,
+    .table-bordered td {
+        border: 1px solid #181c34;
+    }
+    .table thead th {
+        background-color: #181c34;
+        color: white;
+        border-bottom: 2px solid #181c34;
+    }
+</style>
+
+<div class="container-fluid p-4">
+    <!-- Barre de recherche -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <form method="get" class="d-flex">
+                <div class="input-group input-group-sm">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Rechercher..." value="{{ request.GET.search }}">
+                    <button type="submit" class="btn btn-sm" style="background-color: #2596be; color: white;">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="input-group">
+                <select name="departement" class="form-control" id="departement-filter">
+                    <option value="">Tous les départements</option>
+                    {% for departement in departements %}
+                    <option value="{{ departement }}" {% if request.GET.departement == departement %}selected{% endif %}>{{ departement }}</option>
+                    {% endfor %}
+                </select>
+                <div class="btn btn-success ms-2 text-white">
+                    <span id="total-cmi-tp-td" class="fw-bold">0</span> Heures
+                </div>
+                <a href="{% url 'courses:create' %}" class="btn me-2" style="background-color: #2596be; color: white;">
+                    <i class="fas fa-plus"></i> Ajouter
+                </a>
+                <form method="post" enctype="multipart/form-data" action="{% url 'courses:import_excel' %}" style="display: inline;" id="import-form">
+                    {% csrf_token %}
+                    <input type="file" id="excel_file" name="excel_file" accept=".xlsx, .xls" class="d-none">
+                    <button type="button" class="btn" style="background-color: #115c34; color: white;" onclick="document.getElementById('excel_file').click()">
+                        <i class="fas fa-file-excel"></i> Importer Excel
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des cours -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="courses-table" class="table table-striped table-responsive-cards table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Code UE</th>
+                            <th>Intitulé UE</th>
+                            <th>Intitulé EC</th>
+                            <th>Crédit</th>
+                            <th>CMI</th>
+                            <th>TD+TP</th>
+                            <th>Classe</th>
+                            <th>Semestre</th>
+                            <th>Département</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in courses %}
+                        <tr>
+                            <td data-label="Code UE">{{ course.code_ue }}</td>
+                            <td data-label="Intitulé UE">{{ course.intitule_ue }}</td>
+                            <td data-label="Intitulé EC">{{ course.intitule_ec }}</td>
+                            <td data-label="Crédit">{{ course.credit }}</td>
+                            <td data-label="CMI">{{ course.cmi }}</td>
+                            <td data-label="TD+TP">{{ course.td_tp }}</td>
+                            <td data-label="Classe">{{ course.classe }}</td>
+                            <td data-label="Semestre">{{ course.get_semestre_display }}</td>
+                            <td data-label="Département">{{ course.get_departement_display }}</td>
+                            <td data-label="Actions">
+                                <div class="btn-group">
+                                    <a href="{% url 'courses:update' course.pk %}" class="btn btn-sm" style="background-color: #2596be; color: white;">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="post" action="{% url 'courses:delete' course.pk %}" style="display: inline;" data-course-code="{{ course.code_ue }}">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn btn-sm btn-danger delete-btn">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center">Aucun cours trouvé</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer le cours <span id="courseCodeSpan"></span> ?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de progression -->
+<div class="modal fade" id="progressModal" tabindex="-1" aria-labelledby="progressModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="progressModalLabel">Progression de l'importation</h5>
+            </div>
+            <div class="modal-body">
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                <p class="mt-2 mb-0 text-center" id="progressText">Traitement en cours...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let deleteForm = null;
+
+function confirmDelete(form, courseCode) {
+    deleteForm = form;
+    document.getElementById('courseCodeSpan').textContent = courseCode;
+    var modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Fonction pour calculer le total CMI + (TP+TD)
+    function calculateTotalCmiTpTd() {
+        let totalCmiTpTd = 0;
+        const rows = document.querySelectorAll('#courses-table tbody tr:not(:last-child)');
+        
+        rows.forEach(row => {
+            const cmi = parseFloat(row.querySelector('td:nth-child(4)').textContent) || 0;
+            const tpTd = parseFloat(row.querySelector('td:nth-child(5)').textContent) || 0;
+            totalCmiTpTd += cmi + tpTd;
+        });
+
+        document.getElementById('total-cmi-tp-td').textContent = Math.round(totalCmiTpTd);
+    }
+
+    // Gestionnaire pour les boutons de suppression
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const form = this.closest('form');
+            const courseCode = form.dataset.courseCode;
+            confirmDelete(form, courseCode);
+        });
+    });
+
+    // Gestionnaire pour le bouton de confirmation
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (deleteForm) {
+            deleteForm.submit();
+        }
+    });
+
+    // Filtrage dynamique par département
+    document.getElementById('departement-filter').addEventListener('change', function() {
+        const selectedDepartement = this.value;
+        const searchParams = new URLSearchParams(window.location.search);
+        
+        if (selectedDepartement) {
+            searchParams.set('departement', selectedDepartement);
+        } else {
+            searchParams.delete('departement');
+        }
+
+        window.location.search = searchParams.toString();
+    });
+
+    // Calculer le total CMI + (TP+TD) au chargement de la page
+    calculateTotalCmiTpTd();
+});
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+document.getElementById('excel_file').addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+        var formData = new FormData(document.getElementById('import-form'));
+        var modal = new bootstrap.Modal(document.getElementById('progressModal'));
+        modal.show();
+        
+        var progressBar = document.querySelector('.progress-bar');
+        var progressText = document.getElementById('progressText');
+        
+        function updateProgress() {
+            $.ajax({
+                url: "{% url 'courses:import_excel' %}",
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.error) {
+                        alert(response.error);
+                        modal.hide();
+                        return;
+                    }
+                    
+                    if (response.progress !== undefined) {
+                        var progress = Math.round(response.progress);
+                        progressBar.style.width = progress + '%';
+                        progressBar.setAttribute('aria-valuenow', progress);
+                        progressBar.textContent = progress + '%';
+                        progressText.textContent = `Traitement : ${response.processed}/${response.total}`;
+                        
+                        if (progress < 100) {
+                            setTimeout(updateProgress, 500);
+                        } else {
+                            if (response.message) {
+                                //alert(response.message);
+                            }
+                            window.location.reload();
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur lors de l\'importation';
+                    alert(errorMessage);
+                    modal.hide();
+                }
+            });
+        }
+        
+        updateProgress();
+    }
+});
+
+// Réinitialiser la barre de progression quand le modal est caché
+document.getElementById('progressModal').addEventListener('hidden.bs.modal', function () {
+    const progressBar = document.querySelector('.progress-bar');
+    const progressText = document.getElementById('progressText');
+    progressBar.style.width = '0%';
+    progressBar.setAttribute('aria-valuenow', 0);
+    progressBar.textContent = '0%';
+    progressText.textContent = 'Traitement en cours...';
+});
+
+// Fonction pour démarrer l'exportation Excel
+function startExcelExport() {
+    var modal = new bootstrap.Modal(document.getElementById('progressModal'));
+    modal.show();
+    
+    var progressBar = document.querySelector('.progress-bar');
+    var progressText = document.getElementById('progressText');
+    
+    function updateProgress() {
+        $.ajax({
+            url: "{% url 'courses:export_excel' %}",
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(data) {
+                if (data.progress) {
+                    var progress = Math.round(data.progress);
+                    progressBar.style.width = progress + '%';
+                    progressBar.setAttribute('aria-valuenow', progress);
+                    progressBar.textContent = progress + '%';
+                    progressText.textContent = `Traitement : ${data.processed}/${data.total}`;
+                    
+                    if (progress < 100) {
+                        setTimeout(updateProgress, 500);
+                    } else {
+                        window.location.href = "{% url 'courses:export_excel' %}";
+                        setTimeout(function() {
+                            modal.hide();
+                        }, 1000);
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Erreur lors de l\'exportation : ' + error);
+                modal.hide();
+            }
+        });
+    }
+    
+    updateProgress();
+}
+</script>
+{% endblock %}

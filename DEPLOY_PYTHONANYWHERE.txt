@@ -1,0 +1,167 @@
+================================================================================
+GUIDE DE DÉPLOIEMENT SUR PYTHONANYWHERE
+================================================================================
+
+PythonAnywhere est PARFAIT pour Django et offre un plan gratuit permanent !
+
+================================================================================
+ÉTAPE 1 : CRÉER UN COMPTE
+================================================================================
+
+1. Allez sur https://www.pythonanywhere.com
+2. Créez un compte gratuit (Beginner account)
+3. Notez votre nom d'utilisateur (ex: "monusername")
+
+================================================================================
+ÉTAPE 2 : UPLOADER VOTRE CODE
+================================================================================
+
+Option A - Via Git (RECOMMANDÉ) :
+----------------------------------
+1. Ouvrez une console Bash sur PythonAnywhere
+2. Clonez votre repository :
+   $ git clone https://github.com/votre-username/chargehoraire.git
+   $ cd chargehoraire
+
+Option B - Upload manuel :
+---------------------------
+1. Utilisez l'onglet "Files" sur PythonAnywhere
+2. Créez un dossier "chargehoraire"
+3. Uploadez tous vos fichiers
+
+================================================================================
+ÉTAPE 3 : INSTALLER LES DÉPENDANCES
+================================================================================
+
+1. Ouvrez une console Bash
+2. Créez un environnement virtuel :
+   $ cd ~/chargehoraire
+   $ python3.11 -m venv venv
+   $ source venv/bin/activate
+
+3. Installez les dépendances :
+   $ pip install -r requirements.txt
+
+4. Note : PythonAnywhere utilise MySQL par défaut, pas PostgreSQL
+   Vous pouvez garder SQLite pour tester ou configurer MySQL
+
+================================================================================
+ÉTAPE 4 : CONFIGURER LA BASE DE DONNÉES
+================================================================================
+
+Option A - SQLite (simple pour tester) :
+-----------------------------------------
+Aucune configuration nécessaire, utilisez db.sqlite3
+
+Option B - MySQL (recommandé pour production) :
+------------------------------------------------
+1. Allez dans l'onglet "Databases" sur PythonAnywhere
+2. Créez une base de données MySQL
+3. Notez les informations de connexion
+4. Modifiez settings.py ou utilisez des variables d'environnement
+
+5. Lancez les migrations :
+   $ python manage.py migrate
+   $ python manage.py collectstatic --noinput
+   $ python manage.py createsuperuser
+
+================================================================================
+ÉTAPE 5 : CONFIGURER L'APPLICATION WEB
+================================================================================
+
+1. Allez dans l'onglet "Web" sur PythonAnywhere
+2. Cliquez sur "Add a new web app"
+3. Choisissez "Manual configuration"
+4. Sélectionnez Python 3.11
+
+5. Configurez le WSGI file :
+   - Cliquez sur le lien du fichier WSGI
+   - Remplacez le contenu par celui de "pythonanywhere_wsgi.py"
+   - Remplacez "yourusername" par votre nom d'utilisateur
+   - Remplacez SECRET_KEY par une clé secrète unique
+
+6. Configurez le virtualenv :
+   - Section "Virtualenv"
+   - Path : /home/yourusername/chargehoraire/venv
+
+7. Configurez les fichiers statiques :
+   - URL: /static/
+   - Directory: /home/yourusername/chargehoraire/staticfiles
+   - URL: /media/
+   - Directory: /home/yourusername/chargehoraire/media
+
+================================================================================
+ÉTAPE 6 : VARIABLES D'ENVIRONNEMENT
+================================================================================
+
+Sur PythonAnywhere, vous pouvez définir les variables dans le fichier WSGI
+ou créer un fichier .env (nécessite python-decouple)
+
+Variables importantes :
+- DEBUG=False
+- SECRET_KEY=votre_cle_secrete_unique
+- ALLOWED_HOSTS=yourusername.pythonanywhere.com
+- CSRF_TRUSTED_ORIGINS=https://yourusername.pythonanywhere.com
+
+================================================================================
+ÉTAPE 7 : COLLECTER LES FICHIERS STATIQUES
+================================================================================
+
+Dans la console Bash :
+$ cd ~/chargehoraire
+$ source venv/bin/activate
+$ python manage.py collectstatic --noinput
+
+================================================================================
+ÉTAPE 8 : DÉMARRER L'APPLICATION
+================================================================================
+
+1. Retournez dans l'onglet "Web"
+2. Cliquez sur le gros bouton vert "Reload"
+3. Votre site sera accessible à : https://yourusername.pythonanywhere.com
+
+================================================================================
+LIMITATIONS DU PLAN GRATUIT
+================================================================================
+
+✓ AVANTAGES :
+- Toujours actif (pas de sleep)
+- 512 MB de stockage
+- MySQL inclus
+- Domaine HTTPS gratuit
+
+✗ LIMITATIONS :
+- 1 seule application web
+- CPU limité (100 secondes/jour)
+- Pas de tâches programmées (scheduled tasks)
+- Accès limité à certains sites externes
+
+================================================================================
+MAINTENANCE
+================================================================================
+
+Pour mettre à jour votre code :
+1. Ouvrez une console Bash
+2. $ cd ~/chargehoraire
+3. $ git pull  (si vous utilisez Git)
+4. $ source venv/bin/activate
+5. $ pip install -r requirements.txt
+6. $ python manage.py migrate
+7. $ python manage.py collectstatic --noinput
+8. Rechargez l'application dans l'onglet "Web"
+
+================================================================================
+DÉPANNAGE
+================================================================================
+
+Si l'application ne démarre pas :
+1. Vérifiez les logs d'erreur (onglet "Web" > Error log)
+2. Vérifiez que tous les chemins dans le fichier WSGI sont corrects
+3. Vérifiez que le virtualenv est correctement configuré
+4. Vérifiez que ALLOWED_HOSTS contient votre domaine PythonAnywhere
+
+Si vous voyez "502 Bad Gateway" :
+- L'application a probablement une erreur au démarrage
+- Consultez les logs d'erreur pour plus de détails
+
+================================================================================

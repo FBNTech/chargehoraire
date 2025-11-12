@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Gestion des Horaires</h4>
+        <a href="{% url 'attribution:schedule_entry_create' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Ajouter un horaire
+        </a>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Année académique</label>
+                    <select name="annee" class="form-select">
+                        <option value="">Toutes</option>
+                        {% for annee in annees %}
+                            <option value="{{ annee }}" {% if request.GET.annee == annee %}selected{% endif %}>
+                                {{ annee }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Jour</label>
+                    <select name="jour" class="form-select">
+                        <option value="">Tous</option>
+                        <option value="lundi" {% if request.GET.jour == "lundi" %}selected{% endif %}>Lundi</option>
+                        <option value="mardi" {% if request.GET.jour == "mardi" %}selected{% endif %}>Mardi</option>
+                        <option value="mercredi" {% if request.GET.jour == "mercredi" %}selected{% endif %}>Mercredi</option>
+                        <option value="jeudi" {% if request.GET.jour == "jeudi" %}selected{% endif %}>Jeudi</option>
+                        <option value="vendredi" {% if request.GET.jour == "vendredi" %}selected{% endif %}>Vendredi</option>
+                        <option value="samedi" {% if request.GET.jour == "samedi" %}selected{% endif %}>Samedi</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Créneau</label>
+                    <select name="creneau" class="form-select">
+                        <option value="">Tous</option>
+                        <option value="am" {% if request.GET.creneau == "am" %}selected{% endif %}>08h00-12h00</option>
+                        <option value="pm" {% if request.GET.creneau == "pm" %}selected{% endif %}>13h00-17h00</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Classe</label>
+                    <input type="text" name="classe" class="form-control" value="{{ request.GET.classe }}" placeholder="Ex: L1BC">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-secondary w-100">
+                        <i class="fas fa-filter"></i> Filtrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tableau des horaires -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Semaine</th>
+                            <th>Date</th>
+                            <th>Jour</th>
+                            <th>Créneau</th>
+                            <th>Code UE</th>
+                            <th>Intitulé UE</th>
+                            <th>Classe</th>
+                            <th>Grade</th>
+                            <th>Nom Enseignant</th>
+                            <th>Salle</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td><span class="badge bg-success">S{{ entry.numero_semaine|default:"?" }}</span></td>
+                            <td>{{ entry.date_cours|date:"d/m/Y"|default:"—" }}</td>
+                            <td>{{ entry.get_jour_display }}</td>
+                            <td>{{ entry.get_creneau_display_complet }}</td>
+                            <td><strong>{{ entry.attribution.code_ue.code_ue }}</strong></td>
+                            <td>{{ entry.attribution.code_ue.intitule_ue }}</td>
+                            <td><span class="badge bg-info">{{ entry.attribution.code_ue.classe }}</span></td>
+                            <td>{{ entry.attribution.matricule.grade|default:"—" }}</td>
+                            <td><strong>{{ entry.attribution.matricule.nom_complet }}</strong></td>
+                            <td>{{ entry.salle|default:"—" }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'attribution:schedule_entry_edit' entry.id %}" 
+                                       class="btn btn-sm btn-warning" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" 
+                                            onclick="deleteEntry({{ entry.id }})" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted">Aucun horaire trouvé</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Pagination">
+                <ul class="pagination justify-content-center mt-4">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Première</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Précédent</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Suivant</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Dernière</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteEntry(entryId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet horaire ?')) {
+        fetch(`/attribution/schedule/entry/${entryId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression: ' + (data.message || 'Erreur inconnue'));
+            }
+        })
+        .catch(error => {
+            alert('Erreur réseau');
+            console.error(error);
+        });
+    }
+}
+</script>
+{% endblock %}

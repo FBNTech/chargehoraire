@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi des Enseignements - Impression</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            font-size: 12px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .header p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .info {
+            margin-bottom: 20px;
+        }
+        .info-box {
+            display: inline-block;
+            width: 30%;
+            margin-right: 3%;
+            vertical-align: top;
+            border: 1px solid #ddd;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            font-size: 14px;
+        }
+        .info-box p {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 10px;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        .status-completed {
+            color: green;
+            font-weight: bold;
+        }
+        .status-in_progress {
+            color: orange;
+            font-weight: bold;
+        }
+        .status-not_started {
+            color: red;
+            font-weight: bold;
+        }
+        @media print {
+            body {
+                padding: 0;
+                font-size: 10px;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Suivi des Enseignements</h1>
+        <p>Rapport généré le {{ current_date|date:"d/m/Y H:i" }}</p>
+        <p>Année académique: {{ academic_year }}</p>
+    </div>
+
+    <div class="info">
+        <div class="info-box">
+            <h3>Total des heures réalisées</h3>
+            <p>{{ summary.total_hours }} heures</p>
+        </div>
+        <div class="info-box">
+            <h3>Progression globale</h3>
+            <p>{{ summary.progress_percentage }}%</p>
+        </div>
+        <div class="info-box">
+            <h3>Nombre d'enregistrements</h3>
+            <p>{{ object_list|length }}</p>
+        </div>
+    </div>
+
+    {% if filter_applied %}
+    <div class="info" style="margin-bottom: 20px;">
+        <strong>Filtres appliqués:</strong>
+        {% if selected_teacher %}<span>Enseignant: {{ selected_teacher.nom }} {{ selected_teacher.prenoms }}</span>{% endif %}
+        {% if selected_course %}<span>UE: {{ selected_course.code_ue }} - {{ selected_course.intitule_ue }}</span>{% endif %}
+        {% if selected_week %}<span>Semaine: {{ selected_week.designation }} ({{ selected_week.date_debut|date:"d/m/Y" }})</span>{% endif %}
+        {% if selected_status %}<span>Statut: {{ selected_status }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Semaine</th>
+                <th>Enseignant</th>
+                <th>UE</th>
+                <th>Heures réalisées</th>
+                <th>Status</th>
+                <th>Date d'enregistrement</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for progress in object_list %}
+            <tr>
+                <td>{{ progress.week.designation }} ({{ progress.week.date_debut|date:"d/m/Y" }})</td>
+                <td>{{ progress.teacher.nom }} {{ progress.teacher.prenoms }}</td>
+                <td>{{ progress.course.code_ue }} - {{ progress.course.intitule_ue }}</td>
+                <td>{{ progress.hours_done }}</td>
+                <td>
+                    {% if progress.status == 'completed' %}
+                        <span class="status-completed">Terminé</span>
+                    {% elif progress.status == 'in_progress' %}
+                        <span class="status-in_progress">En cours</span>
+                    {% elif progress.status == 'not_started' %}
+                        <span class="status-not_started">Non démarré</span>
+                    {% endif %}
+                </td>
+                <td>{{ progress.created_at|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">Aucun enregistrement trouvé.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="3">Total</th>
+                <th>{{ summary.total_hours }}</th>
+                <th colspan="2"></th>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="no-print" style="margin-bottom: 20px; text-align: center;">
+        <button onclick="window.print()">Imprimer</button>
+        <button onclick="window.close()">Fermer</button>
+    </div>
+
+    <div class="footer">
+        <p>Système de Gestion des Charges Horaires &copy; {{ current_date|date:"Y" }}</p>
+    </div>
+
+    <script>
+        // Lancer l'impression automatiquement à l'ouverture de la page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Petit délai pour s'assurer que tout est chargé
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

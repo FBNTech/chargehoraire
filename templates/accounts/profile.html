@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <!-- Informations du profil -->
+    <div class="col-lg-4">
+      <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Profil</h5>
+        </div>
+        <div class="card-body text-center">
+          {% if profile_user.profile.profile_picture %}
+            <img src="{{ profile_user.profile.profile_picture.url }}" alt="Photo de profil" class="img-thumbnail rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+          {% else %}
+            <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+              <i class="fas fa-user fa-4x text-secondary"></i>
+            </div>
+          {% endif %}
+          
+          <h4>{{ profile_user.first_name }} {{ profile_user.last_name }}</h4>
+          <p class="text-muted">@{{ profile_user.username }}</p>
+          
+          <div class="mb-3">
+            {% if profile_user.profile.is_admin %}
+              <span class="badge bg-danger">Administrateur</span>
+            {% endif %}
+            {% if profile_user.profile.is_enseignant %}
+              <span class="badge bg-primary">Enseignant</span>
+              {% if profile_user.profile.matricule_enseignant %}
+                <p class="text-muted mt-2">Matricule: {{ profile_user.profile.matricule_enseignant }}</p>
+              {% endif %}
+            {% endif %}
+            {% if profile_user.profile.is_etudiant %}
+              <span class="badge bg-success">Étudiant</span>
+              {% if profile_user.profile.matricule_etudiant %}
+                <p class="text-muted mt-2">Matricule: {{ profile_user.profile.matricule_etudiant }}</p>
+              {% endif %}
+            {% endif %}
+            {% if profile_user.profile.is_personnel_admin %}
+              <span class="badge bg-info">Personnel administratif</span>
+            {% endif %}
+          </div>
+          
+          <a href="{% url 'accounts:profile_edit' %}" class="btn btn-outline-primary">
+            <i class="fas fa-edit me-1"></i> Modifier le profil
+          </a>
+        </div>
+      </div>
+      
+      <div class="card shadow mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">Contact</h5>
+        </div>
+        <div class="card-body">
+          <p><i class="fas fa-envelope me-2"></i> {{ profile_user.email }}</p>
+          {% if profile_user.profile.phone_number %}
+            <p><i class="fas fa-phone me-2"></i> {{ profile_user.profile.phone_number }}</p>
+          {% endif %}
+          {% if profile_user.profile.address %}
+            <p><i class="fas fa-map-marker-alt me-2"></i> {{ profile_user.profile.address }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- Informations détaillées -->
+    <div class="col-lg-8">
+      <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Informations détaillées</h5>
+          <div>
+            <a href="{% url 'accounts:password_change' %}" class="btn btn-light btn-sm">
+              <i class="fas fa-key me-1"></i> Changer de mot de passe
+            </a>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Prénom</h6>
+              <p>{{ profile_user.first_name }}</p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Nom</h6>
+              <p>{{ profile_user.last_name }}</p>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Nom d'utilisateur</h6>
+              <p>{{ profile_user.username }}</p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Email</h6>
+              <p>{{ profile_user.email }}</p>
+            </div>
+          </div>
+          
+          {% if profile_user.profile.is_enseignant %}
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Département</h6>
+              <p>{{ profile_user.profile.departement|default:"Non spécifié" }}</p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Grade</h6>
+              <p>{{ profile_user.profile.grade|default:"Non spécifié" }}</p>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if profile_user.profile.is_etudiant %}
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Classe</h6>
+              <p>{{ profile_user.profile.classe|default:"Non spécifié" }}</p>
+            </div>
+          </div>
+          {% endif %}
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Date d'inscription</h6>
+              <p>{{ profile_user.date_joined|date:"d/m/Y" }}</p>
+            </div>
+            <div class="col-md-6 mb-3">
+              <h6 class="text-muted">Dernière connexion</h6>
+              <p>{{ profile_user.last_login|date:"d/m/Y H:i"|default:"Jamais" }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Section pour les administrateurs -->
+      {% if profile_user.is_staff or profile_user.profile.is_admin %}
+      <div class="card shadow mb-4">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0">Administration</h5>
+        </div>
+        <div class="card-body">
+          <p>En tant qu'administrateur, vous avez accès aux fonctionnalités suivantes :</p>
+          <div class="list-group">
+            <a href="{% url 'accounts:user_list' %}" class="list-group-item list-group-item-action">
+              <i class="fas fa-users me-2"></i> Gestion des utilisateurs
+            </a>
+            <a href="{% url 'accounts:user_create' %}" class="list-group-item list-group-item-action">
+              <i class="fas fa-user-plus me-2"></i> Créer un nouvel utilisateur
+            </a>
+            <a href="{% url 'admin:index' %}" class="list-group-item list-group-item-action">
+              <i class="fas fa-cogs me-2"></i> Interface d'administration
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

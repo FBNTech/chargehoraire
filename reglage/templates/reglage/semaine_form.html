@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} une Semaine de Cours{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-calendar-week"></i>
+                        {% if form.instance.pk %}Modifier{% else %}Créer{% endif %} une Semaine de Cours
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Numéro de Semaine <span class="text-danger">*</span></label>
+                                {{ form.numero_semaine }}
+                                <div class="form-text">Ex: 1, 2, 3...</div>
+                                {% if form.numero_semaine.errors %}
+                                    <div class="text-danger">{{ form.numero_semaine.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label fw-bold">Année Académique</label>
+                                {{ form.annee_academique }}
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle"></i> L'année en cours est pré-sélectionnée automatiquement
+                                </div>
+                                {% if form.annee_academique.errors %}
+                                    <div class="text-danger">{{ form.annee_academique.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-magic"></i>
+                            <strong>Génération automatique :</strong> La désignation sera créée automatiquement à partir du numéro de semaine et de l'année (ex: "Semaine 1 - 2024-2025")
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Date Début <span class="text-danger">*</span></label>
+                                {{ form.date_debut }}
+                                <div class="form-text">
+                                    <i class="fas fa-exclamation-circle text-danger"></i> Doit être un <strong>LUNDI</strong>
+                                </div>
+                                {% if form.date_debut.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.date_debut.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Date Fin <span class="text-danger">*</span></label>
+                                {{ form.date_fin }}
+                                <div class="form-text">
+                                    <i class="fas fa-exclamation-circle text-danger"></i> Doit être un <strong>SAMEDI</strong>
+                                </div>
+                                {% if form.date_fin.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.date_fin.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Remarques</label>
+                            {{ form.remarques }}
+                            {% if form.remarques.errors %}
+                                <div class="text-danger">{{ form.remarques.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.est_en_cours }}
+                                <label class="form-check-label" for="{{ form.est_en_cours.id_for_label }}">
+                                    <strong>Marquer comme semaine en cours</strong>
+                                </label>
+                                <div class="form-text">Si cochée, cette semaine sera la semaine active. Les autres semaines seront automatiquement désactivées.</div>
+                            </div>
+                            {% if form.est_en_cours.errors %}
+                                <div class="text-danger">{{ form.est_en_cours.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>IMPORTANT : Règle des semaines</strong>
+                            <ul class="mb-0">
+                                <li>Les semaines commencent toujours un <strong>LUNDI</strong></li>
+                                <li>Les semaines se terminent toujours un <strong>SAMEDI</strong></li>
+                                <li>Une semaine de cours = 6 jours (Lundi → Samedi)</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Exemple valide :</strong>
+                            <ul class="mb-0">
+                                <li><strong>Numéro :</strong> 1</li>
+                                <li><strong>Année :</strong> 2024-2025 (pré-sélectionnée si en cours)</li>
+                                <li><strong>Date Début :</strong> 14/10/2024 (Lundi) ✓</li>
+                                <li><strong>Date Fin :</strong> 19/10/2024 (Samedi) ✓</li>
+                                <li><strong>Désignation auto :</strong> "Semaine 1 - 2024-2025"</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'reglage:semaine_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Les styles Bootstrap sont maintenant appliqués via le formulaire */
+    input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.5rem;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="card-title text-center mb-4">Autorisation d'absence pour enseignant</h2>
+
+          <form method="post" class="mx-auto" style="max-width: 720px;">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {% for error in form.non_field_errors %}
+                {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="mb-2">
+              {{ form.teacher.label_tag }}
+              {{ form.teacher }}
+              {% if form.teacher.errors %}
+              <div class="text-danger">{% for e in form.teacher.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <!-- Aperçu des informations de l'enseignant -->
+            <div id="teacher-preview" class="card mb-3" style="display: none;">
+              <div class="card-header py-2">
+                <h6 class="mb-0">Informations de l'enseignant</h6>
+              </div>
+              <div class="card-body py-2">
+                <div class="row g-2">
+                  <div class="col-md-6"><strong>Matricule:</strong> <span id="pv-matricule">-</span></div>
+                  <div class="col-md-6"><strong>Grade:</strong> <span id="pv-grade">-</span></div>
+                  <div class="col-md-6"><strong>Fonction:</strong> <span id="pv-fonction">-</span></div>
+                  <div class="col-md-6"><strong>Section:</strong> <span id="pv-section">-</span></div>
+                  <div class="col-12"><strong>Département:</strong> <span id="pv-departement">-</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row mb-2">
+              <div class="col-md-6">
+                {{ form.periode_debut.label_tag }}
+                {{ form.periode_debut }}
+                {% if form.periode_debut.errors %}
+                <div class="text-danger">{% for e in form.periode_debut.errors %}{{ e }}{% endfor %}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                {{ form.periode_fin.label_tag }}
+                {{ form.periode_fin }}
+                {% if form.periode_fin.errors %}
+                <div class="text-danger">{% for e in form.periode_fin.errors %}{{ e }}{% endfor %}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-2">
+              {{ form.motif.label_tag }}
+              {{ form.motif }}
+              {% if form.motif.errors %}
+              <div class="text-danger">{% for e in form.motif.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-2">
+              {{ form.destination.label_tag }}
+              {{ form.destination }}
+              {% if form.destination.errors %}
+              <div class="text-danger">{% for e in form.destination.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-2">
+              {{ form.disposition_cours.label_tag }}
+              {{ form.disposition_cours }}
+              {% if form.disposition_cours.errors %}
+              <div class="text-danger">{% for e in form.disposition_cours.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.disposition_stage.label_tag }}
+              {{ form.disposition_stage }}
+              {% if form.disposition_stage.errors %}
+              <div class="text-danger">{% for e in form.disposition_stage.errors %}{{ e }}{% endfor %}</div>
+              {% endif %}
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'gestion_administrative:liste_absences' %}" class="btn btn-info">
+                Voir les absences enregistrées
+              </a>
+              <div class="d-flex gap-2">
+                <a href="{% url 'gestion_administrative:dashboard' %}" class="btn btn-secondary">Annuler</a>
+                <button type="submit" class="btn btn-primary">Générer le PDF</button>
+              </div>
+            </div>
+          </form>
+
+          {{ teachers_info|json_script:"teachers-info-data" }}
+          <script>
+            (function() {
+              const dataEl = document.getElementById('teachers-info-data');
+              if (!dataEl) return;
+              let teachers = [];
+              try {
+                teachers = JSON.parse(dataEl.textContent);
+              } catch (e) { /* noop */ }
+
+              const select = document.getElementById('id_teacher');
+              const preview = document.getElementById('teacher-preview');
+              const pvMatricule = document.getElementById('pv-matricule');
+              const pvGrade = document.getElementById('pv-grade');
+              const pvFonction = document.getElementById('pv-fonction');
+              const pvSection = document.getElementById('pv-section');
+              const pvDepartement = document.getElementById('pv-departement');
+
+              function updatePreview() {
+                const id = select && select.value ? parseInt(select.value, 10) : null;
+                const t = teachers.find(x => x.id === id);
+                if (t) {
+                  pvMatricule.textContent = t.matricule || '-';
+                  pvGrade.textContent = (t.grade_designation || t.grade || '-')
+                    .toString();
+                  pvFonction.textContent = (t.fonction_designation || t.fonction || '-')
+                    .toString();
+                  pvSection.textContent = t.section || '-';
+                  pvDepartement.textContent = (t.departement_designation || t.departement || '-')
+                    .toString();
+                  preview.style.display = '';
+                } else {
+                  preview.style.display = 'none';
+                }
+              }
+
+              if (select) {
+                select.addEventListener('change', updatePreview);
+                // Init if a value is pre-selected (e.g., validation errors)
+                updatePreview();
+              }
+            })();
+          </script>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

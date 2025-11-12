@@ -1,0 +1,101 @@
+/* Styles pour rendre les tableaux responsives sous forme de cartes */
+@media screen and (max-width: 768px) {
+    .table-responsive-cards {
+        border: 0;
+    }
+
+    .table-responsive-cards thead {
+        border: none;
+        clip: rect(0 0 0 0);
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        padding: 0;
+        position: absolute;
+        width: 1px;
+    }
+
+    .table-responsive-cards tr {
+        border-bottom: 3px solid #ddd;
+        display: block;
+        margin-bottom: .625em;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        border-radius: 5px;
+        padding: .8em;
+        background: #fff;
+    }
+
+    .table-responsive-cards td {
+        border-bottom: 1px solid #ddd;
+        display: block;
+        font-size: .9em;
+        text-align: right;
+        padding: 8px;
+    }
+
+    .table-responsive-cards td::before {
+        content: attr(data-label);
+        float: left;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-right: 10px;
+    }
+
+    .table-responsive-cards td:last-child {
+        border-bottom: 0;
+    }
+    
+    .table-responsive-cards td .btn-group {
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
+    }
+    
+    /* Amélioration des badges dans les cards */
+    .table-responsive-cards td .badge {
+        display: inline-block;
+        margin-left: auto;
+    }
+    
+    /* Meilleur espacement pour les éléments */
+    .table-responsive-cards td strong {
+        font-weight: 600;
+    }
+}
+
+/* Styles généraux pour les cards de cours et enseignants (dashboard tracking) */
+@media (max-width: 768px) {
+    .course-card, .teacher-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .course-card:hover, .teacher-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* Optimisation des statistiques en haut */
+    .col-auto {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+/* Amélioration responsive des filtres */
+@media (max-width: 576px) {
+    .card-body .row.g-2 > [class*='col-'] {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    /* Boutons d'action responsive */
+    .btn-group {
+        flex-wrap: nowrap;
+    }
+    
+    /* Cartes des statistiques plus compactes */
+    .card-body.py-1 {
+        padding: 0.5rem !important;
+    }
+}

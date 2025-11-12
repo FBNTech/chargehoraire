@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow">
+        <div class="card-header bg-success text-white text-center">
+          <h4 class="mb-0">Déconnexion</h4>
+        </div>
+        <div class="card-body text-center">
+          <div class="mb-4">
+            <i class="fas fa-check-circle fa-4x text-success"></i>
+          </div>
+          
+          <h5 class="mb-3">Vous avez été déconnecté avec succès</h5>
+          <p>Merci d'avoir utilisé notre application.</p>
+          
+          <hr class="my-4">
+          <a href="{% url 'accounts:login' %}" class="btn btn-primary">
+            <i class="fas fa-sign-in-alt me-2"></i>Se reconnecter
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

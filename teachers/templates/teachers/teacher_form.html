@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{% if is_update %}Modifier{% else %}Ajouter{% endif %} un Enseignant</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        <div class="row justify-content-center mb-4">
+                            <div class="col-8 col-md-6">
+                                <div class="photo-placeholder" id="photoPlaceholder">
+                                    {% if teacher.photo %}
+                                        <img src="{{ teacher.photo.url }}" style="max-width: 100%; max-height: 150px;">
+                                    {% else %}
+                                        <i class="fas fa-camera fa-2x"></i>
+                                        <span class="d-block mt-2">{% if is_update %}Modifier{% else %}Ajouter{% endif %} une photo</span>
+                                    {% endif %}
+                                </div>
+                                <input type="file" id="id_photo" name="photo" class="d-none">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.matricule }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.nom_complet }}
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <select name="fonction" class="form-select" id="{{ form.fonction.id_for_label }}">
+                                    <option value="" selected disabled>Sélectionner une fonction</option>
+                                    {% for value, label in form.fonction.field.choices %}
+                                        {% if value %}
+                                            <option value="{{ value }}" {% if form.fonction.value == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if form.fonction.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.fonction.errors|join:", " }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <select name="grade" class="form-select" id="{{ form.grade.id_for_label }}">
+                                    <option value="" selected disabled>Sélectionner un grade</option>
+                                    {% for value, label in form.grade.field.choices %}
+                                        {% if value %}
+                                            <option value="{{ value }}" {% if form.grade.value == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if form.grade.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.grade.errors|join:", " }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <select name="categorie" class="form-select" id="{{ form.categorie.id_for_label }}">
+                                    <option value="" selected disabled>Sélectionner une catégorie</option>
+                                    {% for value, label in form.categorie.field.choices %}
+                                        {% if value %}
+                                            <option value="{{ value }}" {% if form.categorie.value == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if form.categorie.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.categorie.errors|join:", " }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <select name="departement" class="form-select" id="{{ form.departement.id_for_label }}">
+                                    <option value="" selected disabled>Sélectionner un département</option>
+                                    {% for value, label in form.departement.field.choices %}
+                                        {% if value %}
+                                            <option value="{{ value }}" {% if form.departement.value == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                {% if form.departement.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.departement.errors|join:", " }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            {{ form.section }}
+                            {% if form.section.errors %}
+                                <div class="invalid-feedback d-block">{{ form.section.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-success" name="submit">
+                                <i class="fas fa-save"></i> {% if is_update %}Modifier{% else %}Enregistrer{% endif %}
+                            </button>
+                            <a href="{% url 'teachers:list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.photo-placeholder {
+    width: 150px;
+    height: 150px;
+    border: 2px dashed #ccc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    cursor: pointer;
+    border-radius: 50%;
+    background-color: #f8f9fa;
+}
+
+.photo-placeholder:hover {
+    border-color: #007bff;
+    background-color: #e9ecef;
+}
+
+.photo-placeholder img {
+    border-radius: 50%;
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+}
+</style>
+
+<script>
+document.getElementById('photoPlaceholder').addEventListener('click', function() {
+    document.getElementById('id_photo').click();
+});
+
+document.getElementById('id_photo').addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+        var reader = new FileReader();
+        
+        reader.onload = function(e) {
+            var placeholder = document.getElementById('photoPlaceholder');
+            placeholder.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 150px;">';
+        }
+        
+        reader.readAsDataURL(e.target.files[0]);
+    }
+});
+
+// Fonction pour mettre à jour le champ section en fonction du département sélectionné
+document.addEventListener('DOMContentLoaded', function() {
+    const departementSelect = document.getElementById('{{ form.departement.id_for_label }}');
+    const sectionInput = document.getElementById('{{ form.section.id_for_label }}');
+    
+    // Fonction pour mettre à jour la section
+    function updateSection() {
+        const departementCode = departementSelect.value;
+        
+        if (!departementCode) {
+            sectionInput.value = '';
+            return;
+        }
+        
+        // Appel AJAX pour récupérer la section
+        fetch(`{% url 'teachers:get_section_by_departement' %}?departement=${departementCode}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.section_designation) {
+                    sectionInput.value = data.section_designation;
+                } else {
+                    sectionInput.value = '';
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération de la section:', error);
+                sectionInput.value = '';
+            });
+    }
+    
+    // Écouter les changements du département
+    departementSelect.addEventListener('change', updateSection);
+    
+    // Mettre à jour la section au chargement si un département est déjà sélectionné
+    if (departementSelect.value) {
+        updateSection();
+    }
+});
+</script>
+{% endblock %}

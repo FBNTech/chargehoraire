@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="card-title">Progression du cours: {{ course.code_ue }} - {{ course.intitule_ue }}</h2>
+                        <a href="{% url 'tracking:progress_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Retour
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques du cours -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Heures attribuées</h5>
+                    <h1 class="display-4 text-primary text-center">{{ stats.hours_allocated }}</h1>
+                    <p class="text-muted text-center">heures</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Heures réalisées</h5>
+                    <h1 class="display-4 text-success text-center">{{ stats.hours_done }}</h1>
+                    <p class="text-muted text-center">heures</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Heures restantes</h5>
+                    <h1 class="display-4 text-warning text-center">{{ stats.hours_remaining }}</h1>
+                    <p class="text-muted text-center">heures</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Progression</h5>
+                    <div class="progress mt-4" style="height: 30px;">
+                        <div class="progress-bar {% if stats.progress_percentage > 90 %}bg-danger{% elif stats.progress_percentage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ stats.progress_percentage }}%;"
+                             aria-valuenow="{{ stats.progress_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ stats.progress_percentage }}%
+                        </div>
+                    </div>
+                    <p class="text-muted text-center mt-2">des heures prévues</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'évolution -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Évolution hebdomadaire des heures d'enseignement</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="courseProgressChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des enseignants et leurs contributions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Contributions des enseignants</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Enseignant</th>
+                                    <th>Grade</th>
+                                    <th>Heures réalisées</th>
+                                    <th>Pourcentage du total</th>
+                                    <th>Dernière activité</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for teacher in teachers %}
+                                <tr>
+                                    <td>{{ teacher.teacher.nom }} {{ teacher.teacher.prenoms }}</td>
+                                    <td>{{ teacher.teacher.grade.designation }}</td>
+                                    <td>{{ teacher.hours_done }}</td>
+                                    <td>{{ teacher.percentage }}%</td>
+                                    <td>{{ teacher.last_activity|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'tracking:teacher_progress' teacher.teacher.id %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-chart-line"></i> Détails
+                                            </a>
+                                            <a href="{% url 'tracking:progress_add' %}?teacher={{ teacher.teacher.id }}&course={{ course.id }}" class="btn btn-sm btn-success">
+                                                <i class="fas fa-plus"></i> Ajouter
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Aucun enseignant n'a encore contribué à ce cours.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historique des enregistrements -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Historique des enregistrements</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Semaine</th>
+                                    <th>Enseignant</th>
+                                    <th>Heures réalisées</th>
+                                    <th>Status</th>
+                                    <th>Date d'enregistrement</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for progress in progress_entries %}
+                                <tr>
+                                    <td>{{ progress.week.designation }} ({{ progress.week.date_debut|date:"d/m/Y" }})</td>
+                                    <td>{{ progress.teacher.nom }} {{ progress.teacher.prenoms }}</td>
+                                    <td>{{ progress.hours_done }}</td>
+                                    <td>
+                                        {% if progress.status == 'completed' %}
+                                            <span class="badge bg-success">Terminé</span>
+                                        {% elif progress.status == 'in_progress' %}
+                                            <span class="badge bg-warning">En cours</span>
+                                        {% elif progress.status == 'not_started' %}
+                                            <span class="badge bg-danger">Non démarré</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ progress.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'tracking:progress_detail' progress.id %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'tracking:progress_edit' progress.id %}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'tracking:progress_delete' progress.id %}" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Aucun enregistrement trouvé pour ce cours.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Graphique d'évolution hebdomadaire pour ce cours
+    fetch('{% url "tracking:chart_data" %}?type=course&course_id={{ course.id }}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('courseProgressChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Heures d\'enseignement réalisées par semaine'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Nombre d\'heures'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Semaine'
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Erreur lors du chargement des données du graphique:', error));
+});
+</script>
+{% endblock %}

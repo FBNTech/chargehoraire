@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-md-8 offset-md-2">
+      <div class="card">
+        <div class="card-header bg-danger text-white">
+          <h3 class="mb-0">Confirmation de suppression</h3>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Attention ! Cette action ne peut pas être annulée.
+          </div>
+          
+          <h4 class="mb-3">Êtes-vous sûr de vouloir supprimer la publication suivante ?</h4>
+          
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title">{{ publication.titre }}</h5>
+              <p class="card-text">
+                <span class="badge {% if publication.type == 'article' %}bg-info{% elif publication.type == 'livre' %}bg-success{% elif publication.type in 'these,memoire' %}bg-danger{% elif publication.type == 'communication' %}bg-warning{% else %}bg-secondary{% endif %}">
+                  {{ publication.get_type_display }}
+                </span>
+              </p>
+              <p class="card-text">
+                <strong>Date de publication:</strong> {{ publication.date_publication|date:"d/m/Y" }}
+              </p>
+              <p class="card-text">
+                <strong>Auteurs:</strong>
+                {% for auteur in publication.auteurs.all %}
+                  {{ auteur.nom_complet }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </p>
+              {% if publication.description %}
+                <p class="card-text">
+                  <strong>Description:</strong><br>
+                  {{ publication.description|truncatechars:150 }}
+                </p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'publications:publication_detail' publication.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Annuler
+              </a>
+              <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Confirmer la suppression
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

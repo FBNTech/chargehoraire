@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport des Matières</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.3;
+            background: white;
+            color: black;
+        }
+        .container-fluid {
+            padding: 0;
+            width: 100%;
+            max-width: none;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .header h2 {
+            color: #666;
+            font-size: 16px;
+            margin: 0;
+        }
+        .dashboard {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            width: calc(25% - 12px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stat-card h3 {
+            font-size: 12px;
+            color: #666;
+            margin: 0 0 5px 0;
+        }
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .table-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        th {
+            background-color: #0d6efd;
+            color: white;
+            font-weight: bold;
+            padding: 6px 4px;
+            font-size: 11px;
+            text-align: left;
+            vertical-align: middle;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+        td {
+            padding: 6px 4px;
+            border: 1px solid #dee2e6;
+            font-size: 10px;
+            vertical-align: top;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+        /* Définir la largeur des colonnes */
+        th:nth-child(1), td:nth-child(1) { width: 10%; } /* Code UE */
+        th:nth-child(2), td:nth-child(2) { width: 15%; } /* Intitulé UE */
+        th:nth-child(3), td:nth-child(3) { width: 15%; } /* Intitulé EC */
+        th:nth-child(4), td:nth-child(4) { width: 8%; } /* Crédits */
+        th:nth-child(5), td:nth-child(5) { width: 8%; } /* CMI */
+        th:nth-child(6), td:nth-child(6) { width: 12%; } /* TD/TP */
+        th:nth-child(7), td:nth-child(7) { width: 10%; } /* Classe */
+        th:nth-child(8), td:nth-child(8) { width: 10%; } /* Semestre */
+
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            position: running(footer);
+        }
+        @media print {
+            body {
+                width: 21cm;
+                min-height: 29.7cm;
+                margin: 0;
+                padding: 0;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="header">
+            <h1>Rapport des Matières</h1>
+            {% if departement %}
+            <h2>Département : {{ departement }}</h2>
+            {% endif %}
+        </div>
+
+        <div class="dashboard">
+            <div class="stat-card">
+                <h3>Total des Cours</h3>
+                <div class="stat-value">{{ total_cours }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Crédits</h3>
+                <div class="stat-value">{{ total_credits }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total CMI</h3>
+                <div class="stat-value">{{ total_cmi }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total TD/TP</h3>
+                <div class="stat-value">{{ total_td_tp }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Moyenne Crédits</h3>
+                <div class="stat-value">{{ moyenne_credits }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Moyenne CMI</h3>
+                <div class="stat-value">{{ moyenne_cmi }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Moyenne TD/TP</h3>
+                <div class="stat-value">{{ moyenne_td_tp }}</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code UE</th>
+                        <th>Intitulé UE</th>
+                        <th>Intitulé EC</th>
+                        <th>Crédit</th>
+                        <th>CMI</th>
+                        <th>TD/TP</th>
+                        <th>Classe</th>
+                        <th>Semestre</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for matiere in matieres %}
+                    <tr>
+                        <td>{{ matiere.code_ue }}</td>
+                        <td>{{ matiere.intitule_ue }}</td>
+                        <td>{{ matiere.intitule_ec }}</td>
+                        <td>{{ matiere.credit }}</td>
+                        <td>{{ matiere.cmi }}</td>
+                        <td>{{ matiere.td_tp }}</td>
+                        <td>{{ matiere.classe }}</td>
+                        <td>{{ matiere.semestre }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>Document généré le {% now "j F Y à H:i" %}</p>
+        </div>
+    </div>
+</body>
+</html>

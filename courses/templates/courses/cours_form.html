@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Modifier un cours
+    {% else %}
+        Ajouter un cours
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    {% if form.instance.pk %}
+                        <h4 class="mb-0">Modifier un cours</h4>
+                    {% else %}
+                        <h4 class="mb-0">Ajouter un cours</h4>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.code_ue|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.departement|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{ form.intitule_ue|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                {{ form.intitule_ec|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.classe|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.semestre|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.credit|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.cmi|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.td_tp|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'courses:list' %}" class="btn btn-secondary">Annuler</a>
+                            <button type="submit" class="btn btn-success">
+                                {% if form.instance.pk %}
+                                    Mettre à jour
+                                {% else %}
+                                    Enregistrer
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

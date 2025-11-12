@@ -1,0 +1,832 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <form id="chargeForm" method="GET" action="{% url 'attribution:liste_charges' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <select class="form-control" id="teacher_name" name="teacher_name">
+                                <option value="">Sélectionner un enseignant</option>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}"
+                                        data-matricule="{{ teacher.matricule }}"
+                                        data-grade="{{ teacher.grade }}">
+                                    {{ teacher.nom_complet }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher_matricule" name="teacher_matricule"
+                                   readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher-grade" name="teacher_grade"
+                                   readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <select class="form-control text-center" id="teacher_academic_year" name="teacher_academic_year" required>
+                                <option value="">Année académique</option>
+                                {% for year in academic_years %}
+                                <option value="{{ year }}" {% if year == annee_courante %}selected{% endif %}>
+                                    {{ year }}{% if year == annee_courante %} ★{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <select class="form-control" id="type_charge" name="type_charge">
+                                <option value="">Sélectionner type charge</option>
+                                <option value="Reguliere">Reguliere</option>
+                                <option value="Supplementaire">Supplementaire</option>
+                            </select>
+                        </div>
+                        
+                        <div class="text-end">
+                            <div class="col-12 text-center">
+                                <button type="submit" id="rechercher-btn" class="btn btn-secondary w-100 mb-3" style="background-color: #4CAF50; color: white;">
+                                    <i class="fa-sharp-duotone fa-solid fa-search"></i> Rechercher
+                                </button>
+                            </div>
+                            <div class="col-12 text-center mb-2">
+                                <button type="button" id="imprimer-btn" class="btn btn-secondary w-100" style="background-color: #181c34; color: white;">
+                                    <i class="fas fa-print"></i> Imprimer (Enseignant)
+                                </button>
+                            </div>
+                            <div class="col-12 text-center mb-2">
+                                <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#imprimerSectionModal">
+                                    <i class="fas fa-file-pdf"></i> Imprimer par Section
+                                </button>
+                            </div>
+                            <div class="col-12 text-center">
+                                <button type="button" id="heures-supp-btn" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#heuresSuppModal">
+                                    <i class="fas fa-chart-bar"></i> Heures Suppl. par Grade
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span id="selected-teacher-name" class="badge bg-light text-dark"></span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-auto">
+                            <div class="card bg-info text-white" style="height: 70px; width: 120px;">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center p-1">
+                                    <h6 class="card-title fw-bold mb-0" style="font-size: 0.8rem;">Cours</h6>
+                                    <p class="card-text h5 fw-bold mb-0" id="total-cours">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-success text-white" style="height: 70px; width: 120px;">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center p-1">
+                                    <h6 class="card-title fw-bold mb-0" style="font-size: 0.8rem;">Total CMI</h6>
+                                    <p class="card-text h5 fw-bold mb-0" id="total-cmi">0 h</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-warning text-white" style="height: 70px; width: 120px;">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center p-1">
+                                    <h6 class="card-title fw-bold mb-0" style="font-size: 0.8rem;">TP+TD</h6>
+                                    <p class="card-text h5 fw-bold mb-0" id="total-tp-td">0 h</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-danger text-white" style="height: 70px; width: 120px;">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center p-1">
+                                    <h6 class="card-title fw-bold mb-0" style="font-size: 0.8rem;">Crédits</h6>
+                                    <p class="card-text h5 fw-bold mb-0" id="total-credits">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-secondary text-white" style="height: 70px; width: 120px;">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center p-1">
+                                    <h6 class="card-title fw-bold mb-0" style="font-size: 0.8rem;">Total Charge</h6>
+                                    <p class="card-text h5 fw-bold mb-0" id="total-cmi-tp">0 h</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card bg-dark text-white" style="height: 70px; width: 120px;">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center p-1">
+                                    <h6 class="card-title fw-bold mb-0" style="font-size: 0.8rem;">Ens. avec charge</h6>
+                                    <p class="card-text h5 fw-bold mb-0" id="teachers-with-assignments">{{ teachers_with_assignments }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-5">
+                            <form method="GET" action="{% url 'attribution:liste_charges' %}" id="ue-search-form">
+                                {% csrf_token %}
+                                <div class="d-flex">
+                                    <select class="form-select form-select-sm" id="code_ue_search" name="code_ue">
+                                        <option value="">Sélectionner une UE</option>
+                                        {% for ue in cours_ues %}
+                                        <option value="{{ ue.code_ue }}" 
+                                                data-enseignants="{% for ens in ue_enseignants|dict_get:ue.code_ue %}{{ ens }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                                                {% if selected_code_ue == ue.code_ue %}selected{% endif %}>
+                                            {{ ue.code_ue }} - {{ ue.intitule_ue }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-primary btn-sm ms-2">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-1 d-block" id="ue-enseignant"></small>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered table-responsive-cards table-sm" id="charges-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Intitulé UE</th>
+                                    <th>Intitulé EC</th>
+                                    <th class="text-center">Crédit</th>
+                                    <th class="text-center">CMI</th>
+                                    <th class="text-center">TP+TD</th>
+                                    <th class="text-center">Classe</th>
+                                    <th class="text-center">Semestre</th>
+                                    <th class="text-center">Type</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attribution in attributions %}
+                                <tr data-matricule="{{ attribution.matricule.matricule }}" 
+                                    data-annee="{{ attribution.annee_academique }}" 
+                                    data-type-charge="{{ attribution.type_charge }}">
+                                    <td data-label="Intitulé UE">{{ attribution.code_ue.intitule_ue }}</td>
+                                    <td data-label="Intitulé EC">{{ attribution.code_ue.intitule_ec }}</td>
+                                    <td data-label="Crédit" class="text-center">{{ attribution.code_ue.credit }}</td>
+                                    <td data-label="CMI" class="text-center">{{ attribution.code_ue.cmi }}</td>
+                                    <td data-label="TP+TD" class="text-center">{{ attribution.code_ue.td_tp }}</td>
+                                    <td data-label="Classe" class="text-center"><span class="badge bg-primary">{{ attribution.code_ue.classe|default:"—" }}</span></td>
+                                    <td data-label="Semestre" class="text-center"><span class="badge bg-info">{{ attribution.code_ue.semestre|default:"—" }}</span></td>
+                                    <td data-label="Type" class="text-center"><span class="badge bg-secondary">{{ attribution.get_type_charge_display }}</span></td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'attribution:detail_attribution' attribution.id %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'attribution:edit_attribution' attribution.id %}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-danger delete-attribution" data-id="{{ attribution.id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center">
+                                        <div class="alert alert-info">
+                                            Aucune attribution de charge trouvée.
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Imprimer par Section -->
+<div class="modal fade" id="imprimerSectionModal" tabindex="-1" aria-labelledby="imprimerSectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="imprimerSectionModalLabel">
+                    <i class="fas fa-file-pdf"></i> Imprimer les Charges par Section
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sectionPrintForm">
+                    <div class="mb-3">
+                        <label for="annee-section" class="form-label">Année Académique <span class="text-danger">*</span></label>
+                        <select class="form-select" id="annee-section" required>
+                            <option value="">-- Sélectionner une année --</option>
+                            {% for year in academic_years %}
+                                <option value="{{ year }}" {% if year == annee_courante %}selected{% endif %}>
+                                    {{ year }}{% if year == annee_courante %} ★{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="section-select" class="form-label">Section d'Appartenance <span class="text-danger">*</span></label>
+                        <select class="form-select" id="section-select" required>
+                            <option value="">-- Sélectionner une section --</option>
+                            <option value="ALL">📋 Toutes les sections</option>
+                        </select>
+                        <div class="form-text">Sélectionnez la section ou toutes les sections</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="type-charge-section" class="form-label">Type de Charge</label>
+                        <select class="form-select" id="type-charge-section">
+                            <option value="">Tous les types</option>
+                            <option value="Reguliere">Régulière</option>
+                            <option value="Supplementaire">Supplémentaire</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Le PDF regroupera toutes les charges des enseignants par section d'appartenance.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-success" id="generer-pdf-section">
+                    <i class="fas fa-file-pdf"></i> Générer le PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Heures Supplémentaires par Grade -->
+<div class="modal fade" id="heuresSuppModal" tabindex="-1" aria-labelledby="heuresSuppModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="heuresSuppModalLabel">
+                    <i class="fas fa-chart-bar"></i> Heures Supplémentaires Attribuées par Grade
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="annee-filter" class="form-label">Filtrer par année académique:</label>
+                        <select class="form-select" id="annee-filter">
+                            <option value="">Toutes les années</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="section-filter" class="form-label">Filtrer par section:</label>
+                        <select class="form-select" id="section-filter">
+                            <option value="">Toutes les sections</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" id="filter-heures-supp">
+                            <i class="fas fa-filter"></i> Filtrer
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-danger w-100" id="imprimer-heures-supp-pdf">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="heures-supp-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Afficher l'enseignant lors de la sélection d'une UE
+        $('#code_ue_search').on('change', function() {
+            var selectedOption = $(this).find('option:selected');
+            var enseignants = selectedOption.data('enseignants');
+            
+            if (enseignants) {
+                $('#ue-enseignant').html('<i class="fas fa-user"></i> <strong>Enseignant(s) :</strong> ' + enseignants);
+            } else {
+                $('#ue-enseignant').html('');
+            }
+        });
+        
+        // Afficher l'enseignant si une UE est déjà sélectionnée
+        if ($('#code_ue_search').val()) {
+            $('#code_ue_search').trigger('change');
+        }
+        
+        // Remplir le matricule et le grade lors de la sélection de l'enseignant
+        $('#teacher_name').on('change', function() {
+            var selectedOption = $(this).find('option:selected');
+            $('#teacher_matricule').val(selectedOption.data('matricule'));
+            $('#teacher-grade').val(selectedOption.data('grade'));
+            
+            // Mettre à jour le nom et le grade de l'enseignant
+            var teacherName = selectedOption.text().trim();
+            var teacherGrade = $('#teacher-grade').val();
+            $('#selected-teacher-name').text(teacherGrade && teacherName ? teacherGrade + ' ' + teacherName : (teacherName || ''));
+        });
+
+        // Filtrage dynamique du tableau
+        function filtrerTableau() {
+            var matriculeFiltrer = $('#teacher_matricule').val();
+            var anneeAcademiqueFiltrer = $('#teacher_academic_year').val();
+            var typeChargeFiltrer = $('#type_charge').val();
+
+            $('#charges-table tbody tr').each(function() {
+                var matricule = $(this).data('matricule');
+                var annee = $(this).data('annee');
+                var typeCharge = $(this).data('type-charge');
+
+                var afficherLigne = true;
+
+                // Filtrer par matricule
+                if (matriculeFiltrer && matriculeFiltrer !== matricule) {
+                    afficherLigne = false;
+                }
+
+                // Filtrer par année académique
+                if (anneeAcademiqueFiltrer && anneeAcademiqueFiltrer !== annee) {
+                    afficherLigne = false;
+                }
+
+                // Filtrer par type de charge
+                if (typeChargeFiltrer && typeChargeFiltrer !== typeCharge) {
+                    afficherLigne = false;
+                }
+
+                // Afficher ou masquer la ligne
+                $(this).toggle(afficherLigne);
+            });
+
+            // Mettre à jour le nombre de résultats
+            var totalLignes = $('#charges-table tbody tr').length;
+            var lignesVisibles = $('#charges-table tbody tr:visible').length;
+            $('#total-resultats').text(lignesVisibles + ' / ' + totalLignes);
+        }
+
+        // Ajouter un écouteur d'événement pour le filtrage
+        $('#teacher_matricule, #teacher_academic_year, #type_charge').on('change', filtrerTableau);
+
+        // Gestion de l'impression
+        $('#imprimer-btn').on('click', function() {
+            // Récupérer les paramètres de recherche
+            var matricule = $('#teacher_matricule').val();
+            var anneeAcademique = $('#teacher_academic_year').val();
+            var typeCharge = $('#type_charge').val();
+
+            // Construire l'URL de génération de PDF
+            var pdfUrl = '{% url "attribution:generate_pdf" %}' + 
+                        '?matricule=' + encodeURIComponent(matricule) +
+                        '&annee_academique=' + encodeURIComponent(anneeAcademique) +
+                        '&type_charge=' + encodeURIComponent(typeCharge);
+
+            // Ouvrir le PDF dans un nouvel onglet
+            window.open(pdfUrl, '_blank');
+        });
+
+        // Calculer les statistiques dynamiques
+        function calculerStatistiques() {
+            var totalCours = 0;
+            var totalCmi = 0;
+            var totalTpTd = 0;
+            var totalCredits = 0;
+            var totalCmiTp = 0;
+
+            $('#charges-table tbody tr:visible').each(function() {
+                totalCours++;
+                
+                // Convertir les valeurs en nombres
+                var cmi = parseFloat($(this).find('td:nth-child(4)').text()) || 0;
+                var tpTd = parseFloat($(this).find('td:nth-child(5)').text()) || 0;
+                var credits = parseFloat($(this).find('td:nth-child(3)').text()) || 0;
+
+                totalCmi += cmi;
+                totalTpTd += tpTd;
+                totalCredits += credits;
+                totalCmiTp += (cmi + tpTd);
+            });
+
+            // Mettre à jour les statistiques
+            $('#total-cours').text(Math.round(totalCours));
+            $('#total-cmi').text(Math.round(totalCmi));
+            $('#total-tp-td').text(Math.round(totalTpTd));
+            $('#total-credits').text(Math.round(totalCredits));
+            $('#total-cmi-tp').text(Math.round(totalCmiTp));
+        }
+
+        // Appeler la fonction de calcul des statistiques après chaque filtrage
+        function filtrerTableau() {
+            var matriculeFiltrer = $('#teacher_matricule').val();
+            var anneeAcademiqueFiltrer = $('#teacher_academic_year').val();
+            var typeChargeFiltrer = $('#type_charge').val();
+
+            $('#charges-table tbody tr').each(function() {
+                var matricule = $(this).data('matricule');
+                var annee = $(this).data('annee');
+                var typeCharge = $(this).data('type-charge');
+
+                var afficherLigne = true;
+
+                // Filtrer par matricule
+                if (matriculeFiltrer && matriculeFiltrer !== matricule) {
+                    afficherLigne = false;
+                }
+
+                // Filtrer par année académique
+                if (anneeAcademiqueFiltrer && anneeAcademiqueFiltrer !== annee) {
+                    afficherLigne = false;
+                }
+
+                // Filtrer par type de charge
+                if (typeChargeFiltrer && typeChargeFiltrer !== typeCharge) {
+                    afficherLigne = false;
+                }
+
+                // Afficher ou masquer la ligne
+                $(this).toggle(afficherLigne);
+            });
+
+            // Mettre à jour le nombre de résultats
+            var totalLignes = $('#charges-table tbody tr').length;
+            var lignesVisibles = $('#charges-table tbody tr:visible').length;
+            $('#total-resultats').text(lignesVisibles + ' / ' + totalLignes);
+
+            // Calculer les statistiques
+            calculerStatistiques();
+        }
+
+        // Calculer les statistiques initiales
+        calculerStatistiques();
+
+        // Gestion de l'impression
+        $('#imprimer-btn').on('click', function() {
+            var teacherName = $('#selected-teacher-name').text();
+            var selectedYear = $('#teacher_academic_year').val();
+
+            // Créer un nouveau document PDF
+            var doc = new jspdf.jsPDF('landscape');
+
+            // Titre du document
+            doc.setFontSize(16);
+            doc.text('Liste des Attributions de Charge', 15, 15);
+
+            // Informations de l'enseignant
+            doc.setFontSize(12);
+            if (teacherName) {
+                doc.text('Enseignant: ' + teacherName, 15, 25);
+            }
+            if (selectedYear) {
+                doc.text('Année Académique: ' + selectedYear, 15, 35);
+            }
+
+            // Les statistiques ont été enlevées du PDF
+
+            // Générer le tableau
+            var columns = ['Intitulé UE', 'Intitulé EC', 'Crédit', 'CMI', 'TP+TD', 'Classe', 'Semestre', 'Type'];
+            var rows = [];
+
+            $('#charges-table tbody tr:visible').each(function() {
+                var rowData = [];
+                $(this).find('td').each(function(index) {
+                    if (index < 8) {  // Exclure la colonne Actions
+                        rowData.push($(this).text());
+                    }
+                });
+                rows.push(rowData);
+            });
+
+            doc.autoTable({
+                startY: 45,
+                head: [columns],
+                body: rows,
+                theme: 'striped',
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 }
+            });
+
+            // Ouvrir le PDF dans un nouvel onglet
+            var pdfUrl = doc.output('bloburl');
+            window.open(pdfUrl, '_blank');
+        });
+
+        // Gestion de la suppression d'attribution
+        $('.delete-attribution').on('click', function() {
+            var attributionId = $(this).data('id');
+            var row = $(this).closest('tr');
+
+            if (confirm('Voulez-vous vraiment supprimer cette attribution ?')) {
+                $.ajax({
+                    url: '{% url "attribution:delete_attribution" 0 %}'.replace('0', attributionId),
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success === true) {
+                            row.remove();
+                            // Mettre à jour le compteur de résultats
+                            var totalLignes = $('#charges-table tbody tr').length;
+                            $('#total-resultats').text(totalLignes + ' / ' + totalLignes);
+                            alert(response.message || 'Attribution supprimée avec succès');
+                        } else {
+                            alert('Erreur: ' + (response.error || 'Erreur lors de la suppression'));
+                        }
+                    },
+                    error: function(xhr) {
+                        var errorMsg = 'Erreur de communication avec le serveur';
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = xhr.responseJSON.error;
+                        }
+                        alert(errorMsg);
+                    }
+                });
+            }
+        });
+        
+        // ========== HEURES SUPPLÉMENTAIRES PAR GRADE ==========
+        
+        // Fonction pour charger les statistiques des heures supplémentaires
+        function chargerHeuresSupplementaires(annee = '') {
+            $.ajax({
+                url: '{% url "attribution:heures_supplementaires_grade" %}',
+                type: 'GET',
+                data: {
+                    annee_academique: annee
+                },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                beforeSend: function() {
+                    $('#heures-supp-content').html(`
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                        </div>
+                    `);
+                },
+                success: function(data) {
+                    console.log('Données reçues:', data);
+                    console.log('Années disponibles:', data.annees_disponibles);
+                    afficherStatistiques(data);
+                },
+                error: function(xhr, status, error) {
+                    $('#heures-supp-content').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Erreur lors du chargement des données: ${error}
+                        </div>
+                    `);
+                }
+            });
+        }
+        
+        // Fonction pour afficher les statistiques
+        function afficherStatistiques(data) {
+            var html = '';
+            
+            // Charger les sections disponibles
+            if (data.sections_disponibles && data.sections_disponibles.length > 0) {
+                $('#section-filter').find('option:not(:first)').remove();
+                data.sections_disponibles.forEach(function(section) {
+                    var selected = (data.section_selectionnee && data.section_selectionnee === section) ? ' selected' : '';
+                    $('#section-filter').append(`<option value="${section}"${selected}>${section}</option>`);
+                });
+            }
+            
+            // Vérifier s'il y a des données
+            if (!data.stats_par_grade || data.stats_par_grade.length === 0) {
+                html = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        Aucune attribution de charge supplémentaire trouvée.
+                    </div>
+                `;
+            } else {
+                // Tableau des statistiques
+                html = `
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Grade</th>
+                                    <th class="text-center">Nombre d'enseignants</th>
+                                    <th class="text-center">Nombre de cours</th>
+                                    <th class="text-center">Total CMI (h)</th>
+                                    <th class="text-center">Total TP+TD (h)</th>
+                                    <th class="text-center">Total Heures (h)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                // Ajouter les lignes des grades
+                data.stats_par_grade.forEach(function(stat) {
+                    html += `
+                        <tr>
+                            <td><strong>${stat.grade}</strong></td>
+                            <td class="text-center">${stat.nombre_enseignants}</td>
+                            <td class="text-center">${stat.nombre_cours}</td>
+                            <td class="text-center">${Math.round(stat.total_cmi)}</td>
+                            <td class="text-center">${Math.round(stat.total_td_tp)}</td>
+                            <td class="text-center"><strong>${Math.round(stat.total_heures)}</strong></td>
+                        </tr>
+                    `;
+                });
+                
+                // Ajouter la ligne des totaux
+                html += `
+                    </tbody>
+                    <tfoot class="table-info">
+                        <tr>
+                            <th>TOTAL</th>
+                            <th class="text-center">${data.totaux.nombre_enseignants}</th>
+                            <th class="text-center">${data.totaux.nombre_cours}</th>
+                            <th class="text-center">${Math.round(data.totaux.total_cmi)}</th>
+                            <th class="text-center">${Math.round(data.totaux.total_td_tp)}</th>
+                            <th class="text-center"><strong>${Math.round(data.totaux.total_heures)}</strong></th>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+                `;
+            }
+            
+            $('#heures-supp-content').html(html);
+            
+            // Remplir le sélecteur d'années
+            console.log('Années disponibles à ajouter:', data.annees_disponibles);
+            
+            if (data.annees_disponibles && data.annees_disponibles.length > 0) {
+                // Réinitialiser le select (garder seulement la première option "Toutes les années")
+                $('#annee-filter').find('option:not(:first)').remove();
+                
+                console.log('Remplissage du combo avec', data.annees_disponibles.length, 'années');
+                data.annees_disponibles.forEach(function(annee) {
+                    var selected = (data.annee_selectionnee && data.annee_selectionnee === annee) ? ' selected' : '';
+                    $('#annee-filter').append(`<option value="${annee}"${selected}>${annee}</option>`);
+                    console.log('Année ajoutée:', annee);
+                });
+                console.log('Nombre total d\'options après:', $('#annee-filter option').length);
+            } else {
+                console.log('Pas d\'années disponibles');
+            }
+        }
+        
+        // Charger les données quand le modal s'ouvre
+        $('#heuresSuppModal').on('show.bs.modal', function() {
+            chargerHeuresSupplementaires();
+        });
+        
+        // Filtrer par année et section
+        $('#filter-heures-supp').on('click', function() {
+            var annee = $('#annee-filter').val();
+            var section = $('#section-filter').val();
+            
+            $.ajax({
+                url: '{% url "attribution:heures_supplementaires_grade" %}',
+                type: 'GET',
+                data: {
+                    annee_academique: annee,
+                    section: section
+                },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(data) {
+                    afficherStatistiques(data);
+                },
+                error: function(xhr, status, error) {
+                    $('#heures-supp-content').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Erreur lors du chargement des données: ${error}
+                        </div>
+                    `);
+                }
+            });
+        });
+        
+        // Générer le PDF des heures supplémentaires
+        $('#imprimer-heures-supp-pdf').on('click', function() {
+            var annee = $('#annee-filter').val();
+            var section = $('#section-filter').val();
+            
+            // Construire l'URL
+            var url = '{% url "attribution:heures_supplementaires_grade" %}' + 
+                      '?format=pdf';
+            
+            if (annee) {
+                url += '&annee_academique=' + encodeURIComponent(annee);
+            }
+            if (section) {
+                url += '&section=' + encodeURIComponent(section);
+            } else {
+                url += '&section=ALL';
+            }
+            
+            // Ouvrir dans un nouvel onglet
+            window.open(url, '_blank');
+        });
+        
+        // Permettre le filtrage avec Enter
+        $('#annee-filter, #section-filter').on('keypress', function(e) {
+            if (e.which === 13) {
+                $('#filter-heures-supp').click();
+            }
+        });
+        
+        // ========== IMPRESSION PAR SECTION ==========
+        
+        // Charger les sections disponibles quand le modal s'ouvre
+        $('#imprimerSectionModal').on('show.bs.modal', function() {
+            $.ajax({
+                url: '{% url "attribution:liste_charges" %}',
+                type: 'GET',
+                success: function(data) {
+                    // Extraire les sections depuis le HTML
+                    var sections = new Set();
+                    {% for teacher in teachers %}
+                        {% if teacher.section %}
+                            sections.add('{{ teacher.section }}');
+                        {% endif %}
+                    {% endfor %}
+                    
+                    // Remplir le combo des sections
+                    var sectionsArray = Array.from(sections).sort();
+                    $('#section-select option:not(:first):not([value="ALL"])').remove();
+                    sectionsArray.forEach(function(section) {
+                        if (section) {
+                            $('#section-select').append(`<option value="${section}">${section}</option>`);
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Générer le PDF par section
+        $('#generer-pdf-section').on('click', function() {
+            var annee = $('#annee-section').val();
+            var section = $('#section-select').val();
+            var typeCharge = $('#type-charge-section').val();
+            
+            // Validation
+            if (!annee) {
+                alert('Veuillez sélectionner une année académique');
+                return;
+            }
+            if (!section) {
+                alert('Veuillez sélectionner une section');
+                return;
+            }
+            
+            // Construire l'URL
+            var url = '{% url "attribution:imprimer_charges_section" %}' + 
+                      '?annee_academique=' + encodeURIComponent(annee) +
+                      '&section=' + encodeURIComponent(section);
+            
+            if (typeCharge) {
+                url += '&type_charge=' + encodeURIComponent(typeCharge);
+            }
+            
+            // Ouvrir le PDF dans une nouvelle fenêtre
+            window.open(url, '_blank');
+            
+            // Fermer le modal
+            var modal = bootstrap.Modal.getInstance(document.getElementById('imprimerSectionModal'));
+            modal.hide();
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% comment %}
+    Ce fichier contient les conditions pour l'affichage des menus en fonction des rôles des utilisateurs.
+    Il est utilisé dans les templates de navigation et de menus.
+{% endcomment %}
+
+{% comment %}
+    Définitions des macros de permissions pour chaque section du menu
+{% endcomment %}
+
+{% comment %} Accès au menu des enseignants {% endcomment %}
+{% with can_view_teachers=is_admin or is_administrative_role or is_section_role or is_department_role or is_enseignant %}
+    {% with can_edit_teachers=is_admin or is_administrative_role or is_section_role or is_department_role %}
+        
+        {% comment %} Accès au menu des UEs {% endcomment %}
+        {% with can_view_courses=is_admin or is_administrative_role or is_section_role or is_department_role or is_enseignant or is_etudiant %}
+            {% with can_edit_courses=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                
+                {% comment %} Accès au menu des attributions {% endcomment %}
+                {% with can_view_attribution=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                    {% with can_edit_attribution=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                        
+                        {% comment %} Accès au menu des charges horaires {% endcomment %}
+                        {% with can_view_charge=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                            {% with can_edit_charge=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                                
+                                {% comment %} Accès au menu de suivi des enseignements {% endcomment %}
+                                {% with can_view_tracking=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                                    {% with can_edit_tracking=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                                        
+                                        {% comment %} Accès au menu des réglages {% endcomment %}
+                                        {% with can_view_reglage=is_admin %}
+                                            
+                                            {% comment %} Accès au menu de gestion administrative {% endcomment %}
+                                            {% with can_view_gestion=is_admin or is_administrative_role %}
+                                                
+                                                {% comment %} Accès au menu des finances {% endcomment %}
+                                                {% with can_view_finance=is_admin %}
+                                                    
+                                                    {% comment %} Accès au menu de gestion des utilisateurs {% endcomment %}
+                                                    {% with can_manage_users=is_admin %}
+                                                        
+                                                        {% comment %} Accès au menu des publications {% endcomment %}
+                                                        {% with can_view_publications=is_admin or is_administrative_role or is_section_role or is_department_role or is_enseignant %}
+                                                            {% with can_edit_publications=is_admin or is_administrative_role or is_section_role or is_department_role %}
+                                                                
+                                                                {% comment %} Le contenu du menu est inséré ici {% endcomment %}
+                                                                {% block menu_content %}{% endblock %}
+                                                                
+                                                            {% endwith %}
+                                                        {% endwith %}
+                                                    {% endwith %}
+                                                {% endwith %}
+                                            {% endwith %}
+                                        {% endwith %}
+                                    {% endwith %}
+                                {% endwith %}
+                            {% endwith %}
+                        {% endwith %}
+                    {% endwith %}
+                {% endwith %}
+            {% endwith %}
+        {% endwith %}
+    {% endwith %}
+{% endwith %}

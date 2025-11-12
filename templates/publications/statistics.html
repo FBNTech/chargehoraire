@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h2>Statistiques des publications</h2>
+            <div>
+              <a href="{% url 'publications:dashboard' %}" class="btn btn-primary">
+                <i class="fas fa-tachometer-alt"></i> Tableau de bord
+              </a>
+              <a href="{% url 'publications:publication_list' %}" class="btn btn-outline-primary ms-2">
+                <i class="fas fa-list"></i> Liste des publications
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <!-- Résumé statistique -->
+          <div class="row mb-4">
+            <div class="col-md-3">
+              <div class="card text-white bg-primary">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="me-3">
+                      <i class="fas fa-book-open fa-3x"></i>
+                    </div>
+                    <div>
+                      <h6 class="card-title">Total des publications</h6>
+                      <h3 class="mb-0">{{ total_publications }}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-white bg-info">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="me-3">
+                      <i class="fas fa-file-alt fa-3x"></i>
+                    </div>
+                    <div>
+                      <h6 class="card-title">Articles scientifiques</h6>
+                      <h3 class="mb-0">{{ total_articles }}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-white bg-success">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="me-3">
+                      <i class="fas fa-book fa-3x"></i>
+                    </div>
+                    <div>
+                      <h6 class="card-title">Livres</h6>
+                      <h3 class="mb-0">{{ total_livres }}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-white bg-danger">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="me-3">
+                      <i class="fas fa-graduation-cap fa-3x"></i>
+                    </div>
+                    <div>
+                      <h6 class="card-title">Thèses/Mémoires</h6>
+                      <h3 class="mb-0">{{ total_theses|add:total_memoires }}</h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <!-- Statistiques par type de publication -->
+            <div class="col-md-6 mb-4">
+              <div class="card h-100">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">Publications par type</h5>
+                </div>
+                <div class="card-body">
+                  <canvas id="publicationTypeChart" height="250"></canvas>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Statistiques par année -->
+            <div class="col-md-6 mb-4">
+              <div class="card h-100">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">Publications par année</h5>
+                </div>
+                <div class="card-body">
+                  <canvas id="publicationYearChart" height="250"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <!-- Top départements -->
+            <div class="col-md-6 mb-4">
+              <div class="card h-100">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">Top départements</h5>
+                </div>
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Département</th>
+                          <th>Publications</th>
+                          <th>Pourcentage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for dept in dept_stats %}
+                          <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                              <a href="{% url 'publications:departement_publications' dept.CodeDept %}">
+                                {{ dept.DesignationDept }}
+                              </a>
+                            </td>
+                            <td>{{ dept.pub_count }}</td>
+                            <td>
+                              <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ dept.percentage }}%">
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Top enseignants -->
+            <div class="col-md-6 mb-4">
+              <div class="card h-100">
+                <div class="card-header bg-light">
+                  <h5 class="mb-0">Top enseignants-chercheurs</h5>
+                </div>
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Enseignant</th>
+                          <th>Département</th>
+                          <th>Publications</th>
+                          <th>Pourcentage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for teacher in teacher_stats %}
+                          <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                              <a href="{% url 'publications:teacher_publications' teacher.id %}">
+                                {{ teacher.nom_complet }}
+                              </a>
+                            </td>
+                            <td>{% if teacher.departement %}{{ teacher.departement }}{% else %}-{% endif %}</td>
+                            <td>{{ teacher.pub_count }}</td>
+                            <td>
+                              <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-info" role="progressbar" 
+                                     style="width: {{ teacher.percentage }}%">
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <a href="{% url 'publications:dashboard' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Données pour le graphique des types de publication
+    const typeCtx = document.getElementById('publicationTypeChart').getContext('2d');
+    const typeChart = new Chart(typeCtx, {
+      type: 'pie',
+      data: {
+        labels: [
+          {% for type_stat in type_stats %}
+          "{{ type_stat.type|capfirst }}"{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+        ],
+        datasets: [{
+          data: [
+            {% for type_stat in type_stats %}
+            {{ type_stat.count }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+          ],
+          backgroundColor: [
+            'rgba(23, 162, 184, 0.8)',   // Info (Article)
+            'rgba(40, 167, 69, 0.8)',    // Success (Livre)
+            'rgba(220, 53, 69, 0.8)',    // Danger (Thèse)
+            'rgba(255, 193, 7, 0.8)',    // Warning (Communication)
+            'rgba(108, 117, 125, 0.8)',  // Secondary (Autres)
+          ],
+          borderColor: [
+            'rgba(23, 162, 184, 1)',
+            'rgba(40, 167, 69, 1)',
+            'rgba(220, 53, 69, 1)',
+            'rgba(255, 193, 7, 1)',
+            'rgba(108, 117, 125, 1)',
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'right',
+          }
+        }
+      }
+    });
+    
+    // Données pour le graphique par année
+    const yearCtx = document.getElementById('publicationYearChart').getContext('2d');
+    const yearChart = new Chart(yearCtx, {
+      type: 'bar',
+      data: {
+        labels: [
+          {% for year_count in year_counts %}
+          "{{ year_count.year }}"{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+        ],
+        datasets: [{
+          label: 'Nombre de publications',
+          data: [
+            {% for year_count in year_counts %}
+            {{ year_count.count }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+          ],
+          backgroundColor: 'rgba(0, 123, 255, 0.6)',
+          borderColor: 'rgba(0, 123, 255, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            }
+          }
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Confirmation de suppression - Cours{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <h2 class="text-center my-4">Confirmation de suppression</h2>
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Êtes-vous sûr de vouloir supprimer ce cours ?</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Code UE</th>
+                                <td>{{ object.code_ue }}</td>
+                            </tr>
+                            <tr>
+                                <th>Intitulé UE</th>
+                                <td>{{ object.intitule_ue }}</td>
+                            </tr>
+                            <tr>
+                                <th>Intitulé EC</th>
+                                <td>{{ object.intitule_ec }}</td>
+                            </tr>
+                            <tr>
+                                <th>Crédit</th>
+                                <td>{{ object.credit }}</td>
+                            </tr>
+                            <tr>
+                                <th>CMI</th>
+                                <td>{{ object.cmi }}</td>
+                            </tr>
+                            <tr>
+                                <th>TD+TP</th>
+                                <td>{{ object.td_tp }}</td>
+                            </tr>
+                            <tr>
+                                <th>Classe</th>
+                                <td>{{ object.classe }}</td>
+                            </tr>
+                            <tr>
+                                <th>Semestre</th>
+                                <td>{{ object.semestre }}</td>
+                            </tr>
+                            <tr>
+                                <th>Département</th>
+                                <td>{{ object.departement }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-center mt-3">
+                            <a href="{% url 'courses:list' %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times-circle"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt"></i> Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

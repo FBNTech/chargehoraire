@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Tableau de bord statistiques (ultra-compact et centré) -->    
+    <div class="mb-3">
+        <div class="row g-1 justify-content-center">
+            <!-- Total des enseignants -->    
+            <div class="col-auto">
+                <div class="card bg-primary text-white" style="min-width: 80px; max-width: 80px;">
+                    <div class="card-body p-1 text-center">
+                        <h5 class="mb-0 fw-bold">{{ total_teachers }}</h5>
+                        <small>Total</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistiques par grade avec couleurs uniques -->    
+            {% for grade, count in stats_by_grade.items %}
+            <div class="col-auto">
+                {% with forloop.counter0 as index %}
+                    {% if index == 0 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #28a745;"> <!-- Success/Vert -->
+                    {% elif index == 1 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #17a2b8;"> <!-- Info/Bleu clair -->
+                    {% elif index == 2 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #dc3545;"> <!-- Danger/Rouge -->
+                    {% elif index == 3 %}
+                        <div class="card text-dark" style="min-width: 80px; max-width: 80px; background-color: #ffc107;"> <!-- Warning/Jaune -->
+                    {% elif index == 4 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #6c757d;"> <!-- Secondary/Gris -->
+                    {% elif index == 5 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #6610f2;"> <!-- Purple/Violet -->
+                    {% elif index == 6 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #fd7e14;"> <!-- Orange -->
+                    {% elif index == 7 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #20c997;"> <!-- Teal/Turquoise -->
+                    {% elif index == 8 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #e83e8c;"> <!-- Pink/Rose -->
+                    {% elif index == 9 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #007bff;"> <!-- Primary/Bleu -->
+                    {% elif index == 10 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #5a6268;"> <!-- Gris foncé -->
+                    {% elif index == 11 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #1e7e34;"> <!-- Vert foncé -->
+                    {% elif index == 12 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #0062cc;"> <!-- Bleu foncé -->
+                    {% elif index == 13 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #bd2130;"> <!-- Rouge foncé -->
+                    {% elif index == 14 %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #9f5800;"> <!-- Marron -->
+                    {% else %}
+                        <div class="card text-white" style="min-width: 80px; max-width: 80px; background-color: #343a40;"> <!-- Noir -->
+                    {% endif %}
+                {% endwith %}
+                    <div class="card-body p-1 text-center">
+                        <h5 class="mb-0 fw-bold">{{ count }}</h5>
+                        <small>{{ grade|default:"Non défini"|truncatechars:15 }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+<!-- Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importModalLabel">Importer des Enseignants</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form action="{% url 'teachers:import_teachers' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Choisir un fichier Excel</label>
+                <input class="form-control" type="file" id="fileInput" name="file">
+            </div>
+            <button type="submit" class="btn btn-primary">Importer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+            <!-- Barre d'actions -->
+            <div class="d-flex align-items-center mb-3">
+                <!-- Champ de recherche (largeur réduite) -->
+                <div style="width: 50%;">
+                    <form method="get" action="{% url 'teachers:list' %}" class="d-flex search-form">
+                        <input type="text" name="search" class="form-control" placeholder="Rechercher un enseignant..." value="{{ request.GET.search }}">
+                        <button type="submit" class="btn ms-2 btn-blue">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+                <!-- Espacement flexible pour pousser les boutons à droite -->
+                <div class="flex-grow-1"></div>
+                <!-- Boutons d'action - Masqués pour les enseignants ordinaires -->
+                {% if can_edit_courses_teachers %}
+                <div class="d-flex gap-2">
+                    <a href="{% url 'teachers:create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Ajouter
+                    </a>
+                    <button type="button" class="btn" style="background-color: #1D6F42; color: white;" data-bs-toggle="modal" data-bs-target="#importModal">
+                        <i class="fas fa-file-excel"></i> Importer
+                    </button>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+                        <i class="fas fa-trash-alt"></i> Supprimer tout
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Modal pour la progression -->
+            <div class="modal fade" id="progressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="progressModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="progressModalLabel">Importation en cours...</h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="progress mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="text-center mb-0" id="progressText">Préparation de l'importation...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+            <div class="messages mb-3">
+                {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% if is_enseignant and not is_administrative_role and not is_section_role and not is_department_role %}
+            <div class="alert alert-info alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                En tant qu'enseignant, vous avez accès à cette liste en lecture seule. Vous pouvez consulter les informations des enseignants mais ne pouvez pas les modifier.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <!-- Table des enseignants -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered table-responsive-cards">
+                            <thead>
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Matricule</th>
+                                    <th>Nom Complet</th>
+                                    <th>Fonction</th>
+                                    <th>Grade</th>
+                                    <th>Catégorie</th>
+                                    <th>Département</th>
+                                    <th>Section</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for teacher in teachers %}
+                                <tr>
+                                    <td data-label="Photo">
+                                        {% if teacher.photo %}
+                                        <img src="{{ teacher.photo.url }}" alt="Photo" class="rounded-circle" style="width: 50px; height: 50px; object-fit: cover;">
+                                        {% else %}
+                                        <i class="fas fa-user-circle fa-2x text-secondary"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Matricule">{{ teacher.matricule }}</td>
+                                    <td data-label="Nom complet">{{ teacher.nom_complet }}</td>
+                                    <td data-label="Fonction">{{ teacher.fonction}}</td>
+                                    <td data-label="Grade">{{ teacher.grade}}</td>
+                                    <td data-label="Catégorie">{{ teacher.categorie}}</td>
+                                    <td data-label="Département">{{ teacher.departement}}</td>
+                                    <td data-label="Section">{{ teacher.section }}</td>
+                                    <td data-label="Actions">
+                                        {% if can_edit_courses_teachers %}
+                                        <div class="btn-group">
+                                            <a href="{% url 'teachers:update' teacher.pk %}" class="btn btn-sm btn-primary me-2">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'teachers:delete' teacher.pk %}" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted"><i class="fas fa-eye"></i> Lecture seule</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">Aucun enseignant trouvé</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer l'enseignant <span id="teacherNameSpan"></span> ?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('excel_file_input').addEventListener('change', async function(e) {
+    if (this.files.length > 0) {
+        e.preventDefault();
+        const file = this.files[0];
+        
+        // Vérifier le type de fichier
+        if (!file.name.match(/\.(xls|xlsx)$/i)) {
+            alert('Veuillez sélectionner un fichier Excel (.xls ou .xlsx)');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('excel_file', file);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        // Afficher la modal de progression
+        const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+        const progressBar = document.querySelector('.progress-bar');
+        const progressText = document.getElementById('progressText');
+        
+        progressModal.show();
+        
+        try {
+            // Première requête pour démarrer l'import
+            const startResponse = await fetch('{% url "teachers:import_excel_file" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!startResponse.ok) {
+                const result = await startResponse.json();
+                throw new Error(result.error || 'Une erreur est survenue');
+            }
+
+            const startResult = await startResponse.json();
+            if (!startResult.total || !startResult.temp_file) {
+                throw new Error('Erreur lors de l\'initialisation de l\'import');
+            }
+
+            let current = 0;
+            const total = startResult.total;
+            const tempFile = startResult.temp_file;
+            
+            // Fonction pour mettre à jour la progression
+            const updateProgress = (progress) => {
+                progressBar.style.width = progress + '%';
+                progressBar.setAttribute('aria-valuenow', progress);
+                progressBar.textContent = Math.round(progress) + '%';
+            };
+
+            // Boucle de progression
+            while (current < total) {
+                const progressResponse = await fetch(
+                    `{% url "teachers:import_excel_file" %}?current=${current}&total=${total}&temp_file=${encodeURIComponent(tempFile)}`,
+                    {
+                        headers: {
+                            'X-Progress': 'true',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }
+                );
+
+                if (!progressResponse.ok) {
+                    const error = await progressResponse.json();
+                    throw new Error(error.error || 'Une erreur est survenue');
+                }
+
+                const result = await progressResponse.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                current = result.current;
+                updateProgress(result.progress);
+                progressText.textContent = `Traitement : ${current}/${total}`;
+
+                if (result.status === 'completed') {
+                    progressText.textContent = result.message || 'Import terminé avec succès!';
+                    break;
+                }
+            }
+
+            // Import terminé avec succès
+            progressBar.classList.remove('progress-bar-animated');
+            setTimeout(() => {
+                progressModal.hide();
+                window.location.reload();
+            }, 1500);
+
+        } catch (error) {
+            progressBar.classList.remove('bg-primary', 'progress-bar-animated');
+            progressBar.classList.add('bg-danger');
+            progressText.textContent = error.message;
+            
+            setTimeout(() => {
+                progressModal.hide();
+            }, 3000);
+        }
+    }
+});
+
+let deleteForm = null;
+
+function confirmDelete(form, teacherName) {
+    deleteForm = form;
+    document.getElementById('teacherNameSpan').textContent = teacherName;
+    var modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestionnaire pour les boutons de suppression
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const form = this.closest('form');
+            const teacherName = form.dataset.teacherName;
+            confirmDelete(form, teacherName);
+        });
+    });
+
+    // Gestionnaire pour le bouton de confirmation
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (deleteForm) {
+            deleteForm.submit();
+            // Fermer la modal après soumission
+            var deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            if (deleteModal) {
+                deleteModal.hide();
+            }
+        }
+    });
+});
+</script>
+
+<script src="{% static 'js/progress.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // Fonction pour obtenir le CSRF token
+    function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+    }
+    
+    var csrftoken = getCookie('csrftoken');
+});
+</script>
+
+<!-- Modal de confirmation de suppression de tous les enseignants -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAllModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <strong>Attention !</strong> Cette action est irréversible.
+                </div>
+                <p class="mb-3">Vous êtes sur le point de supprimer <strong>TOUS les enseignants</strong> de la base de données.</p>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle"></i> 
+                    Nombre actuel d'enseignants : <strong class="text-danger">{{ total_teachers }}</strong>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <form method="get" action="{% url 'teachers:delete_all' %}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Confirmer la suppression
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

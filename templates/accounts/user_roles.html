@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-12 mb-4">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">Utilisateurs</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'accounts:user_detail' profile_user.id %}">{{ profile_user.username }}</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Gestion des rôles</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+  
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Gestion des rôles pour {{ profile_user.first_name }} {{ profile_user.last_name }}</h5>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            
+            {{ form|crispy }}
+            
+            {% if teacher %}
+            <div class="form-check mt-3">
+              <input class="form-check-input" type="checkbox" name="sync_with_function" id="sync_with_function" value="on">
+              <label class="form-check-label" for="sync_with_function">
+                Synchroniser automatiquement avec la fonction de l'enseignant
+                <span class="badge bg-info ms-2">{{ teacher.fonction }}</span>
+              </label>
+              <div class="small text-muted">
+                Les rôles seront automatiquement attribués selon la fonction détectée pour cet enseignant.
+              </div>
+            </div>
+            {% endif %}
+            
+            <div class="alert alert-info mt-3">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Note:</strong> Les rôles déterminent les permissions et l'accès aux fonctionnalités de l'application.
+              
+              <h6 class="mt-2 mb-1">Groupes de rôles :</h6>
+              <ul class="mb-3">
+                <li><strong>Administrateur</strong> : Accès complet à toutes les fonctionnalités de l'application.</li>
+                <li><strong>Direction (DG, SGAC, SGR, SGAD, AB)</strong> : Accès à toutes les fonctionnalités sauf la finance et la création d'utilisateurs.</li>
+                <li><strong>Chefs de section (CS, CSAE, CSR, SAAS)</strong> : Accès aux informations de leur section et des départements d'attache.</li>
+                <li><strong>Chefs de département (CD, SD)</strong> : Accès aux informations de leur département uniquement.</li>
+                <li><strong>Enseignant</strong> : Accès limité à leur profil, la liste des enseignants et la liste des UE.</li>
+                <li><strong>Étudiant</strong> : Accès uniquement à la liste des UE de leur département.</li>
+              </ul>
+              
+              <h6 class="mb-1">Détails des permissions par rôle :</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Fonctionnalité</th>
+                      <th>Direction</th>
+                      <th>Chefs de section</th>
+                      <th>Chefs de département</th>
+                      <th>Enseignants</th>
+                      <th>Étudiants</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Liste des enseignants</td>
+                      <td><i class="fas fa-check text-success"></i> Accès total</td>
+                      <td><i class="fas fa-check text-success"></i> Section uniquement</td>
+                      <td><i class="fas fa-check text-success"></i> Département uniquement</td>
+                      <td><i class="fas fa-search text-secondary"></i> Lecture seule</td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                    </tr>
+                    <tr>
+                      <td>Liste des UE</td>
+                      <td><i class="fas fa-check text-success"></i> Accès total</td>
+                      <td><i class="fas fa-check text-success"></i> Section uniquement</td>
+                      <td><i class="fas fa-check text-success"></i> Département uniquement</td>
+                      <td><i class="fas fa-search text-secondary"></i> Lecture seule</td>
+                      <td><i class="fas fa-search text-secondary"></i> Département uniquement</td>
+                    </tr>
+                    <tr>
+                      <td>Attribution</td>
+                      <td><i class="fas fa-check text-success"></i> Accès total</td>
+                      <td><i class="fas fa-check text-success"></i> Section uniquement</td>
+                      <td><i class="fas fa-check text-success"></i> Département uniquement</td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                    </tr>
+                    <tr>
+                      <td>Liste des charges</td>
+                      <td><i class="fas fa-check text-success"></i> Accès total</td>
+                      <td><i class="fas fa-check text-success"></i> Section uniquement</td>
+                      <td><i class="fas fa-check text-success"></i> Département uniquement</td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                    </tr>
+                    <tr>
+                      <td>Réglage</td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                    </tr>
+                    <tr>
+                      <td>Gestion administrative</td>
+                      <td><i class="fas fa-check text-success"></i> Accès total</td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                    </tr>
+                    <tr>
+                      <td>Suivi des enseignements</td>
+                      <td><i class="fas fa-check text-success"></i> Accès total</td>
+                      <td><i class="fas fa-check text-success"></i> Section uniquement</td>
+                      <td><i class="fas fa-check text-success"></i> Département uniquement</td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                      <td><i class="fas fa-times text-danger"></i></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+              <a href="{% url 'accounts:user_detail' profile_user.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Retour au profil
+              </a>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> Enregistrer les modifications
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

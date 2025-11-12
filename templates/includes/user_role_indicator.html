@@ -1,0 +1,47 @@
+{% if user.is_authenticated %}
+<div class="card mb-3">
+    <div class="card-body p-2">
+        <div class="d-flex align-items-center">
+            <div class="me-3">
+                <i class="fas fa-user-tag fa-2x text-primary"></i>
+            </div>
+            <div>
+                <h6 class="mb-1">Niveau d'accès: 
+                    {% if is_admin %}
+                        <span class="badge bg-danger">Administrateur</span>
+                    {% elif is_administrative_role %}
+                        <span class="badge bg-warning text-dark">Direction</span>
+                    {% elif is_section_role %}
+                        <span class="badge bg-info">Chef de Section</span>
+                    {% elif is_department_role %}
+                        <span class="badge bg-success">Chef de Département</span>
+                    {% elif is_enseignant %}
+                        <span class="badge bg-secondary">Enseignant</span>
+                    {% elif is_etudiant %}
+                        <span class="badge bg-light text-dark">Étudiant</span>
+                    {% else %}
+                        <span class="badge bg-dark">Utilisateur standard</span>
+                    {% endif %}
+                </h6>
+                <p class="mb-0 small">
+                    {% if is_admin %}
+                        Accès complet à toutes les fonctionnalités
+                    {% elif is_administrative_role %}
+                        Accès à toutes les fonctionnalités sauf finance et création d'utilisateurs
+                    {% elif is_section_role %}
+                        Accès limité aux informations de votre section et départements d'attache
+                    {% elif is_department_role %}
+                        Accès limité aux informations de votre département uniquement
+                    {% elif is_enseignant %}
+                        Accès limité à votre profil et consultation des données sans modification
+                    {% elif is_etudiant %}
+                        Accès limité à la liste des UE de votre département
+                    {% else %}
+                        Accès standard
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="card-title mb-4">{{ title }}</h2>
+          
+          <form method="post" class="mx-auto" style="max-width: 720px;" target="_blank">
+            {% csrf_token %}
+            
+            <div class="row g-3">
+              <!-- Étudiant -->
+              <div class="col-12">
+                <label for="{{ form.etudiant.id_for_label }}" class="form-label">{{ form.etudiant.label }}</label>
+                {{ form.etudiant }}
+                {% if form.etudiant.errors %}
+                  <div class="text-danger small">{{ form.etudiant.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <!-- Période début -->
+              <div class="col-md-6">
+                <label for="{{ form.periode_debut.id_for_label }}" class="form-label">{{ form.periode_debut.label }}</label>
+                {{ form.periode_debut }}
+                {% if form.periode_debut.errors %}
+                  <div class="text-danger small">{{ form.periode_debut.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <!-- Période fin -->
+              <div class="col-md-6">
+                <label for="{{ form.periode_fin.id_for_label }}" class="form-label">{{ form.periode_fin.label }}</label>
+                {{ form.periode_fin }}
+                {% if form.periode_fin.errors %}
+                  <div class="text-danger small">{{ form.periode_fin.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <!-- Motif -->
+              <div class="col-12">
+                <label for="{{ form.motif.id_for_label }}" class="form-label">{{ form.motif.label }}</label>
+                {{ form.motif }}
+                {% if form.motif.errors %}
+                  <div class="text-danger small">{{ form.motif.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <!-- Destination -->
+              <div class="col-md-6">
+                <label for="{{ form.destination.id_for_label }}" class="form-label">{{ form.destination.label }}</label>
+                {{ form.destination }}
+                {% if form.destination.errors %}
+                  <div class="text-danger small">{{ form.destination.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <!-- Disposition cours -->
+              <div class="col-12 mt-3">
+                <label for="{{ form.disposition_cours.id_for_label }}" class="form-label">{{ form.disposition_cours.label }}</label>
+                {{ form.disposition_cours }}
+                {% if form.disposition_cours.errors %}
+                  <div class="text-danger small">{{ form.disposition_cours.errors.0 }}</div>
+                {% endif %}
+              </div>
+              
+              <!-- Chef de département -->
+              <div class="col-12 mt-3">
+                <label for="{{ form.chef_departement.id_for_label }}" class="form-label">{{ form.chef_departement.label }}</label>
+                {{ form.chef_departement }}
+                {% if form.chef_departement.errors %}
+                  <div class="text-danger small">{{ form.chef_departement.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+            
+            <!-- Boutons d'action -->
+            <div class="d-flex justify-content-between mt-4">
+              <a href="{% url 'gestion_administrative:liste_etudiants' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la liste
+              </a>
+              <button type="submit" class="btn btn-warning">
+                <i class="fas fa-file-alt"></i> Créer l'autorisation
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

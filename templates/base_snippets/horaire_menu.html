@@ -1,0 +1,18 @@
+<!-- Snippet pour ajouter au menu principal -->
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" id="horaireMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        📅 Horaires
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="horaireMenu">
+        <li><a class="dropdown-item" href="{% url 'attribution:schedule_entry_list' %}">
+            📋 Liste des horaires (CRUD)
+        </a></li>
+        <li><a class="dropdown-item" href="{% url 'attribution:schedule_entry_create' %}">
+            ➕ Ajouter un horaire
+        </a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'attribution:schedule_builder' %}">
+            🎨 Générateur rapide (PDF)
+        </a></li>
+    </ul>
+</li>

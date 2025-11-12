@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Modifier un cours
+    {% else %}
+        Ajouter un cours
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex align-items-center">
+                    <i class="fas fa-book-open me-2"></i>
+                    <h5 class="mb-0">{% if form.instance.pk %}Modifier{% else %}Ajouter{% endif %} un cours</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" novalidate class="needs-validation">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            {{ form.code_ue }}
+                            <script>
+                                document.getElementById('{{ form.code_ue.id_for_label }}').className = 'form-control';
+                            </script>
+                            {% if form.code_ue.errors %}
+                                <div class="invalid-feedback d-block">{{ form.code_ue.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.intitule_ue }}
+                            <script>
+                                document.getElementById('{{ form.intitule_ue.id_for_label }}').className = 'form-control';
+                            </script>
+                            {% if form.intitule_ue.errors %}
+                                <div class="invalid-feedback d-block">{{ form.intitule_ue.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.intitule_ec }}
+                            <script>
+                                document.getElementById('{{ form.intitule_ec.id_for_label }}').className = 'form-control';
+                            </script>
+                            {% if form.intitule_ec.errors %}
+                                <div class="invalid-feedback d-block">{{ form.intitule_ec.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.classe }}
+                            <script>
+                                document.getElementById('{{ form.classe.id_for_label }}').className = 'form-select';
+                            </script>
+                            {% if form.classe.errors %}
+                                <div class="invalid-feedback d-block">{{ form.classe.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.semestre }}
+                            <script>
+                                document.getElementById('{{ form.semestre.id_for_label }}').className = 'form-select';
+                            </script>
+                            {% if form.semestre.errors %}
+                                <div class="invalid-feedback d-block">{{ form.semestre.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.departement }}
+                            <script>
+                                document.getElementById('{{ form.departement.id_for_label }}').className = 'form-select';
+                            </script>
+                            {% if form.departement.errors %}
+                                <div class="invalid-feedback d-block">{{ form.departement.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.section }}
+                            {% if form.section.errors %}
+                                <div class="invalid-feedback d-block">{{ form.section.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                {{ form.credit }}
+                                <script>
+                                    document.getElementById('{{ form.credit.id_for_label }}').className = 'form-control';
+                                </script>
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.cmi }}
+                                <script>
+                                    document.getElementById('{{ form.cmi.id_for_label }}').className = 'form-control';
+                                </script>
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.td_tp }}
+                                <script>
+                                    document.getElementById('{{ form.td_tp.id_for_label }}').className = 'form-control';
+                                </script>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <a href="{% url 'courses:course_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Retour à la liste
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas {% if form.instance.pk %}fa-edit{% else %}fa-save{% endif %} me-1"></i>
+                                {% if form.instance.pk %}Modifier{% else %}Enregistrer{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const departementSelect = document.getElementById('{{ form.departement.id_for_label }}');
+    const sectionInput = document.getElementById('{{ form.section.id_for_label }}');
+    
+    // Fonction pour mettre à jour la section
+    function updateSection() {
+        const departementCode = departementSelect.value;
+        
+        if (!departementCode) {
+            sectionInput.value = '';
+            return;
+        }
+        
+        // Appel AJAX pour récupérer la section
+        fetch(`{% url 'courses:get_section_by_departement' %}?departement=${departementCode}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.section_designation) {
+                    sectionInput.value = data.section_designation;
+                } else {
+                    sectionInput.value = '';
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération de la section:', error);
+                sectionInput.value = '';
+            });
+    }
+    
+    // Écouter les changements du département
+    departementSelect.addEventListener('change', updateSection);
+    
+    // Mettre à jour la section au chargement si un département est déjà sélectionné
+    if (departementSelect.value) {
+        updateSection();
+    }
+});
+</script>
+
+{% endblock %}

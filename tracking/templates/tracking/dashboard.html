@@ -1,0 +1,691 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    
+
+    <!-- Statistiques générales -->
+    <div class="row mb-4">
+
+
+        <div class="col-auto mb-2">
+            <div class="card border-left-info shadow-sm h-100 py-0" style="max-width: 240px;">
+                <div class="card-body p-2">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1" style="font-size: .7rem;">
+                                Semaine actuelle</div>
+                            <div class="mb-0 text-gray-800" style="font-size: .95rem; font-weight: 600;">
+                                {% if stats.current_week %}
+                                    {{ stats.current_week.designation }}
+                                {% else %}
+                                    Non définie
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar text-gray-300" style="font-size: 1rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-auto mb-2">
+            <div class="card border-left-success shadow-sm h-100 py-0" style="max-width: 260px;">
+                <div class="card-body p-2">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1" style="font-size: .7rem;">
+                                Progression globale</div>
+                            <div class="mb-0 text-gray-800" style="font-size: .95rem; font-weight: 600;">
+                                {% if stats.global_progress_percentage %}
+                                    {{ stats.global_progress_percentage|floatformat:1 }}%
+                                {% else %}
+                                    0.0%
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-muted mb-2" style="font-size: .75rem;">
+                                {{ stats.total_hours_done|default:0|floatformat:0 }}/{{ stats.total_hours_allocated|default:0|floatformat:0 }} heures
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ stats.global_progress_percentage }}%;" 
+                                     aria-valuenow="{{ stats.global_progress_percentage }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    <span class="text-white" style="font-size: .65rem; font-weight: 600;">{{ stats.global_progress_percentage|floatformat:1 }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line text-gray-300" style="font-size: 1rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Boutons d'action alignés à droite des cards (cachés pour gestionnaire) -->
+        {% if not is_gestionnaire %}
+        <div class="col d-flex justify-content-end align-items-start mb-2">
+            <div>
+                <div class="row g-2">
+                    {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
+                        <div class="col-auto">
+                            <a href="{% url 'tracking:progress_list' %}" class="btn btn-info">
+                                <i class="fas fa-cogs me-2"></i> Gestion de suivi des enseignements
+                            </a>
+                        </div>
+                        <div class="col-auto">
+                            <a href="#" id="printReportBtn" class="btn btn-success" target="_blank">
+                                <i class="fas fa-print me-2"></i> Imprimer le rapport
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                {% if is_enseignant %}
+                                    En tant qu'enseignant, vous pouvez consulter les données de suivi mais ne pouvez pas les modifier.
+                                {% elif is_etudiant %}
+                                    En tant qu'étudiant, vous avez un accès limité au tableau de bord.
+                                {% else %}
+                                    Vous avez un accès limité au tableau de bord.
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not is_gestionnaire %}
+    <div class="row">
+        <!-- Tableau des cours -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Suivi des cours</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-8 mb-2">
+                            <input type="text" id="searchCourses" class="form-control" placeholder="Rechercher par code UE, intitulé ou classe...">
+                        </div>
+                        <div class="col-sm-4">
+                            <select id="semesterFilter" class="form-control">
+                                <option value="all">Tous les semestres</option>
+                                <option value="odd">Semestres impairs</option>
+                                <option value="even">Semestres pairs</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Vue desktop -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-bordered table-hover" id="coursesTable">
+                            <thead>
+                                <tr>
+                                    <th>Code UE</th>
+                                    <th>Intitulé UE</th>
+                                    <th>Classe</th>
+                                    <th>Heures réalisées</th>
+                                    <th>Progression (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for semester, courses in courses_by_semester.items %}
+                                    <tr class="table-secondary">
+                                        <td colspan="5" class="font-weight-bold">
+                                            <i class="fas fa-calendar-alt me-2"></i>{{ semester }}
+                                        </td>
+                                    </tr>
+                                    {% for course in courses %}
+                                    <tr>
+                                        <td>{{ course.course__code_ue }}</td>
+                                        <td>{{ course.course__intitule_ue }}</td>
+                                        <td>{{ course.course__classe }}</td>
+                                        <td>{{ course.total_hours_done|floatformat:1 }}</td>
+                                        <td>
+                                            <div class="progress">
+                                                {% with percentage=course.progression_percentage|floatformat:0 %}
+                                                <div class="progress-bar {% if percentage >= 100 %}bg-success{% elif percentage >= 75 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                    role="progressbar" style="width: {{ percentage }}%;" 
+                                                    aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                    {{ percentage }}%
+                                                </div>
+                                                {% endwith %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">Aucun cours trouvé.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Vue mobile - cartes -->
+                    <div class="d-md-none" id="coursesMobileCards">
+                        {% for semester, courses in courses_by_semester.items %}
+                            <div class="mb-3">
+                                <h6 class="text-muted mb-2">
+                                    <i class="fas fa-calendar-alt me-2"></i>{{ semester }}
+                                </h6>
+                                {% for course in courses %}
+                                <div class="card mb-2 course-card">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-1">{{ course.course__code_ue }}</h6>
+                                            <span class="badge bg-secondary">{{ course.course__classe }}</span>
+                                        </div>
+                                        <p class="card-text text-muted mb-2 small">{{ course.course__intitule_ue }}</p>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">Heures réalisées</small>
+                                                <div class="fw-bold">{{ course.total_hours_done|floatformat:1 }}</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">Progression</small>
+                                                <div class="progress mt-1" style="height: 20px;">
+                                                    {% with percentage=course.progression_percentage|floatformat:0 %}
+                                                    <div class="progress-bar {% if percentage >= 100 %}bg-success{% elif percentage >= 75 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                        role="progressbar" style="width: {{ percentage }}%;" 
+                                                        aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                        <small>{{ percentage }}%</small>
+                                                    </div>
+                                                    {% endwith %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% empty %}
+                        <div class="text-center text-muted">
+                            <p>Aucun cours trouvé.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des enseignants -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Suivi des enseignants</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-8 mb-2">
+                            <input type="text" id="searchTeachers" class="form-control" placeholder="Rechercher par nom d'enseignant ou type de charge...">
+                        </div>
+                        <div class="col-sm-4">
+                            <select id="chargeTypeFilter" class="form-control">
+                                <option value="all">Tous les types de charge</option>
+                                <option value="reguliere">Charge régulière</option>
+                                <option value="supplementaire">Charge supplémentaire</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Vue desktop -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-bordered table-hover" id="teachersTable">
+                            <thead>
+                                <tr>
+                                    <th>Nom enseignant</th>
+                                    <th>Type charge</th>
+                                    <th>Heures (Réalisées/Allouées)</th>
+                                    <th>Progression (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for teacher in teacher_progress %}
+                                <tr>
+                                    <td>{{ teacher.teacher__nom_complet }}</td>
+                                    <td>{{ teacher.type_charge }}</td>
+                                    <td class="text-center">
+                                        <strong>{{ teacher.hours_display }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="progress">
+                                            {% with percentage=teacher.progression_percentage|floatformat:0 %}
+                                            <div class="progress-bar {% if percentage >= 100 %}bg-success{% elif percentage >= 75 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                role="progressbar" style="width: {{ percentage }}%;" 
+                                                aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ percentage }}%
+                                            </div>
+                                            {% endwith %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">Aucun enseignant trouvé.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Vue mobile - cartes -->
+                    <div class="d-md-none" id="teachersMobileCards">
+                        {% for teacher in teacher_progress %}
+                        <div class="card mb-2 teacher-card">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-1">{{ teacher.teacher__nom_complet }}</h6>
+                                    <span class="badge bg-primary">{{ teacher.type_charge }}</span>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Heures</small>
+                                        <div class="fw-bold">{{ teacher.hours_display }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Progression</small>
+                                        <div class="progress mt-1" style="height: 20px;">
+                                            {% with percentage=teacher.progression_percentage|floatformat:0 %}
+                                            <div class="progress-bar {% if percentage >= 100 %}bg-success{% elif percentage >= 75 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                role="progressbar" style="width: {{ percentage }}%;" 
+                                                aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                <small>{{ percentage }}%</small>
+                                            </div>
+                                            {% endwith %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted">
+                            <p>Aucun enseignant trouvé.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des classes -->
+    {% endif %}
+    {% if not is_gestionnaire %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Suivi des classes</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <input type="text" id="searchClasses" class="form-control" placeholder="Rechercher par classe ou semestre...">
+                        </div>
+                        <div class="col-md-4">
+                            <select id="classSemesterFilter" class="form-control">
+                                <option value="all">Tous les semestres</option>
+                                <option value="odd">Semestres impairs</option>
+                                <option value="even">Semestres pairs</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover" id="classesTable">
+                            <thead>
+                                <tr>
+                                    <th>Classe</th>
+                                    <th>Semestre</th>
+                                    <th>Nombre d'UE</th>
+                                    <th>Heures totales (CMI+TD/TP)</th>
+                                    <th>Heures réalisées</th>
+                                    <th>Progression (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in class_progress %}
+                                <tr>
+                                    <td>{{ class.classe }}</td>
+                                    <td>{{ class.semestre }}</td>
+                                    <td class="text-center">{{ class.nombre_ue }}</td>
+                                    <td class="text-center">{{ class.total_hours_allocated|floatformat:1 }}</td>
+                                    <td class="text-center">{{ class.total_hours_done|floatformat:1 }}</td>
+                                    <td>
+                                        <div class="progress">
+                                            {% with percentage=class.progression_percentage|floatformat:0 %}
+                                            <div class="progress-bar {% if percentage >= 100 %}bg-success{% elif percentage >= 75 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                role="progressbar" style="width: {{ percentage }}%;" 
+                                                aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ percentage }}%
+                                            </div>
+                                            {% endwith %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Aucune classe trouvée.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de sélection de l'enseignant CSAE -->
+<div class="modal fade" id="csaeSelectionModal" tabindex="-1" aria-labelledby="csaeSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="csaeSelectionModalLabel">
+                    <i class="fas fa-user-tie me-2"></i>Sélectionner le Chef de Section/Enseignement
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="csaeSelectionForm">
+                    <div class="mb-3">
+                        <label for="csaeSelect" class="form-label">Chef de Section/Enseignement</label>
+                        <select class="form-select" id="csaeSelect" required>
+                            <option value="">-- Sélectionner un CSAE --</option>
+                            {% for teacher in csae_teachers %}
+                                <option value="{{ teacher.id }}" data-nom="{{ teacher.nom_complet }}" data-grade="{{ teacher.grade }}" data-fonction="{{ teacher.fonction }}">
+                                    {{ teacher.nom_complet }}{% if teacher.grade %} ({{ teacher.grade }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="semaineSelect" class="form-label">Semaine de Cours</label>
+                        <select class="form-select" id="semaineSelect">
+                            <option value="">-- Toutes les semaines --</option>
+                            {% for semaine in semaines_disponibles %}
+                                <option value="{{ semaine.date_debut|date:'Y-m-d' }}"{% if semaine.est_en_cours %} selected{% endif %}>
+                                    {{ semaine.designation }}{% if semaine.est_en_cours %} ★ En cours{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>Laissez vide pour toutes les semaines
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="typeSemestreSelect" class="form-label">Type de Semestre</label>
+                        <select class="form-select" id="typeSemestreSelect">
+                            <option value="">-- Tous les types --</option>
+                            <option value="impair">Semestres Impairs (S1, S3, S5, S7)</option>
+                            <option value="pair">Semestres Pairs (S2, S4, S6, S8)</option>
+                        </select>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>Filtrer par semestres impairs ou pairs
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+                <button type="button" class="btn btn-success" id="generatePDFBtn">
+                    <i class="fas fa-print me-1"></i>Générer le rapport
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Version: 2025-01-30-06:00 - Force cache refresh
+
+// Fonction de recherche générique pour les tableaux
+function setupTableSearch(searchInputId, tableId) {
+    const searchInput = document.getElementById(searchInputId);
+    const table = document.getElementById(tableId);
+    
+    if (searchInput && table) {
+        searchInput.addEventListener('keyup', function() {
+            const filter = this.value.toLowerCase();
+            const tbody = table.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            rows.forEach(function(row) {
+                // Ignorer les lignes vides (messages "Aucun... trouvé")
+                if (row.cells.length === 1 && row.cells[0].getAttribute('colspan')) {
+                    return;
+                }
+                
+                const text = row.textContent.toLowerCase();
+                if (text.includes(filter)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+}
+
+// Fonction de filtrage par semestre pour les cours
+function setupSemesterFilter() {
+    const semesterFilter = document.getElementById('semesterFilter');
+    const table = document.getElementById('coursesTable');
+    
+    if (semesterFilter && table) {
+        semesterFilter.addEventListener('change', function() {
+            const filterValue = this.value;
+            const tbody = table.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            rows.forEach(function(row) {
+                // Vérifier si c'est une ligne d'en-tête de semestre
+                if (row.classList.contains('table-secondary')) {
+                    const semesterText = row.textContent.trim();
+                    const semesterMatch = semesterText.match(/S(\d+)/);
+                    
+                    if (semesterMatch) {
+                        const semesterNumber = parseInt(semesterMatch[1]);
+                        let showSemester = false;
+                        
+                        if (filterValue === 'all') {
+                            showSemester = true;
+                        } else if (filterValue === 'odd' && semesterNumber % 2 === 1) {
+                            showSemester = true;
+                        } else if (filterValue === 'even' && semesterNumber % 2 === 0) {
+                            showSemester = true;
+                        }
+                        
+                        row.style.display = showSemester ? '' : 'none';
+                        
+                        // Masquer/afficher les cours de ce semestre
+                        let nextRow = row.nextElementSibling;
+                        while (nextRow && !nextRow.classList.contains('table-secondary')) {
+                            nextRow.style.display = showSemester ? '' : 'none';
+                            nextRow = nextRow.nextElementSibling;
+                        }
+                    }
+                }
+            });
+        });
+    }
+}
+
+// Fonction de filtrage par semestre pour les classes
+function setupClassSemesterFilter() {
+    const classSemesterFilter = document.getElementById('classSemesterFilter');
+    const table = document.getElementById('classesTable');
+    
+    if (classSemesterFilter && table) {
+        classSemesterFilter.addEventListener('change', function() {
+            const filterValue = this.value;
+            const tbody = table.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            rows.forEach(function(row) {
+                // Ignorer les lignes vides (messages "Aucun... trouvé")
+                if (row.cells.length === 1 && row.cells[0].getAttribute('colspan')) {
+                    return;
+                }
+                
+                // Récupérer le semestre de la deuxième colonne
+                const semesterCell = row.cells[1];
+                if (semesterCell) {
+                    const semesterText = semesterCell.textContent.trim();
+                    const semesterMatch = semesterText.match(/S(\d+)/);
+                    
+                    if (semesterMatch) {
+                        const semesterNumber = parseInt(semesterMatch[1]);
+                        let showRow = false;
+                        
+                        if (filterValue === 'all') {
+                            showRow = true;
+                        } else if (filterValue === 'odd' && semesterNumber % 2 === 1) {
+                            showRow = true;
+                        } else if (filterValue === 'even' && semesterNumber % 2 === 0) {
+                            showRow = true;
+                        }
+                        
+                        row.style.display = showRow ? '' : 'none';
+                    }
+                }
+            });
+        });
+    }
+}
+
+// Fonction de filtrage par type de charge pour les enseignants
+function setupChargeTypeFilter() {
+    const chargeTypeFilter = document.getElementById('chargeTypeFilter');
+    const table = document.getElementById('teachersTable');
+    
+    if (chargeTypeFilter && table) {
+        chargeTypeFilter.addEventListener('change', function() {
+            const filterValue = this.value;
+            const tbody = table.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            rows.forEach(function(row) {
+                // Ignorer les lignes vides (messages "Aucun... trouvé")
+                if (row.cells.length === 1 && row.cells[0].getAttribute('colspan')) {
+                    return;
+                }
+                
+                // Récupérer le type de charge de la deuxième colonne
+                const chargeTypeCell = row.cells[1];
+                if (chargeTypeCell) {
+                    const chargeTypeText = chargeTypeCell.textContent.trim().toLowerCase();
+                    let showRow = false;
+                    
+                    if (filterValue === 'all') {
+                        showRow = true;
+                    } else if (filterValue === 'reguliere' && chargeTypeText.includes('reguliere')) {
+                        showRow = true;
+                    } else if (filterValue === 'supplementaire' && chargeTypeText.includes('supplementaire')) {
+                        showRow = true;
+                    }
+                    
+                    row.style.display = showRow ? '' : 'none';
+                }
+            });
+        });
+    }
+}
+
+// Fonction pour générer l'URL du PDF avec les filtres actuels
+function generatePDFUrl() {
+    const semesterFilter = document.getElementById('semesterFilter').value;
+    const chargeTypeFilter = document.getElementById('chargeTypeFilter').value;
+    const classSemesterFilter = document.getElementById('classSemesterFilter').value;
+    
+    let url = "{% url 'tracking:dashboard_pdf' %}";
+    const params = new URLSearchParams();
+    
+    if (semesterFilter !== 'all') {
+        params.append('semester_filter', semesterFilter);
+    }
+    if (chargeTypeFilter !== 'all') {
+        params.append('charge_type_filter', chargeTypeFilter);
+    }
+    if (classSemesterFilter !== 'all') {
+        params.append('class_semester_filter', classSemesterFilter);
+    }
+    
+    if (params.toString()) {
+        url += '?' + params.toString();
+    }
+    
+    return url;
+}
+
+// Initialiser la recherche pour tous les tableaux
+document.addEventListener('DOMContentLoaded', function() {
+    setupTableSearch('searchCourses', 'coursesTable');
+    setupTableSearch('searchTeachers', 'teachersTable');
+    setupTableSearch('searchClasses', 'classesTable');
+    setupSemesterFilter();
+    setupClassSemesterFilter();
+    setupChargeTypeFilter();
+    
+    // Gérer le clic sur le bouton d'impression - Ouvrir le modal
+    document.getElementById('printReportBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        const modal = new bootstrap.Modal(document.getElementById('csaeSelectionModal'));
+        modal.show();
+    });
+    
+    // Gérer la génération du PDF avec l'enseignant sélectionné
+    document.getElementById('generatePDFBtn').addEventListener('click', function() {
+        const csaeSelect = document.getElementById('csaeSelect');
+        const semaineSelect = document.getElementById('semaineSelect');
+        const typeSemestreSelect = document.getElementById('typeSemestreSelect');
+        const teacherId = csaeSelect.value;
+        const semaineDateDebut = semaineSelect.value;
+        const typeSemestre = typeSemestreSelect.value;
+        
+        if (!teacherId) {
+            alert('Veuillez sélectionner un Chef de Section/Enseignement');
+            return;
+        }
+        
+        // Générer l'URL du PDF avec l'ID de l'enseignant
+        let pdfUrl = generatePDFUrl();
+        console.log('URL de base:', pdfUrl);
+        // Ajouter le paramètre csae_id avec ? ou & selon si l'URL a déjà des paramètres
+        const separator = pdfUrl.includes('?') ? '&' : '?';
+        pdfUrl += separator + 'csae_id=' + teacherId;
+        
+        // Ajouter le paramètre semaine si une semaine est sélectionnée
+        if (semaineDateDebut) {
+            pdfUrl += '&semaine_date_debut=' + semaineDateDebut;
+        }
+        
+        // Ajouter le paramètre type de semestre si sélectionné
+        if (typeSemestre) {
+            pdfUrl += '&type_semestre=' + typeSemestre;
+        }
+        
+        console.log('URL finale:', pdfUrl);
+        window.open(pdfUrl, '_blank');
+        
+        // Fermer le modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('csaeSelectionModal'));
+        modal.hide();
+    });
+});
+</script>
+{% endblock %}

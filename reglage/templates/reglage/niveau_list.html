@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Liste des Niveaux{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Liste des Niveaux</h2>
+        <a href="{% url 'reglage:niveau_create' %}" class="btn btn-primary">Ajouter un Niveau</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Code Niveau</th>
+                        <th>Désignation</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for niveau in niveaux %}
+                    <tr>
+                        <td>{{ niveau.CodeNiveau }}</td>
+                        <td>{{ niveau.DesignationNiveau }}</td>
+                        <td>
+                            <a href="{% url 'reglage:niveau_update' niveau.pk %}" class="btn btn-sm btn-warning">Modifier</a>
+                            <a href="{% url 'reglage:niveau_delete' niveau.pk %}" class="btn btn-sm btn-danger">Supprimer</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center">Aucun niveau trouvé.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <a href="{% url 'reglage:gestion_entites' %}" class="btn btn-secondary mt-3">Retour à la gestion</a>
+</div>
+{% endblock %}

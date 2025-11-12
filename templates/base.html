@@ -1,0 +1,468 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GestCharge - Gestion des Charges Horaires{% endblock %}</title>
+    <!-- Bootstrap CSS -->    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Bootstrap Icons -->    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Bootstrap Datepicker -->    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/css/bootstrap-datepicker.min.css">
+    <!-- Custom CSS -->    
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+        }
+        .sidebar {
+            width: 60px;
+            background-color: #181c34;
+            padding: 10px 5px;
+            color: white;
+            transition: all 0.3s;
+            z-index: 1030;
+        }
+        .sidebar .nav-link {
+            color: white;
+            padding: 10px 0;
+            margin: 8px 0;
+            border-radius: 5px;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: #495057;
+            color: white;
+        }
+        .sidebar .sb-nav-link-icon {
+            margin-right: 0;
+            display: flex;
+            justify-content: center;
+        }
+        .sidebar .sb-nav-link-icon i {
+            font-size: 1.5rem; /* Augmente la taille des icônes */
+            color: white;
+        }
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        /* Styles responsifs pour la barre latérale et le contenu principal */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 45px;
+                padding: 8px 3px;
+            }
+            .sidebar .sb-nav-link-icon i {
+                font-size: 1.3rem;
+            }
+            .main-content {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .sidebar {
+                width: 40px;
+                padding: 5px 2px;
+            }
+            .sidebar .nav-link {
+                padding: 8px 0;
+                margin: 5px 0;
+            }
+            .sidebar .sb-nav-link-icon i {
+                font-size: 1.1rem;
+            }
+        }
+        
+        /* Bouton de menu pour mobile */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1040;
+            background-color: #181c34;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 1.2rem;
+        }
+        
+        @media (max-width: 576px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+            .sidebar {
+                position: fixed;
+                height: 100%;
+                left: -50px; /* Caché par défaut */
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .main-container {
+                margin-left: 0;
+            }
+        }
+        .header {
+            background-color: #ffffff;
+            padding: 10px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* Transformation des tableaux en cards responsive pour mobile */
+        @media (max-width: 768px) {
+            /* Cacher le tableau classique sur mobile */
+            .table-responsive table thead {
+                display: none;
+            }
+            
+            .table-responsive table,
+            .table-responsive table tbody,
+            .table-responsive table tr {
+                display: block;
+                width: 100%;
+            }
+            
+            .table-responsive table tr {
+                margin-bottom: 15px;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                padding: 12px;
+            }
+            
+            .table-responsive table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 0 !important;
+                border: none !important;
+                border-bottom: 1px solid #f0f0f0 !important;
+            }
+            
+            .table-responsive table td:last-child {
+                border-bottom: none !important;
+            }
+            
+            .table-responsive table td:before {
+                content: attr(data-label);
+                font-weight: bold;
+                color: #495057;
+                flex: 0 0 40%;
+                text-align: left;
+                padding-right: 10px;
+            }
+            
+            .table-responsive table td:after {
+                content: '';
+                flex: 0 0 60%;
+            }
+            
+            /* Styles pour les badges et boutons dans les cards */
+            .table-responsive table td .badge,
+            .table-responsive table td .btn-group {
+                margin-left: auto;
+            }
+            
+            /* Ajuster la largeur des colonnes Actions */
+            .table-responsive table td:has(.btn-group) {
+                justify-content: center;
+            }
+            
+            .table-responsive table td:has(.btn-group):before {
+                flex: 1;
+            }
+        }
+        
+        /* Amélioration des cards sur très petits écrans */
+        @media (max-width: 576px) {
+            .table-responsive table tr {
+                padding: 10px;
+                margin-bottom: 12px;
+            }
+            
+            .table-responsive table td {
+                padding: 6px 0 !important;
+                font-size: 0.9rem;
+            }
+            
+            .table-responsive table td:before {
+                font-size: 0.85rem;
+            }
+            
+            /* Adapter les boutons d'action */
+            .table-responsive table .btn-group-sm > .btn {
+                padding: 4px 8px;
+                font-size: 0.8rem;
+            }
+            
+            /* Adapter les statistiques en haut */
+            .col-md-2 > .card {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="mobile-menu-toggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Header avec menu utilisateur -->
+    <header class="header">
+        <div></div> <!-- Div vide pour maintenir l'alignement avec flexbox -->
+        
+        <div class="user-menu dropdown">
+            {% if user.is_authenticated %}
+                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle me-1"></i>
+                    {{ user.username }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuDropdown">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'accounts:profile' %}">
+                            <i class="fas fa-user me-2"></i> Mon profil
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'accounts:password_change' %}">
+                            <i class="fas fa-key me-2"></i> Changer de mot de passe
+                        </a>
+                    </li>
+                    {% if can_create_users %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'accounts:user_list' %}">
+                            <i class="fas fa-users-cog me-2"></i> Gestion des utilisateurs
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% if is_admin %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'admin:index' %}">
+                            <i class="fas fa-cogs me-2"></i> Administration
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form id="logout-form" method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Voulez-vous vraiment vous déconnecter?')">
+                                <i class="fas fa-sign-out-alt me-2"></i> Déconnexion
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            {% else %}
+                <div>
+                    <a href="{% url 'accounts:login' %}" class="btn btn-sm btn-primary me-2">
+                        <i class="fas fa-sign-in-alt me-1"></i> Connexion
+                    </a>
+                    <a href="{% url 'accounts:register' %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-user-plus me-1"></i> Inscription
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="main-container">
+        <nav class="sidebar">
+            <div class="nav flex-column">
+                <!-- Accueil - accessible à tous -->
+                <a class="nav-link" href="{% url 'home' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
+                </a>
+                
+                <!-- Profil utilisateur - accessible aux utilisateurs connectés sauf étudiants -->
+                <!-- Liste des enseignants - accessible à tous sauf étudiants, avec restrictions selon le rôle -->
+                {% if is_admin or is_administrative_role or is_section_role or is_department_role or is_enseignant or is_gestionnaire %}
+                <a class="nav-link" href="{% url 'teachers:list' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                </a>
+                {% endif %}
+                
+                <!-- Liste des UEs - accessible à tous avec restrictions -->
+                <a class="nav-link" href="{% url 'courses:list' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+                </a>
+                
+                <!-- Attribution - accessible à l'administration, chefs de section et département -->
+                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'attribution:attribution_list' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-tasks"></i></div>
+                </a>
+                {% endif %}
+                
+                <!-- Liste des charges - accessible à l'administration, chefs de section et département -->
+                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'attribution:liste_charges' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
+                </a>
+                {% endif %}
+
+                <!-- Générateur d'horaires (PDF) - accessible à l'administration, chefs de section et département -->
+                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'attribution:schedule_builder' %}" title="Horaires (PDF)" data-bs-toggle="tooltip" data-bs-placement="right">
+                    <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
+                </a>
+                {% endif %}
+
+                
+                <!-- Suivi des enseignements - accessible à l'administration, chefs de section et département -->
+                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'tracking:dashboard' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
+                </a>
+                {% endif %}
+                
+                <!-- Historique des actions - accessible uniquement aux administrateurs -->
+                {% if user.is_superuser %}
+                <a class="nav-link" href="{% url 'tracking:action_history' %}" title="Historique des Actions" data-bs-toggle="tooltip" data-bs-placement="right">
+                    <div class="sb-nav-link-icon"><i class="fas fa-history"></i></div>
+                </a>
+                {% endif %}
+                                
+                <!-- Réglage - accessible uniquement aux administrateurs -->
+                {% if can_access_reglage %}
+                <a class="nav-link" href="{% url 'reglage:gestion_entites' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
+                </a>
+                {% endif %}
+                <!-- Gestion administrative - accessible uniquement à l'administration -->
+                
+                <!-- Publications - accessible à tous sauf étudiants -->
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <!-- Messages Django -->
+            {% if messages %}
+            <div class="container-fluid">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {% if message.tags == 'error' or message.tags == 'danger' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% elif message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% elif message.tags == 'info' %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    <strong>
+                    {% if message.tags == 'error' or message.tags == 'danger' %}
+                        Erreur :
+                    {% elif message.tags == 'success' %}
+                        Succès :
+                    {% elif message.tags == 'warning' %}
+                        Avertissement :
+                    {% endif %}
+                    </strong>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
+        <!-- Bootstrap JS Bundle -->    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap Datepicker -->    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js"></script>
+    <!-- Bootstrap Validation -->    
+    <script src="https://cdn.jsdelivr.net/npm/bs-custom-file-input@1.3.4/dist/bs-custom-file-input.min.js"></script>
+    
+    <script>
+        // Initialiser tous les tooltips Bootstrap
+        document.addEventListener("DOMContentLoaded", function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Initialiser tous les popovers Bootstrap
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+            
+            // Initialiser Bootstrap Datepicker
+            $('.datepicker').datepicker({
+                format: 'dd/mm/yyyy',
+                autoclose: true,
+                language: 'fr'
+            });
+            
+            // Initialiser Bootstrap Custom File Input
+            bsCustomFileInput.init();
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+
+    <!-- JavaScript pour la responsivité -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Gestion du menu mobile
+            const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+            const sidebar = document.querySelector('.sidebar');
+            
+            if (mobileMenuToggle && sidebar) {
+                mobileMenuToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                });
+            }
+            
+            // Fermer le menu quand on clique en dehors
+            document.addEventListener('click', function(event) {
+                if (!sidebar.contains(event.target) && !mobileMenuToggle.contains(event.target) && sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                }
+            });
+            
+            // Gestion des tables responsives
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                if (!table.parentElement.classList.contains('table-responsive')) {
+                    const wrapper = document.createElement('div');
+                    wrapper.classList.add('table-responsive');
+                    table.parentNode.insertBefore(wrapper, table);
+                    wrapper.appendChild(table);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

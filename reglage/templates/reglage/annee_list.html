@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Années Académiques{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-calendar-week text-success"></i> Gestion des Années Académiques</h2>
+        <div>
+            <a href="{% url 'reglage:gestion_entites' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+            <a href="{% url 'reglage:annee_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Nouvelle Année
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Code</th>
+                            <th>Désignation</th>
+                            <th>Date Début</th>
+                            <th>Date Fin</th>
+                            <th>Statut</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for annee in annees %}
+                        <tr {% if annee.est_en_cours %}class="table-success"{% endif %}>
+                            <td><strong>{{ annee.code }}</strong></td>
+                            <td>{{ annee.designation }}</td>
+                            <td>{{ annee.date_debut|date:"d/m/Y"|default:"—" }}</td>
+                            <td>{{ annee.date_fin|date:"d/m/Y"|default:"—" }}</td>
+                            <td>
+                                {% if annee.est_en_cours %}
+                                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> En cours</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'reglage:annee_update' annee.pk %}" 
+                                       class="btn btn-warning" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'reglage:annee_delete' annee.pk %}" 
+                                       class="btn btn-danger" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>Aucune année académique enregistrée.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-4">
+        <i class="fas fa-info-circle"></i>
+        <strong>Note :</strong> Une seule année peut être marquée comme "En cours". 
+        Lorsque vous marquez une année comme en cours, les autres seront automatiquement désactivées.
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+  <h2>Liste des enseignants par section</h2>
+  
+  {% if is_admin or is_administrative_role %}
+    <!-- Les admins et les rôles administratifs peuvent voir toutes les sections -->
+    <div class="mb-4">
+      <h4>Sélectionner une section:</h4>
+      <div class="row">
+        <div class="col-md-6">
+          <select id="section-selector" class="form-select">
+            <option value="INFO">Informatique</option>
+            <option value="GESTION">Gestion</option>
+            <option value="MATH">Mathématiques</option>
+            <option value="PHYSIQUE">Physique</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  {% elif is_section_role %}
+    <!-- Les chefs de section ne voient que leur propre section -->
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle me-2"></i>
+      Vous visualisez les données de votre section: <strong>{{ user.profile.section }}</strong>
+    </div>
+  {% endif %}
+  
+  <!-- Afficher les données de la section INFO -->
+  {% if can_view_section_data 'INFO' %}
+    <div class="card mb-4" id="section-INFO">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Section Informatique</h5>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Département</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Jean Dupont</td>
+              <td>Informatique</td>
+              <td>Professeur</td>
+            </tr>
+            <tr>
+              <td>Marie Martin</td>
+              <td>Systèmes d'Information</td>
+              <td>Maître de conférences</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+  
+  <!-- Afficher les données de la section GESTION -->
+  {% if can_view_section_data 'GESTION' %}
+    <div class="card mb-4" id="section-GESTION">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">Section Gestion</h5>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Département</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Philippe Leroy</td>
+              <td>Finance</td>
+              <td>Professeur</td>
+            </tr>
+            <tr>
+              <td>Sophie Bernard</td>
+              <td>Marketing</td>
+              <td>Assistant</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+  
+  <!-- Afficher les données de la section MATH -->
+  {% if can_view_section_data 'MATH' %}
+    <div class="card mb-4" id="section-MATH">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Section Mathématiques</h5>
+      </div>
+      <div class="card-body">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Département</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Antoine Dubois</td>
+              <td>Algèbre</td>
+              <td>Professeur</td>
+            </tr>
+            <tr>
+              <td>Claire Moreau</td>
+              <td>Analyse</td>
+              <td>Maître de conférences</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+  
+  <!-- Script pour le sélecteur de section -->
+  {% if is_admin or is_administrative_role %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const sectionSelector = document.getElementById('section-selector');
+      const sectionDivs = document.querySelectorAll('[id^="section-"]');
+      
+      // Cacher toutes les sections sauf la première
+      for (let i = 1; i < sectionDivs.length; i++) {
+        sectionDivs[i].style.display = 'none';
+      }
+      
+      // Ajouter l'écouteur d'événement
+      sectionSelector.addEventListener('change', function() {
+        const selectedSection = sectionSelector.value;
+        
+        // Cacher toutes les sections
+        sectionDivs.forEach(function(div) {
+          div.style.display = 'none';
+        });
+        
+        // Afficher la section sélectionnée
+        const selectedDiv = document.getElementById('section-' + selectedSection);
+        if (selectedDiv) {
+          selectedDiv.style.display = 'block';
+        }
+      });
+    });
+  </script>
+  {% endif %}
+</div>
+{% endblock %}

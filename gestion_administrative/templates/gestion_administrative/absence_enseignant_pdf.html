@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Liste des Absences Enseignants</title>
+    <style type="text/css">
+        @page {
+            size: a4 portrait;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header img {
+            max-height: 80px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        .info-block {
+            margin: 10px 0;
+        }
+        .label {
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table th, table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+            font-size: 10px;
+        }
+        table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+        }
+        .date-generated {
+            margin-top: 20px;
+            text-align: right;
+            font-style: italic;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if header_path %}
+        <img src="file:///{{ header_path }}" alt="Entête">
+        {% endif %}
+        <h1>Liste des Absences Enseignants</h1>
+    </div>
+    
+    <div class="info-block">
+        <span class="label">Date d'impression:</span> {{ date_impression|date:"d/m/Y à H:i" }}
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Matricule</th>
+                <th>Nom Enseignant</th>
+                <th>Date début</th>
+                <th>Date fin</th>
+                <th>Destination</th>
+                <th>Motif</th>
+                <th>Date d'enregistrement</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for absence in absences %}
+            <tr>
+                <td>{{ absence.MatriculeEnseignant }}</td>
+                <td>{{ absence.nom_enseignant }}</td>
+                <td>{{ absence.dateDebut|date:"d/m/Y" }}</td>
+                <td>{{ absence.dateFin|date:"d/m/Y" }}</td>
+                <td>{{ absence.Destination }}</td>
+                <td>{{ absence.Motif|truncatewords:10 }}</td>
+                <td>{{ absence.Date|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="date-generated">
+        Document généré le {{ date_impression|date:"d/m/Y" }} à {{ date_impression|date:"H:i" }}
+    </div>
+    
+    <div class="footer">
+        <p>Système de Gestion des Charges Horaires</p>
+    </div>
+</body>
+</html>

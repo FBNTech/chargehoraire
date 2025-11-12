@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un Créneau{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h4 class="mb-0">
+                        <i class="fas fa-clock"></i>
+                        {% if form.instance.pk %}Modifier{% else %}Créer{% endif %} un Créneau
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Code <span class="text-danger">*</span></label>
+                                {{ form.code }}
+                                <div class="form-text">Ex: AM, PM, S1, S2</div>
+                                {% if form.code.errors %}
+                                    <div class="text-danger">{{ form.code.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label fw-bold">Désignation <span class="text-danger">*</span></label>
+                                {{ form.designation }}
+                                <div class="form-text">Ex: Matinée, Après-midi</div>
+                                {% if form.designation.errors %}
+                                    <div class="text-danger">{{ form.designation.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Heure Début <span class="text-danger">*</span></label>
+                                {{ form.heure_debut }}
+                                <div class="form-text">Format: HH:MM (ex: 08:00)</div>
+                                {% if form.heure_debut.errors %}
+                                    <div class="text-danger">{{ form.heure_debut.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Heure Fin <span class="text-danger">*</span></label>
+                                {{ form.heure_fin }}
+                                <div class="form-text">Format: HH:MM (ex: 12:00)</div>
+                                {% if form.heure_fin.errors %}
+                                    <div class="text-danger">{{ form.heure_fin.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ordre d'affichage <span class="text-danger">*</span></label>
+                            {{ form.ordre }}
+                            <div class="form-text">Détermine l'ordre d'affichage dans les listes (0 = premier)</div>
+                            {% if form.ordre.errors %}
+                                <div class="text-danger">{{ form.ordre.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.est_actif }}
+                                <label class="form-check-label" for="{{ form.est_actif.id_for_label }}">
+                                    <strong>Créneau actif pour planification</strong>
+                                </label>
+                                <div class="form-text">Si décoché, ce créneau ne sera pas proposé lors de la planification des cours.</div>
+                            </div>
+                            {% if form.est_actif.errors %}
+                                <div class="text-danger">{{ form.est_actif.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Exemple :</strong> Pour un créneau du matin de 8h à 12h, utilisez :
+                            <ul class="mb-0">
+                                <li><strong>Code :</strong> AM</li>
+                                <li><strong>Désignation :</strong> Matinée</li>
+                                <li><strong>Heure Début :</strong> 08:00</li>
+                                <li><strong>Heure Fin :</strong> 12:00</li>
+                                <li><strong>Ordre :</strong> 1</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'reglage:creneau_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    input[type="text"], input[type="time"], input[type="number"] {
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}

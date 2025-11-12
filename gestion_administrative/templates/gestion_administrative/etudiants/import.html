@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="card-title mb-4">Importer des étudiants depuis Excel</h2>
+          
+          <!-- Instructions -->
+          <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle"></i> Instructions d'importation</h5>
+            <p class="mb-2">Votre fichier Excel doit contenir les colonnes suivantes :</p>
+            <ul class="mb-2">
+              <li><strong>Colonnes obligatoires :</strong> matricule, nom_complet</li>
+              <li><strong>Colonnes optionnelles :</strong> date_naissance, sexe, telephone, departement, classe, annee_academique</li>
+            </ul>
+            <p class="mb-0">
+              <small>
+                <strong>Note :</strong> Les étudiants existants (même matricule) seront mis à jour avec les nouvelles données.
+                Le format de date doit être reconnaissable par Excel (ex: 01/01/2000).
+              </small>
+            </p>
+          </div>
+
+          <!-- Exemple de format -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h6 class="mb-0">Exemple de format Excel</h6>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                  <thead class="table-light">
+                    <tr>
+                      <th>matricule</th>
+                      <th>nom_complet</th>
+                      <th>date_naissance</th>
+                      <th>sexe</th>
+                      <th>telephone</th>
+                      <th>departement</th>
+                      <th>classe</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>ET001</td>
+                      <td>DUPONT Jean</td>
+                      <td>01/01/2000</td>
+                      <td>M</td>
+                      <td>123456789</td>
+                      <td>Informatique</td>
+                      <td>L3 Informatique</td>
+                    </tr>
+                    <tr>
+                      <td>ET002</td>
+                      <td>MARTIN Marie</td>
+                      <td>15/03/1999</td>
+                      <td>F</td>
+                      <td>987654321</td>
+                      <td>Gestion</td>
+                      <td>M1 Gestion</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulaire d'importation -->
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label for="{{ form.fichier_excel.id_for_label }}" class="form-label">{{ form.fichier_excel.label }}</label>
+              {{ form.fichier_excel }}
+              {% if form.fichier_excel.help_text %}
+                <div class="form-text">{{ form.fichier_excel.help_text }}</div>
+              {% endif %}
+              {% if form.fichier_excel.errors %}
+                <div class="text-danger small">{{ form.fichier_excel.errors.0 }}</div>
+              {% endif %}
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'gestion_administrative:liste_etudiants' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la liste
+              </a>
+              <button type="submit" class="btn btn-success">
+                <i class="fas fa-file-import"></i> Importer le fichier
+              </button>
+            </div>
+          </form>
+
+          <!-- Valeurs possibles pour les champs -->
+          <div class="mt-4">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="mb-0">Valeurs possibles pour les champs</h6>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <h6>Sexe :</h6>
+                    <ul class="small">
+                      <li>M (Masculin)</li>
+                      <li>F (Féminin)</li>
+                    </ul>
+                  </div>
+                  <div class="col-md-6">
+                    <h6>Département :</h6>
+                    <ul class="small">
+                      <li>Informatique</li>
+                      <li>Physique</li>
+                      <li>Chimie</li>
+                      <li>Biologie</li>
+                      <li>SCAD</li>
+                      <li>Histoire</li>
+                      <li>Anglais</li>
+                      <li>Français</li>
+                      <li>Mathématique</li>
+                      <li>Agrovet</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

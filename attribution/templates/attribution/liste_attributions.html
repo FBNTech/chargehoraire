@@ -1,0 +1,444 @@
+{% extends 'base.html' %}
+{% load static %}
+
+<style>
+    .table {
+        font-size: 0.85rem;
+    }
+    .table th {
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .table td {
+        padding: 0.5rem;
+    }
+    /* Colonne Classe */
+    .table th:nth-child(7), 
+    .table td:nth-child(7) {
+        width: 60px;
+        max-width: 60px;
+        min-width: 60px;
+        text-align: center;
+    }
+    /* Colonne Semestre */
+    .table th:nth-child(8), 
+    .table td:nth-child(8) {
+        width: 80px;
+        max-width: 80px;
+        min-width: 80px;
+        text-align: center;
+    }
+    .results-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+</style>
+
+{% block content %}
+<div class="container-fluid mt-4">
+    {% csrf_token %}
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <form id="attributionForm" method="GET" action="{% url 'attribution:search_attributions' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <select class="form-control" id="teacher_name" name="teacher_name">
+                                <option value="">Sélectionner un enseignant</option>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}"
+                                        data-matricule="{{ teacher.matricule }}"
+                                        data-grade="{{ teacher.grade }}">
+                                    {{ teacher.nom_complet }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher_matricule" name="teacher_matricule"
+                                   readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher-grade" name="teacher_grade"
+                                   readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <select class="form-control text-center" id="teacher_academic_year" name="teacher_academic_year" required>
+                                <option value="">Année académique</option>
+                                {% for year in academic_years %}
+                                <option value="{{ year }}">{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <select class="form-control" id="type_charge" name="type_charge">
+                                <option value="">Sélectionner type charge</option>
+                                <option value="Reguliere">Reguliere</option>
+                                <option value="Supplementaire">Supplementaire</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="code_ue_search" name="code_ue" 
+                                   placeholder="Rechercher une UE (code ou intitulé)"
+                                   value="{{ selected_code_ue }}">
+                            <small class="form-text text-muted">Ex: INF101 ou Algorithmique</small>
+                        </div>
+                        
+                        <div class="text-end">
+                            <div class="col-12 text-center">
+                                <button type="submit" id="attribuer-btn" class="btn btn-secondary w-100" style="background-color: #4CAF50; color: white;">
+                                    <i class="fa-sharp-duotone fa-solid fa-search"></i> Rechercher
+                                </button>
+                            </div>
+                        </div><br>
+                        <div id="form-debug" class="alert alert-info mt-3" style="display:none;">
+                            Informations de formulaire :<br>
+                            Enseignant : <span id="debug-selected-teacher"></span><br>
+                            Matricule : <span id="debug-selected-matricule"></span><br>
+                            Année académique : <span id="debug-selected-year"></span><br>
+                            Type de charge : <span id="debug-selected-type"></span>
+                        </div>
+                        <div class="col-12 text-center">
+                            <button type="submit" id="imprimer-btn" class="btn btn-secondary w-100" style="background-color: #181c34;; color: white;">
+                                <i class="fas fa-print"></i> Imprimer
+                            </button>
+                        </div>
+                    </form> <!-- Form fermé ici -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-9">
+            <div class="card" id="results-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <!-- Ajoutez ici les éléments que vous souhaitez afficher en haut des résultats -->
+                    </div>
+                    <div id="migration-progress" class="progress mb-3" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="results-container" class="results-container">
+                        {% if attributions %}
+                            <div id="debug-info" class="alert alert-success">
+                                <strong>✓ Résultats de recherche :</strong><br>
+                                Nombre d'attributions : <strong>{{ attributions|length }}</strong>
+                                {% if selected_code_ue %}<br>UE recherchée : <strong>{{ selected_code_ue }}</strong>{% endif %}
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered table-responsive-cards">
+                                    <thead>
+                                        <tr>
+                                            <th>Code UE</th>
+                                            <th>Intitulé UE</th>
+                                            <th>Intitulé EC</th>
+                                            <th>Crédit</th>
+                                            <th>CMI (H)</th>
+                                            <th>TD/TP (H)</th>
+                                            <th>Classe</th>
+                                            <th>Semestre</th>
+                                            <th>Type de Charge</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for attribution in attributions %}
+                                        <tr>
+                                            <td data-label="Code UE"><strong>{{ attribution.code_ue__code_ue }}</strong></td>
+                                            <td data-label="Intitulé UE">{{ attribution.code_ue__intitule_ue }}</td>
+                                            <td data-label="Intitulé EC">{{ attribution.code_ue__intitule_ec }}</td>
+                                            <td data-label="Crédit">{{ attribution.code_ue__credit }}</td>
+                                            <td data-label="CMI (H)">{{ attribution.code_ue__cmi }}</td>
+                                            <td data-label="TD/TP (H)">{{ attribution.code_ue__td_tp }}</td>
+                                            <td data-label="Classe"><span class="badge bg-info">{{ attribution.code_ue__classe|default:"—" }}</span></td>
+                                            <td data-label="Semestre">{{ attribution.code_ue__semestre|default:"Non défini" }}</td>
+                                            <td data-label="Type de Charge"><span class="badge bg-primary">{{ attribution.type_charge|title|default:"—" }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info text-center" role="alert">
+                                Aucune attribution trouvée pour les critères de recherche sélectionnés.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% block extra_js %}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'js/progress.js' %}"></script>
+    <script>
+        $(document).ready(function() {
+            // Teacher selection handling
+            $('#teacher_name').on('change', function() {
+                var selectedOption = $(this).find('option:selected');
+                $('#teacher_matricule').val(selectedOption.data('matricule'));
+                $('#teacher-grade').val(selectedOption.data('grade'));
+            });
+
+            // Course selection handling
+            var selectedCourses = [];
+            $('#add-course-btn').on('click', function() {
+                var courseSelect = $('#code-ue');
+                var selectedCourse = courseSelect.val();
+                var selectedCourseText = courseSelect.find('option:selected').text();
+
+                if (selectedCourse && !selectedCourses.includes(selectedCourse)) {
+                    selectedCourses.push(selectedCourse);
+                    // You can add additional logic here for displaying selected courses
+                    courseSelect.val('');
+                }
+            });
+        });
+
+        // Débogage du formulaire
+        document.getElementById('attributionForm').addEventListener('submit', function(e) {
+            const teacherSelect = document.getElementById('teacher_name');
+            const teacherMatricule = document.getElementById('teacher_matricule');
+            const academicYear = document.getElementById('teacher_academic_year');
+            const typeCharge = document.getElementById('type_charge');
+            const formDebug = document.getElementById('form-debug');
+
+            // Remplir les informations de débogage
+            document.getElementById('debug-selected-teacher').textContent =
+                teacherSelect.options[teacherSelect.selectedIndex].text;
+            document.getElementById('debug-selected-matricule').textContent =
+                teacherMatricule.value;
+            document.getElementById('debug-selected-year').textContent =
+                academicYear.value;
+            document.getElementById('debug-selected-type').textContent =
+                typeCharge.value;
+
+            // Afficher les informations de débogage
+            formDebug.style.display = 'block';
+
+            // Vérifier que tous les champs requis sont remplis
+            let isValid = true;
+            if (!teacherSelect.value) {
+                teacherSelect.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                teacherSelect.classList.remove('is-invalid');
+            }
+
+            if (!academicYear.value) {
+                academicYear.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                academicYear.classList.remove('is-invalid');
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Veuillez remplir tous les champs obligatoires.');
+            }
+        });
+
+        // Gestion de la suppression
+        document.querySelectorAll('.delete-course').forEach(button => {
+            button.addEventListener('click', async function(e) {
+                e.preventDefault();
+                if (confirm('Êtes-vous sûr de vouloir supprimer cette attribution ?')) {
+                    const courseId = this.dataset.courseId;
+                    if (!courseId) {
+                        alert('ID de l\'attribution non trouvé');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`{% url 'attribution:delete_attribution' 999 %}`.replace('999', courseId), {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Erreur HTTP: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Supprimer la ligne du tableau
+                            this.closest('tr').remove();
+                            // Mettre à jour les totaux
+                            updateTotals();
+                            // Afficher le message de succès
+                            const alertDiv = document.createElement('div');
+                            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                            alertDiv.innerHTML = `
+                                ${data.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            `;
+                            const messagesContainer = document.querySelector('.messages');
+                            if (messagesContainer) {
+                                messagesContainer.appendChild(alertDiv);
+                            }
+                        } else {
+                            alert('Erreur lors de la suppression : ' + (data.error || 'Erreur inconnue'));
+                        }
+                    } catch (error) {
+                        console.error('Erreur:', error);
+                        alert('Une erreur est survenue lors de la suppression');
+                    }
+                }
+            });
+        });
+
+        // Fonction pour afficher le tableau de résultats
+        function showResults() {
+            document.getElementById('results-card').classList.remove('d-none');
+        }
+
+        // Gestion du bouton Ajouter
+        document.getElementById('add-course-btn').addEventListener('click', async function() {
+            // Récupérer les valeurs du formulaire
+            const matricule = document.getElementById('teacher_matricule').value;
+            const anneeAcademique = document.getElementById('teacher_academic_year').value;
+            const typeCharge = document.getElementById('type_charge').value;
+            const codeUe = document.getElementById('code-ue').value;
+
+            // Vérifier que tous les champs sont remplis
+            if (!matricule || !anneeAcademique || !typeCharge || !codeUe) {
+                alert('Veuillez remplir tous les champs avant d\'ajouter un cours');
+                return;
+            }
+
+            try {
+                const response = await fetch("{% url 'attribution:create_new_attribution' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        teacher_matricule: matricule,
+                        teacher_academic_year: anneeAcademique,
+                        type_charge: typeCharge,
+                        code_ue: codeUe
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResults();  // Afficher le tableau après l'ajout
+                } else {
+                    alert(data.error || 'Une erreur est survenue lors de l\'ajout du cours');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue lors de l\'ajout du cours');
+            }
+        });
+
+        // Afficher le tableau si on a des résultats après une recherche
+        function checkTableContent() {
+            const rows = document.querySelectorAll('#results-table tbody tr:not(:empty)');
+            if (rows.length > 0) {
+                showResults();
+            }
+        }
+
+        // Appeler la vérification au chargement et après chaque modification du tableau
+        document.addEventListener('DOMContentLoaded', checkTableContent);
+
+        // Fonction de recherche
+        document.getElementById('attributionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const searchUrl = "{% url 'attribution:search_attributions' %}";
+            console.log('Données de recherche :', formData);
+
+            fetch(searchUrl + '?' + new URLSearchParams(formData))
+                .then(response => {
+                    console.log('Statut de la réponse :', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Données reçues :', data);
+
+                    // Mettre à jour le tableau de résultats
+                    const resultsContainer = document.getElementById('attribution-results');
+                    resultsContainer.innerHTML = ''; // Vider le conteneur des résultats
+
+                    if (data.attributions && data.attributions.length > 0) {
+                        data.attributions.forEach(attribution => {
+                            const card = document.createElement('div');
+                            card.className = 'col-md-4 mb-3';
+                            card.innerHTML = `
+                                <div class="card">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="card-title mb-0">${attribution.code_ue__code_ue} - ${attribution.code_ue__intitule_ue}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">
+                                            <strong>Intitulé EC:</strong> ${attribution.code_ue__intitule_ec}<br>
+                                            <strong>Crédit:</strong> ${attribution.code_ue__credit}<br>
+                                            <strong>CMI:</strong> ${attribution.code_ue__cmi} H<br>
+                                            <strong>TD/TP:</strong> ${attribution.code_ue__td_tp} H<br>
+                                            <strong>Classe:</strong> ${attribution.code_ue__classe}<br>
+                                            <strong>Semestre:</strong> ${attribution.code_ue__semestre}<br>
+                                            <strong>Type de Charge:</strong> ${attribution.type_charge}
+                                        </p>
+                                    </div>
+                                </div>
+                            `;
+                            resultsContainer.appendChild(card);
+                        });
+
+                        // Afficher la carte de résultats
+                        document.getElementById('results-card').classList.remove('d-none');
+                    } else {
+                        resultsContainer.innerHTML = `
+                            <div class="alert alert-info text-center" role="alert">
+                                Aucune attribution trouvée pour les critères de recherche sélectionnés.
+                            </div>
+                        `;
+                    }
+
+                    // Afficher les informations de l'enseignant
+                    const teacherSelect = document.getElementById('teacher_name');
+                    const selectedOption = teacherSelect.options[teacherSelect.selectedIndex];
+                    const grade = selectedOption.dataset.grade;
+                    const teacherName = selectedOption.text;
+
+                    const teacherInfo = document.getElementById('teacher-info');
+                    const displayGrade = document.getElementById('display-grade');
+                    const displayName = document.getElementById('display-name');
+
+                    if (grade && teacherName && teacherName !== 'Sélectionner un enseignant') {
+                        displayGrade.textContent = grade;
+                        displayName.textContent = teacherName;
+                        teacherInfo.style.display = 'block';
+                    } else {
+                        teacherInfo.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        });
+    </script>
+{% endblock %}
+{% endblock %}

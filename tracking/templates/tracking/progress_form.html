@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center">
+                        {% if object %}
+                            Modifier un enregistrement de suivi
+                        {% else %}
+                            Suivi des enseignements
+                        {% endif %}
+                    </h2>
+                    <style>
+                        /* Réduire encore la largeur des champs de 10% (donc 50% du conteneur) et centrer */
+                        .narrow-fields input,
+                        .narrow-fields select,
+                        .narrow-fields textarea {
+                            width: 50% !important;
+                            max-width: 100%;
+                            display: block;
+                            margin-left: auto;
+                            margin-right: auto;
+                        }
+                        /* Conteneur centré pour mettre les boutons aux bords de la zone à 50% */
+                        .narrow-edge {
+                            width: 50%;
+                            margin-left: auto;
+                            margin-right: auto;
+                        }
+                    </style>
+                    
+                    <form method="post" class="mt-4 narrow-fields">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Disposition verticale sans labels -->
+                        <div class="mb-3">
+                            {{ form.teacher }}
+                            {% if form.teacher.errors %}
+                            <div class="text-danger">
+                                {% for error in form.teacher.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.course }}
+                            {% if form.course.errors %}
+                            <div class="text-danger">
+                                {% for error in form.course.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.week }}
+                            {% if form.week.errors %}
+                            <div class="text-danger">
+                                {% for error in form.week.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.hours_done }}
+                            {% if form.hours_done.errors %}
+                            <div class="text-danger">
+                                {% for error in form.hours_done.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                            <div class="text-danger">
+                                {% for error in form.status.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            {{ form.comment }}
+                            {% if form.comment.errors %}
+                            <div class="text-danger">
+                                {% for error in form.comment.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="narrow-edge d-flex justify-content-between">
+                            <a href="{% url 'tracking:progress_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Lorsqu'un enseignant est sélectionné, filtrer les cours associés
+    const teacherSelect = document.getElementById('{{ form.teacher.id_for_label }}');
+    const courseSelect = document.getElementById('{{ form.course.id_for_label }}');
+    
+    teacherSelect.addEventListener('change', function() {
+        const teacherId = this.value;
+        if (!teacherId) {
+            return;
+        }
+        
+        // Afficher un indicateur de chargement
+        courseSelect.disabled = true;
+        const originalText = courseSelect.querySelector('option:first-child').textContent;
+        courseSelect.querySelector('option:first-child').textContent = 'Chargement...';
+        
+        // Récupérer les cours associés à cet enseignant
+        fetch(`/tracking/api/teacher/${teacherId}/courses/`)
+            .then(response => response.json())
+            .then(data => {
+                // Réinitialiser les options du select de cours
+                courseSelect.innerHTML = '';
+                
+                // Ajouter l'option vide par défaut
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = 'Sélectionner une UE';
+                courseSelect.appendChild(emptyOption);
+                
+                if (data.success && data.courses) {
+                    // Ajouter les cours associés à l'enseignant
+                    data.courses.forEach(course => {
+                        const option = document.createElement('option');
+                        option.value = course.id;
+                        option.textContent = course.display_name;
+                        courseSelect.appendChild(option);
+                    });
+                } else {
+                    // Aucun cours trouvé pour cet enseignant
+                    const noCoursesOption = document.createElement('option');
+                    noCoursesOption.value = '';
+                    noCoursesOption.textContent = 'Aucun cours attribué à cet enseignant';
+                    noCoursesOption.disabled = true;
+                    courseSelect.appendChild(noCoursesOption);
+                }
+                
+                // Réactiver le select de cours
+                courseSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération des cours:', error);
+                // Restaurer l'état initial en cas d'erreur
+                courseSelect.querySelector('option:first-child').textContent = originalText;
+                courseSelect.disabled = false;
+            });
+    });
+});
+</script>
+{% endblock %}

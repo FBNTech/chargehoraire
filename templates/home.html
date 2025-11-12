@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Accueil - GestCharge{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <div>
+            <h1 class="h2 mb-1"><i class="fas fa-graduation-cap me-2 text-primary"></i>Bienvenue dans GestCharge</h1>
+            <p class="text-muted mb-0">Système de Gestion des Charges Horaires</p>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <span class="badge bg-primary me-2">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    {% if active_year %}
+                        {{ active_year.designation }} - En cours
+                    {% else %}
+                        Aucune année active
+                    {% endif %}
+                </span>
+                <span class="badge bg-success">
+                    <i class="fas fa-calendar-week me-1"></i>
+                    {% if current_week %}
+                        {{ current_week.designation }}
+                    {% else %}
+                        Semaine non définie
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cartes d'information -->
+    <div class="row mb-4">
+        <!-- Carte Année en cours -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2" style="background: linear-gradient(135deg, #ffffff 0%, #e3f2fd 100%); border-left: 4px solid #2196F3 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Année en cours</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if active_year %}
+                                    {{ active_year.designation }}
+                                {% else %}
+                                    Non définie
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte Semaine en cours -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2" style="background: linear-gradient(135deg, #ffffff 0%, #e8f5e9 100%); border-left: 4px solid #4CAF50 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Semaine en cours</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if current_week %}
+                                    {{ current_week.designation }}
+                                {% else %}
+                                    Non définie
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-week fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte Nombre total de cours -->
+        {% if total_cours is not None %}
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2" style="background: linear-gradient(135deg, #ffffff 0%, #e1f5fe 100%); border-left: 4px solid #00BCD4 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Total des cours planifiés</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_cours }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Carte Accès rapide -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2" style="background: linear-gradient(135deg, #ffffff 0%, #fff3e0 100%); border-left: 4px solid #FF9800 !important;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Accès rapide</div>
+                            <a href="{% url 'attribution:schedule_entry_list' %}" class="btn btn-sm btn-outline-primary mb-1">
+                                <i class="fas fa-calendar-alt me-1"></i> Emploi du temps
+                            </a>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bolt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section d'aide et d'informations -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4" style="background: linear-gradient(135deg, #ffffff 0%, #f3e5f5 100%); border-top: 3px solid #9C27B0;">
+                <div class="card-header py-3" style="background: transparent; border-bottom: 2px solid rgba(156, 39, 176, 0.1);">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-question-circle me-2"></i>Aide rapide</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Bienvenue !</h5>
+                        <p>Utilisez le menu de navigation pour accéder aux différentes fonctionnalités du système de gestion des charges horaires.</p>
+                        <hr>
+                        <p class="mb-0">Pour toute question, veuillez contacter l'administrateur système.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow mb-4" style="background: linear-gradient(135deg, #ffffff 0%, #fce4ec 100%); border-top: 3px solid #E91E63;">
+                <div class="card-header py-3" style="background: transparent; border-bottom: 2px solid rgba(233, 30, 99, 0.1);">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>Dernières activités</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <p class="text-muted">Fonctionnalité à venir</p>
+                        <i class="fas fa-tasks fa-3x text-gray-300 mb-3"></i>
+                        <p>Bientôt disponible : suivi des dernières modifications et activités récentes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Scripts spécifiques à la page d'accueil -->
+<script>
+    // Scripts spécifiques au tableau de bord
+    $(document).ready(function() {
+        // Initialisation des tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %}

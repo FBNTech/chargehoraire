@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Générer un horaire de cours (PDF)</h3>
+  <form method="get" action="{% url 'attribution:schedule_pdf' %}" target="_blank" class="row g-3" id="pdfForm">
+    {% csrf_token %}
+    <div class="col-md-5">
+      <label class="form-label">Cours (apporte enseignant + grade)</label>
+      <select id="coursSelect" name="attribution_id" class="form-select" required>
+        <option value="">Choisir un cours...</option>
+        {% for c in cours_options %}
+          <option value="{{ c.attribution_id }}" data-enseignant="{{ c.enseignant }}" data-grade="{{ c.grade }}" data-annee="{{ c.annee }}" data-classe="{{ c.classe }}">
+            {{ c.classe }} | {{ c.code_ue }} - {{ c.intitule_ue }}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="form-text">
+        Enseignant: <span id="enseignantNom">—</span> | Grade: <span id="enseignantGrade">—</span>
+      </div>
+    </div>
+    <input type="hidden" name="classe" id="classeHidden" />
+    <div class="col-md-3">
+      <label class="form-label">Date du jour</label>
+      <input type="date" name="semaine" id="semaineInput" class="form-control" required />
+      <div class="form-text">
+        Jour: <span id="jourDisplay">—</span>
+      </div>
+    </div>
+    
+    <div class="col-md-2">
+      <label class="form-label">Créneau</label>
+      <select id="creneauSelect" class="form-select">
+        <option value="am">08h00-12h00</option>
+        <option value="pm">13h00-17h00</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Salle</label>
+      <input type="text" id="salleInput" class="form-control" placeholder="Ex: B1" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Chef de Section</label>
+      <select name="chef_section" class="form-select">
+        <option value="">--</option>
+        {% for t in chefs_section %}
+          <option value="{{ t.id }}">{{ t.nom_complet }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Chef de Section-Adj./Enseignement</label>
+      <select name="chef_adjoint" class="form-select">
+        <option value="">--</option>
+        {% for t in chefs_adjoint %}
+          <option value="{{ t.id }}">{{ t.nom_complet }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" id="addEntryBtn" class="btn btn-secondary">Ajouter à l'horaire</button>
+      <button type="submit" class="btn btn-primary">Ouvrir le PDF</button>
+    </div>
+  </form>
+
+  <div class="mt-4">
+    <h5>Cours ajoutés à l'horaire</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped" id="horaireTable">
+        <thead class="table-dark">
+          <tr>
+            <th>Classe</th>
+            <th>Code UE</th>
+            <th>Intitulé</th>
+            <th>Enseignant</th>
+            <th>Grade</th>
+            <th>Jour</th>
+            <th>Créneau</th>
+            <th>Salle</th>
+          </tr>
+        </thead>
+        <tbody id="horaireTableBody">
+          <tr>
+            <td colspan="8" class="text-center text-muted">Aucun cours ajouté</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const select = document.getElementById('coursSelect');
+    const nomSpan = document.getElementById('enseignantNom');
+    const gradeSpan = document.getElementById('enseignantGrade');
+    if (select) {
+      select.addEventListener('change', function(){
+        const opt = select.options[select.selectedIndex];
+        nomSpan.textContent = opt.getAttribute('data-enseignant') || '—';
+        gradeSpan.textContent = opt.getAttribute('data-grade') || '—';
+        document.getElementById('classeHidden').value = opt.getAttribute('data-classe') || '';
+      });
+      // init
+      if (select.selectedIndex > 0) {
+        const opt0 = select.options[select.selectedIndex];
+        document.getElementById('classeHidden').value = opt0.getAttribute('data-classe') || '';
+      }
+    }
+
+    const addBtn = document.getElementById('addEntryBtn');
+    const semaineInput = document.getElementById('semaineInput');
+    const creneauSelect = document.getElementById('creneauSelect');
+    const salleInput = document.getElementById('salleInput');
+    const jourDisplay = document.getElementById('jourDisplay');
+
+    function computeJourFromDateStr(dateStr){
+      // returns 'lundi'..'samedi'
+      if(!dateStr) return '';
+      const d = new Date(dateStr);
+      const idx = d.getDay(); // 0=Dimanche
+      const map = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+      return map[idx] || 'lundi';
+    }
+
+    function displayJour(){
+      const dateVal = semaineInput.value;
+      if(dateVal){
+        const j = computeJourFromDateStr(dateVal);
+        jourDisplay.textContent = j.charAt(0).toUpperCase() + j.slice(1);
+      } else {
+        jourDisplay.textContent = '—';
+      }
+    }
+
+    semaineInput?.addEventListener('change', displayJour);
+    // init display
+    displayJour();
+
+    function addRowToTable(opt, jour, creneauText, salle){
+      const tbody = document.getElementById('horaireTableBody');
+      // Si c'est la première ligne, supprimer le message "Aucun cours ajouté"
+      if(tbody.children.length === 1 && tbody.children[0].cells.length === 1){
+        tbody.innerHTML = '';
+      }
+      
+      const row = tbody.insertRow();
+      const classe = opt.getAttribute('data-classe') || '';
+      const codeUE = opt.textContent.split('|')[1]?.split('-')[0]?.trim() || '';
+      const intitule = opt.textContent.split('-').slice(1).join('-').trim() || '';
+      const enseignant = opt.getAttribute('data-enseignant') || '';
+      const grade = opt.getAttribute('data-grade') || '';
+      
+      row.innerHTML = `
+        <td>${classe}</td>
+        <td>${codeUE}</td>
+        <td>${intitule}</td>
+        <td>${enseignant}</td>
+        <td>${grade}</td>
+        <td>${jour.charAt(0).toUpperCase() + jour.slice(1)}</td>
+        <td>${creneauText}</td>
+        <td>${salle || '—'}</td>
+      `;
+    }
+
+    addBtn?.addEventListener('click', async function(){
+      const opt = select.options[select.selectedIndex];
+      const attributionId = select.value;
+      const semaine = semaineInput.value;
+      const annee = opt?.getAttribute('data-annee');
+      if(!attributionId || !semaine || !annee){
+        alert('Sélectionnez un cours et la date de début de semaine.');
+        return;
+      }
+      const jourCalc = computeJourFromDateStr(semaine);
+      const payload = {
+        annee_academique: annee,
+        semaine_debut: semaine,
+        entries: [{
+          attribution_id: parseInt(attributionId),
+          jour: jourCalc,
+          creneau: creneauSelect.value,
+          salle: salleInput.value
+        }]
+      };
+      try {
+        const resp = await fetch('{% url "attribution:save_schedule_entries" %}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if(data.success){
+          // Ajouter une ligne au tableau
+          addRowToTable(opt, jourCalc, creneauSelect.options[creneauSelect.selectedIndex].text, salleInput.value);
+          alert('Ajouté à l\'horaire. Vous pouvez ajouter un autre cours ou ouvrir le PDF.');
+          // Réinitialiser la salle
+          salleInput.value = '';
+        } else {
+          alert('Erreur: ' + (data.message || 'inconnue'));
+        }
+      } catch(e){
+        alert('Erreur réseau');
+      }
+    });
+  });
+ </script>
+{% endblock %}
+{% endblock %}

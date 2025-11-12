@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-calendar-alt"></i> Gestion des Horaires</h2>
+        <div class="btn-group">
+            <a href="{% url 'attribution:schedule_entry_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Ajouter un horaire
+            </a>
+            <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#pdfGenerateModal">
+                <i class="fas fa-file-pdf"></i> Générer PDF
+            </button>
+            <a href="{% url 'attribution:schedule_conflicts_report' %}" class="btn btn-warning">
+                <i class="fas fa-exclamation-triangle"></i> Voir les conflits
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-3">
+        <div class="card-header bg-light py-2">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtres</h6>
+        </div>
+        <div class="card-body py-2">
+            <form method="get" class="row g-2" id="filterForm">
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Année académique</label>
+                    <select name="annee" class="form-select form-select-sm">
+                        <option value="">Toutes</option>
+                        {% if annees_reglage %}
+                            {% for annee in annees_reglage %}
+                                <option value="{{ annee.code }}" {% if request.GET.annee == annee.code %}selected{% endif %}>
+                                    {{ annee.code }}{% if annee.est_en_cours %} ★{% endif %}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            {% for annee in annees %}
+                                <option value="{{ annee }}" {% if request.GET.annee == annee %}selected{% endif %}>
+                                    {{ annee }}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Semaine</label>
+                    <select name="semaine" class="form-select form-select-sm">
+                        <option value="">Toutes</option>
+                        {% if semaines_cours %}
+                            {% for semaine in semaines_cours %}
+                                <option value="{{ semaine.date_debut }}" {% if request.GET.semaine == semaine.date_debut|date:"Y-m-d" %}selected{% endif %}>
+                                    S{{ semaine.numero_semaine }}{% if semaine.est_en_cours %} ★{% endif %}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Jour</label>
+                    <select name="jour" class="form-select form-select-sm">
+                        <option value="">Tous</option>
+                        <option value="lundi" {% if request.GET.jour == 'lundi' %}selected{% endif %}>Lundi</option>
+                        <option value="mardi" {% if request.GET.jour == 'mardi' %}selected{% endif %}>Mardi</option>
+                        <option value="mercredi" {% if request.GET.jour == 'mercredi' %}selected{% endif %}>Mercredi</option>
+                        <option value="jeudi" {% if request.GET.jour == 'jeudi' %}selected{% endif %}>Jeudi</option>
+                        <option value="vendredi" {% if request.GET.jour == 'vendredi' %}selected{% endif %}>Vendredi</option>
+                        <option value="samedi" {% if request.GET.jour == 'samedi' %}selected{% endif %}>Samedi</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Créneau</label>
+                    <select name="creneau" class="form-select form-select-sm">
+                        <option value="">Tous</option>
+                        {% if creneaux_actifs %}
+                            {% for creneau in creneaux_actifs %}
+                                <option value="{{ creneau.code }}" {% if request.GET.creneau == creneau.code %}selected{% endif %}>
+                                    {{ creneau.designation }}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="am" {% if request.GET.creneau == 'am' %}selected{% endif %}>08h00-12h00</option>
+                            <option value="pm" {% if request.GET.creneau == 'pm' %}selected{% endif %}>13h00-17h00</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Classe</label>
+                    {% if classes_reglage %}
+                        <select name="classe" class="form-select form-select-sm">
+                            <option value="">Toutes</option>
+                            {% for classe in classes_reglage %}
+                                <option value="{{ classe.CodeClasse }}" {% if request.GET.classe == classe.CodeClasse %}selected{% endif %}>
+                                    {{ classe.CodeClasse }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <input type="text" name="classe" class="form-control form-control-sm" value="{{ request.GET.classe }}" placeholder="Ex: L1BC">
+                    {% endif %}
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-secondary btn-sm w-100">
+                        <i class="fas fa-search"></i> Filtrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-3">
+        <div class="col-md-2">
+            <div class="card text-white bg-primary">
+                <div class="card-body py-1 px-2 text-center">
+                    <div class="small mb-1"><i class="fas fa-list"></i> Total</div>
+                    <h5 class="mb-0">{{ entries|length }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-success">
+                <div class="card-body py-1 px-2 text-center">
+                    <div class="small mb-1"><i class="fas fa-calendar-check"></i> Année</div>
+                    <h5 class="mb-0">{{ annees.0|default:"N/A" }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-info">
+                <div class="card-body py-1 px-2 text-center">
+                    <div class="small mb-1"><i class="fas fa-chalkboard-teacher"></i> Planifiés</div>
+                    <h5 class="mb-0">{{ entries|length }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-white bg-warning">
+                <div class="card-body py-1 px-2 text-center">
+                    <div class="small mb-1"><i class="fas fa-building"></i> Salles</div>
+                    <h5 class="mb-0">{{ salles_count|default:"0" }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des horaires -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-table"></i> Liste des horaires enregistrés</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Semaine</th>
+                            <th>Date</th>
+                            <th>Jour</th>
+                            <th>Créneau</th>
+                            <th>Code UE</th>
+                            <th>Intitulé UE</th>
+                            <th>Classe</th>
+                            <th>Grade</th>
+                            <th>Nom Enseignant</th>
+                            <th>Salle</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td data-label="Semaine"><span class="badge bg-success">S{{ entry.numero_semaine|default:"?" }}</span></td>
+                            <td data-label="Date">{{ entry.date_cours|date:"d/m/Y"|default:"—" }}</td>
+                            <td data-label="Jour"><span class="badge bg-primary">{{ entry.get_jour_display|title }}</span></td>
+                            <td data-label="Créneau"><span class="badge bg-secondary">{{ entry.get_creneau_display_complet }}</span></td>
+                            <td data-label="Code UE"><strong>{{ entry.attribution.code_ue.code_ue }}</strong></td>
+                            <td data-label="Intitulé UE">{{ entry.attribution.code_ue.intitule_ue }}</td>
+                            <td data-label="Classe"><span class="badge bg-info">{{ entry.attribution.code_ue.classe }}</span></td>
+                            <td data-label="Grade">{{ entry.attribution.matricule.grade|default:"—" }}</td>
+                            <td data-label="Enseignant"><strong>{{ entry.attribution.matricule.nom_complet }}</strong></td>
+                            <td data-label="Salle"><strong>{{ entry.salle|default:"—" }}</strong></td>
+                            <td data-label="Actions">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'attribution:schedule_entry_edit' entry.id %}" 
+                                       class="btn btn-warning" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-danger" 
+                                            onclick="deleteEntry({{ entry.id }})" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                <p>Aucun horaire trouvé. Cliquez sur "Ajouter un horaire" pour commencer.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Pagination">
+                <ul class="pagination justify-content-center mt-4">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Première</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Précédent</a>
+                        </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Suivant</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.annee %}&annee={{ request.GET.annee }}{% endif %}{% if request.GET.jour %}&jour={{ request.GET.jour }}{% endif %}{% if request.GET.creneau %}&creneau={{ request.GET.creneau }}{% endif %}{% if request.GET.classe %}&classe={{ request.GET.classe }}{% endif %}">Dernière</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Génération PDF -->
+<div class="modal fade" id="pdfGenerateModal" tabindex="-1" aria-labelledby="pdfGenerateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="pdfGenerateModalLabel"><i class="fas fa-file-pdf"></i> Paramètres de génération PDF</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="pdfGenerateForm">
+                    <div class="mb-3">
+                        <label class="form-label">Semaine de cours <span class="text-danger">*</span></label>
+                        <select id="pdfSemaine" class="form-select" required>
+                            <option value="">-- Sélectionner une semaine --</option>
+                            {% if semaines_cours %}
+                                {% for semaine in semaines_cours %}
+                                    <option value="{{ semaine.date_debut|date:"Y-m-d" }}" {% if semaine.est_en_cours %}selected{% endif %}>
+                                        Semaine {{ semaine.numero_semaine }} : {{ semaine.date_debut|date:"d/m/Y" }} - {{ semaine.date_fin|date:"d/m/Y" }}
+                                        {% if semaine.est_en_cours %}★ En cours{% endif %}
+                                    </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                        <div class="form-text">Sélectionnez la semaine pour laquelle générer l'horaire</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Chef de Section (CS) <span class="text-danger">*</span></label>
+                        <select id="pdfChefSection" class="form-select" required>
+                            <option value="">-- Sélectionner le Chef de Section --</option>
+                            {% if chefs_section %}
+                                {% for teacher in chefs_section %}
+                                    <option value="{{ teacher.id }}">
+                                        {{ teacher.nom_complet }}{% if teacher.get_grade_designation %} - {{ teacher.get_grade_designation }}{% endif %}
+                                    </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Chef de Section Adjoint/Enseignement (CSAE) <span class="text-danger">*</span></label>
+                        <select id="pdfChefAdjoint" class="form-select" required>
+                            <option value="">-- Sélectionner le Chef de Section Adjoint --</option>
+                            {% if chefs_adjoint %}
+                                {% for teacher in chefs_adjoint %}
+                                    <option value="{{ teacher.id }}">
+                                        {{ teacher.nom_complet }}{% if teacher.get_grade_designation %} - {{ teacher.get_grade_designation }}{% endif %}
+                                    </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Le PDF générera les horaires pour les 5 niveaux (L1, L2, L3, M1, M2) de la semaine sélectionnée avec les signatures des responsables choisis.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-info" onclick="generatePDF()">
+                    <i class="fas fa-file-pdf"></i> Générer le PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// Fonction de suppression
+function deleteEntry(entryId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet horaire ?')) {
+        fetch(`/attribution/schedule/entry/${entryId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression: ' + (data.message || 'Erreur inconnue'));
+            }
+        })
+        .catch(error => {
+            alert('Erreur réseau');
+            console.error(error);
+        });
+    }
+}
+
+// Fonction pour générer le PDF avec les paramètres sélectionnés
+function generatePDF() {
+    const semaine = document.getElementById('pdfSemaine').value;
+    const chefSection = document.getElementById('pdfChefSection').value;
+    const chefAdjoint = document.getElementById('pdfChefAdjoint').value;
+    
+    // Validation
+    if (!semaine) {
+        alert('Veuillez sélectionner une semaine de cours');
+        return;
+    }
+    if (!chefSection) {
+        alert('Veuillez sélectionner le Chef de Section');
+        return;
+    }
+    if (!chefAdjoint) {
+        alert('Veuillez sélectionner le Chef de Section Adjoint/Enseignement');
+        return;
+    }
+    
+    // Construire l'URL avec les paramètres
+    const url = '{% url "attribution:schedule_pdf" %}' + 
+                '?semaine=' + encodeURIComponent(semaine) +
+                '&chef_section=' + encodeURIComponent(chefSection) +
+                '&chef_adjoint=' + encodeURIComponent(chefAdjoint);
+    
+    // Ouvrir le PDF dans une nouvelle fenêtre
+    window.open(url, '_blank');
+    
+    // Fermer le modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('pdfGenerateModal'));
+    modal.hide();
+}
+</script>
+{% endblock %}

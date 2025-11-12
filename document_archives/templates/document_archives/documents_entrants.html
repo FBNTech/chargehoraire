@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="card-title">Documents Entrants</h2>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+              <i class="fas fa-plus-circle"></i> Ajouter un document
+            </button>
+          </div>
+
+          <!-- Filtres -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0">Filtres</h5>
+            </div>
+            <div class="card-body">
+              <form method="get" action="{% url 'document_archives:documents_entrants' %}" id="filter-form" class="row g-3">
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Rechercher..." name="recherche" value="{{ filtres.recherche|default:'' }}">
+                    <button class="btn btn-outline-secondary" type="submit">
+                      <i class="fas fa-search"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <input type="date" class="form-control" placeholder="Date début" name="date_debut" value="{{ filtres.date_debut|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                  <input type="date" class="form-control" placeholder="Date fin" name="date_fin" value="{{ filtres.date_fin|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                  <input type="text" class="form-control" placeholder="Expéditeur" name="expediteur" value="{{ filtres.expediteur|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                  <input type="text" class="form-control" placeholder="Destinataire" name="destinataire" value="{{ filtres.destinataire|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                  <div class="d-flex">
+                    <button type="submit" class="btn btn-primary me-2 flex-grow-1">Filtrer</button>
+                    <a href="{% url 'document_archives:documents_entrants' %}" class="btn btn-secondary">
+                      <i class="fas fa-undo"></i>
+                    </a>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Liste des documents -->
+          {% if documents %}
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>
+                    <a href="?{% if filtres %}{% for key, value in filtres.items %}{% if key != 'order_by' %}{{ key }}={{ value }}&{% endif %}{% endfor %}{% endif %}order_by=date_entree" class="text-decoration-none text-dark">
+                      Date d'entrée {% if filtres.order_by == 'date_entree' %}<i class="fas fa-sort-down"></i>{% elif filtres.order_by == '-date_entree' %}<i class="fas fa-sort-up"></i>{% endif %}
+                    </a>
+                  </th>
+                  <th>
+                    <a href="?{% if filtres %}{% for key, value in filtres.items %}{% if key != 'order_by' %}{{ key }}={{ value }}&{% endif %}{% endfor %}{% endif %}order_by=titre" class="text-decoration-none text-dark">
+                      Libellé {% if filtres.order_by == 'titre' %}<i class="fas fa-sort-down"></i>{% elif filtres.order_by == '-titre' %}<i class="fas fa-sort-up"></i>{% endif %}
+                    </a>
+                  </th>
+                  <th>
+                    <a href="?{% if filtres %}{% for key, value in filtres.items %}{% if key != 'order_by' %}{{ key }}={{ value }}&{% endif %}{% endfor %}{% endif %}order_by=expediteur" class="text-decoration-none text-dark">
+                      Expéditeur {% if filtres.order_by == 'expediteur' %}<i class="fas fa-sort-down"></i>{% elif filtres.order_by == '-expediteur' %}<i class="fas fa-sort-up"></i>{% endif %}
+                    </a>
+                  </th>
+                  <th>
+                    <a href="?{% if filtres %}{% for key, value in filtres.items %}{% if key != 'order_by' %}{{ key }}={{ value }}&{% endif %}{% endfor %}{% endif %}order_by=destinataire" class="text-decoration-none text-dark">
+                      Destinataire {% if filtres.order_by == 'destinataire' %}<i class="fas fa-sort-down"></i>{% elif filtres.order_by == '-destinataire' %}<i class="fas fa-sort-up"></i>{% endif %}
+                    </a>
+                  </th>
+                  <th>Statut</th>
+                  <th>Priorité</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for document in documents %}
+                <tr>
+                  <td>{{ document.date_entree|date:"d/m/Y" }}</td>
+                  <td><a href="{% url 'document_archives:detail_document_entrant' document.id %}">{{ document.titre }}</a></td>
+                  <td>{{ document.expediteur }}</td>
+                  <td>{{ document.destinataire }}</td>
+                  <td>{{ document.statut }}</td>
+                  <td>
+                    <span class="badge {% if document.priorite == 'urgent' %}bg-danger{% elif document.priorite == 'normal' %}bg-primary{% else %}bg-secondary{% endif %}">
+                      {{ document.get_priorite_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="{% url 'document_archives:detail_document_entrant' document.id %}" class="btn btn-outline-primary" title="Détails">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <button type="button" class="btn btn-outline-warning" title="Modifier" onclick="editDocument({{ document.id }})">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button type="button" class="btn btn-outline-danger" title="Supprimer" onclick="deleteDocument({{ document.id }})">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info">
+            Aucun document entrant correspondant à vos critères.
+          </div>
+          {% endif %}
+
+          <div class="mt-3">
+            <a href="{% url 'document_archives:dashboard' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal pour ajouter un nouveau document -->
+<div class="modal fade" id="addDocumentModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter un document entrant</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="addDocumentForm" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="titre" class="form-label">Libellé du document</label>
+              <input type="text" class="form-control" id="titre" name="titre" required>
+            </div>
+            <div class="col-md-6">
+              <label for="reference" class="form-label">Référence</label>
+              <input type="text" class="form-control" id="reference" name="reference">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="date_entree" class="form-label">Date d'entrée</label>
+              <input type="date" class="form-control" id="date_entree" name="date_entree" required>
+            </div>
+            <div class="col-md-6">
+              <label for="date_reception" class="form-label">Date de réception</label>
+              <input type="date" class="form-control" id="date_reception" name="date_reception" required>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="expediteur" class="form-label">Expéditeur</label>
+              <input type="text" class="form-control" id="expediteur" name="expediteur" required>
+            </div>
+            <div class="col-md-6">
+              <label for="destinataire" class="form-label">Destinataire</label>
+              <input type="text" class="form-control" id="destinataire" name="destinataire" required>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="statut" class="form-label">Statut</label>
+              <input type="text" class="form-control" id="statut" name="statut" value="Reçu">
+            </div>
+            <div class="col-md-6">
+              <label for="priorite" class="form-label">Priorité</label>
+              <select class="form-select" id="priorite" name="priorite">
+                <option value="urgent">Urgent</option>
+                <option value="normal" selected>Normal</option>
+                <option value="basse">Basse</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="departement" class="form-label">Département</label>
+            <select class="form-select" id="departement" name="departement">
+              <option value="">-- Sélectionner --</option>
+              <!-- Départements à remplir dynamiquement -->
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="fichier" class="form-label">Fichier</label>
+            <input type="file" class="form-control" id="fichier" name="fichier">
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="categorie" class="form-label">Catégorie</label>
+              <input type="text" class="form-control" id="categorie" name="categorie">
+            </div>
+            <div class="col-md-6">
+              <label for="mots_cles" class="form-label">Mots clés</label>
+              <input type="text" class="form-control" id="mots_cles" name="mots_cles" placeholder="Séparés par des virgules">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="note" class="form-label">Notes</label>
+            <textarea class="form-control" id="note" name="note" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Fonctions JavaScript pour éditer et supprimer des documents
+  function editDocument(id) {
+    // Code pour éditer le document
+    console.log('Éditer le document', id);
+  }
+  
+  function deleteDocument(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+      // Code pour supprimer le document
+      console.log('Supprimer le document', id);
+    }
+  }
+</script>
+{% endblock %}

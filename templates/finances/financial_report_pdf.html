@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport Financier</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .header img {
+            max-height: 80px;
+            margin-bottom: 10px;
+        }
+        h1, h2, h3 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        h1 {
+            font-size: 18px;
+            text-align: center;
+        }
+        h2 {
+            font-size: 16px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        h3 {
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .summary {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
+        .summary-item {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .total {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .positive {
+            color: green;
+        }
+        .negative {
+            color: red;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+        }
+        .signature {
+            margin-top: 50px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        .signature-line {
+            display: inline-block;
+            width: 200px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+        }
+        .signature-block {
+            display: inline-block;
+            margin-right: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="file:///{{ header_path }}" alt="En-tête" />
+        <h1>RAPPORT FINANCIER</h1>
+        {% if report.departement %}
+        <p><strong>Département:</strong> {{ report.departement.DesignationDept }}</p>
+        {% endif %}
+        <p><strong>Période:</strong> Du {{ report.periode_debut|date:"d/m/Y" }} au {{ report.periode_fin|date:"d/m/Y" }}</p>
+    </div>
+
+    <div class="summary">
+        <div class="summary-item">Total des revenus: {{ total_income }} FCFA</div>
+        <div class="summary-item">Total des dépenses: {{ total_expense }} FCFA</div>
+        <div class="summary-item total {% if balance >= 0 %}positive{% else %}negative{% endif %}">
+            Solde: {{ balance }} FCFA
+        </div>
+    </div>
+
+    <h2>1. Revenus</h2>
+    {% if incomes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Montant (FCFA)</th>
+                <th>Catégorie</th>
+                <th>Source</th>
+                <th>Référence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for income in incomes %}
+            <tr>
+                <td>{{ income.date|date:"d/m/Y" }}</td>
+                <td>{{ income.montant }}</td>
+                <td>{{ income.get_categorie_display }}</td>
+                <td>{{ income.source }}</td>
+                <td>{{ income.reference }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Aucun revenu enregistré pendant cette période.</p>
+    {% endif %}
+
+    <h2>2. Dépenses</h2>
+    {% if expenses %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Montant (FCFA)</th>
+                <th>Catégorie</th>
+                <th>Bénéficiaire</th>
+                <th>Référence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expense in expenses %}
+            <tr>
+                <td>{{ expense.date|date:"d/m/Y" }}</td>
+                <td>{{ expense.montant }}</td>
+                <td>{{ expense.get_categorie_display }}</td>
+                <td>{{ expense.beneficiaire }}</td>
+                <td>{{ expense.reference }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Aucune dépense enregistrée pendant cette période.</p>
+    {% endif %}
+
+    <h2>3. Prêts</h2>
+    {% if loans %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date emprunt</th>
+                <th>Montant (FCFA)</th>
+                <th>Emprunteur</th>
+                <th>Échéance</th>
+                <th>Statut</th>
+                <th>Remboursé</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for loan in loans %}
+            <tr>
+                <td>{{ loan.date_emprunt|date:"d/m/Y" }}</td>
+                <td>{{ loan.montant }}</td>
+                <td>{{ loan.emprunteur }}</td>
+                <td>{{ loan.date_echeance|date:"d/m/Y" }}</td>
+                <td>{{ loan.get_statut_display }}</td>
+                <td>{{ loan.montant_rembourse }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Aucun prêt enregistré pendant cette période.</p>
+    {% endif %}
+
+    <div class="signature">
+        <div class="signature-block">
+            <p><strong>Date:</strong> {{ date_generation|date:"d/m/Y" }}</p>
+        </div>
+        
+        <div class="signature-block">
+            <p><strong>Chef de Département:</strong></p>
+            {% if report.signature %}
+            <img src="file:///{{ report.signature.path }}" alt="Signature" style="max-height: 80px;" />
+            {% else %}
+            <div class="signature-line"></div>
+            {% endif %}
+            <p>{% if chef_departement %}{{ chef_departement.nom_complet }}{% endif %}</p>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Document généré le {{ date_generation|date:"d/m/Y" }} à {{ date_generation|date:"H:i" }}</p>
+        <p>Ce rapport est un document officiel. Toute modification est interdite.</p>
+    </div>
+</body>
+</html>

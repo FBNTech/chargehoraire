@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="card-title">Progression des enseignements - {{ teacher.nom }} {{ teacher.prenoms }}</h2>
+                        <a href="{% url 'tracking:progress_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Retour
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques de l'enseignant -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Total des heures réalisées</h5>
+                    <h1 class="display-4 text-primary text-center">{{ stats.total_hours_done }}</h1>
+                    <p class="text-muted text-center">heures</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Nombre de cours enseignés</h5>
+                    <h1 class="display-4 text-success text-center">{{ stats.courses_count }}</h1>
+                    <p class="text-muted text-center">UE</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Progression globale</h5>
+                    <div class="progress mt-4" style="height: 30px;">
+                        <div class="progress-bar bg-info" role="progressbar" 
+                             style="width: {{ stats.progress_percentage }}%;"
+                             aria-valuenow="{{ stats.progress_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ stats.progress_percentage }}%
+                        </div>
+                    </div>
+                    <p class="text-muted text-center mt-2">des heures prévues</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique d'évolution -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Évolution hebdomadaire des heures d'enseignement</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="teacherProgressChart" style="height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des cours et leur progression -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Cours et progression</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Code UE</th>
+                                    <th>Intitulé</th>
+                                    <th>Heures attribuées</th>
+                                    <th>Heures réalisées</th>
+                                    <th>Heures restantes</th>
+                                    <th>Progression</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in courses %}
+                                <tr>
+                                    <td>{{ course.code_ue }}</td>
+                                    <td>{{ course.intitule_ue }}</td>
+                                    <td>{{ course.hours_allocated }}</td>
+                                    <td>{{ course.hours_done }}</td>
+                                    <td>{{ course.hours_remaining }}</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar {% if course.progress > 90 %}bg-danger{% elif course.progress > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                role="progressbar" style="width: {{ course.progress }}%;" 
+                                                aria-valuenow="{{ course.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                                {{ course.progress }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'tracking:course_progress' course.id %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-chart-line"></i> Détails
+                                            </a>
+                                            <a href="{% url 'tracking:progress_add' %}?teacher={{ teacher.id }}&course={{ course.id }}" class="btn btn-sm btn-success">
+                                                <i class="fas fa-plus"></i> Ajouter
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">Aucun cours attribué à cet enseignant.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Graphique d'évolution hebdomadaire pour cet enseignant
+    fetch('{% url "tracking:chart_data" %}?type=teacher&teacher_id={{ teacher.id }}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('teacherProgressChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Heures d\'enseignement réalisées par semaine'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Nombre d\'heures'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Semaine'
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Erreur lors du chargement des données du graphique:', error));
+});
+</script>
+{% endblock %}

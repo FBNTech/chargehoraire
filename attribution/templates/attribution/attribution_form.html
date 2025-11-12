@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Attribution de Cours</h4>
+        </div>
+        <div class="card-body">
+            <form id="attributionForm" method="post" action="{% url 'attribution:create_attribution' %}">
+                {% csrf_token %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="matricule" class="form-label">Matricule</label>
+                        <input type="text" class="form-control" id="matricule" name="matricule" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="annee_academique" class="form-label">Année Académique</label>
+                        <select class="form-select" id="annee_academique" name="annee_academique" required>
+                            <option value="">Sélectionner une année</option>
+                            {% for annee in annees_academiques %}
+                                <option value="{{ annee }}">{{ annee }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="type_charge" class="form-label">Type de Charge</label>
+                        <select class="form-select" id="type_charge" name="type_charge" required>
+                            <option value="">Sélectionner un type</option>
+                            {% for code, libelle in types_charge %}
+                                <option value="{{ code }}">{{ libelle }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center">
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th>Code UE</th>
+                                <th>Intitulé</th>
+                                <th>Département</th>
+                                <th>Crédit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coursTable">
+                            {% for cours in cours_disponibles %}
+                            <tr>
+                                <td class="text-center">
+                                    <input type="checkbox" name="selected_cours" value="{{ cours.id }}" 
+                                           data-code-ue="{{ cours.code_ue }}" 
+                                           class="form-check-input cours-checkbox">
+                                </td>
+                                <td>{{ cours.code_ue }}</td>
+                                <td>{{ cours.intitule_ue }}</td>
+                                <td>{{ cours.departement }}</td>
+                                <td class="text-center">{{ cours.credit }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">Aucun cours disponible</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="text-end">
+                    <a href="{% url 'attribution:list_attribution' %}" class="btn btn-secondary me-2">Annuler</a>
+                    <button type="submit" class="btn btn-primary">Attribuer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.getElementsByClassName('cours-checkbox');
+    for (let checkbox of checkboxes) {
+        checkbox.checked = this.checked;
+    }
+});
+
+document.getElementById('attributionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Récupérer les cours cochés avec leurs données complètes
+    const selectedCours = Array.from(document.getElementsByClassName('cours-checkbox'))
+        .filter(cb => cb.checked)
+        .map(cb => ({
+            id: cb.value,
+            code_ue: cb.getAttribute('data-code-ue')
+        }));
+    
+    if (selectedCours.length === 0) {
+        alert('Veuillez sélectionner au moins un cours');
+        return;
+    }
+
+    // Récupérer les autres champs du formulaire
+    const matricule = document.getElementById('matricule').value;
+    const anneeAcademique = document.getElementById('annee_academique').value;
+    const typeCharge = document.getElementById('type_charge').value;
+
+    // Construire l'objet JSON à envoyer
+    const data = {
+        selected_cours: selectedCours,
+        teacher_matricule: matricule,
+        teacher_academic_year: anneeAcademique,
+        type_charge: typeCharge
+    };
+
+    console.log('Données envoyées:', data);
+
+    // Envoyer en JSON
+    fetch(this.action, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = "{% url 'attribution:list_attribution' %}";
+        } else {
+            alert(data.message || 'Une erreur est survenue');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Une erreur est survenue lors de l\'attribution');
+    });
+});
+</script>
+{% endblock %}

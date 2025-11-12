@@ -1,0 +1,671 @@
+{% extends 'base.html' %}
+{% load static %}
+
+<style>
+    .table {
+        font-size: 0.85rem;
+    }
+    .table th {
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    .table td {
+        padding: 0.5rem;
+    }
+    /* Colonne Classe */
+    .table th:nth-child(8), 
+    .table td:nth-child(8) {
+        width: 60px;
+        max-width: 60px;
+        min-width: 60px;
+        text-align: center;
+    }
+    /* Colonne Semestre */
+    .table th:nth-child(9), 
+    .table td:nth-child(9) {
+        width: 70px;
+        max-width: 70px;
+        min-width: 70px;
+        text-align: center;
+    }
+    
+    /* Styles responsifs */
+    @media (max-width: 992px) {
+        .row > [class*="col-"] {
+            margin-bottom: 1rem;
+        }
+        .card {
+            height: auto !important;
+            margin-bottom: 1rem;
+        }
+    }
+    
+    /* Styles pour les petits écrans */
+    @media (max-width: 768px) {
+        .d-flex.mb-3 {
+            flex-direction: column;
+        }
+        .d-flex.mb-3 .form-control,
+        .d-flex.mb-3 .form-select,
+        .d-flex.mb-3 .btn {
+            width: 100%;
+            margin-right: 0;
+            margin-bottom: 0.5rem;
+        }
+        .btn-group {
+            display: flex;
+            width: 100%;
+        }
+        .btn-group .btn {
+            flex: 1;
+        }
+        .table-responsive-sm {
+            overflow-x: auto;
+        }
+    }
+    
+    /* Optimisation pour les écrans très petits */
+    @media (max-width: 576px) {
+        .container-fluid {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        .card-body {
+            padding: 0.75rem;
+        }
+    }
+    
+    /* Transformation des tableaux en cartes sur mobile */
+    @media screen and (max-width: 768px) {
+        .table-responsive-cards tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(0,0,0,0.125);
+            border-radius: 0.25rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        }
+        
+        .table-responsive-cards td {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.125);
+        }
+        
+        .table-responsive-cards td:before {
+            content: attr(data-label);
+            font-weight: 600;
+        }
+        
+        .table-responsive-cards thead {
+            display: none;
+        }
+    }
+</style>
+
+{% block content %}
+<div class="container-fluid mt-4">
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-3 col-md-12"> 
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" id="attributionForm" action="{% url 'attribution:add_course_attribution' %}" class="mb-4">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <select class="form-select" id="teacher-select" required>
+                                <option value="">Sélectionner un enseignant</option>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}" 
+                                        data-matricule="{{ teacher.matricule }}"
+                                        data-grade="{{ teacher.grade }}">
+                                    {{ teacher.nom_complet }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher_matricule" name="teacher_matricule"
+                                   readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher-grade" name="teacher_grade"
+                                   readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" class="form-control text-center fw-bold" id="teacher_academic_year" name="teacher_academic_year"
+                                   value="{{ academic_year }}" readonly style="color: #181c34; background-color: #f8f9fa;">
+                        </div>
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <select class="form-select" id="code-ue" name="code_ue" required>
+                                    <option value="">Sélectionner un cours</option>
+                                    {% for course in courses %}
+                                    <option value="{{ course.code_ue }}">
+                                        {{ course.code_ue }} - {{ course.intitule_ue }}- {{ course.intitule_ec }}- {{ course.classe }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" id="add-course-btn" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <select class="form-control" id="type_charge" name="type_charge">
+                                <option value="">Sélectionner type charge</option>
+                                <option value="Reguliere">Reguliere</option>
+                                <option value="Supplementaire">Supplementaire</option>
+                            </select>
+                        </div>
+                        <div class="text-end">
+                            <div class="row mb-3">
+                                <div class="col-6 text-center">
+                                    <button type="submit" class="btn btn-danger w-100" id="vider-cours-btn" formaction="{% url 'attribution:vider_cours' %}">
+                                        <i class="fas fa-trash"></i> Vider UE
+                                    </button>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <button type="button" id="migrer-btn" class="btn btn-secondary w-100" style="background-color: #2596be; color: white;" title="Migrer les UE vers la nouvelle année académique">
+                                        <i class="fas fa-exchange-alt"></i> Migrer UE
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12 text-center">
+                                <button type="submit" id="attribuer-btn" class="btn btn-secondary w-100" style="background-color: #4CAF50; color: white;">
+                                    <i class="fa-sharp-duotone fa-solid fa-download"></i> Attribuer
+                                </button>
+                            </div>
+                        </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9 col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="row flex-grow-1">
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white" style="height: 50px;">
+                                    <div class="card-body text-center p-0">
+                                        <div class="mb-0" style="font-size: 0.8rem;">Total CMI</div>
+                                        <div class="mb-0" style="font-size: 1.1rem; font-weight: bold;" id="total-cmi">{{ total_cmi|floatformat:2 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white" style="height: 50px;">
+                                    <div class="card-body text-center p-0">
+                                        <div class="mb-0" style="font-size: 0.8rem;">Total TD+TP</div>
+                                        <div class="mb-0" style="font-size: 1.1rem; font-weight: bold;" id="total-td-tp">{{ total_td_tp|floatformat:2 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning text-white" style="height: 50px;">
+                                    <div class="card-body text-center p-0">
+                                        <div class="mb-0" style="font-size: 0.8rem;">CMI+(TD+TP)</div>
+                                        <div class="mb-0" style="font-size: 1.1rem; font-weight: bold;" id="total-combined">{{ total_combined|floatformat:2 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-primary text-white" style="height: 50px;">
+                                    <div class="card-body text-center p-0">
+                                        <div class="mb-0" style="font-size: 0.8rem;">Total Cours</div>
+                                        <div class="mb-0" style="font-size: 1.1rem; font-weight: bold;" id="total-courses">{{ total_courses }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap mb-3 search-controls">
+                        <div class="search-group me-2 mb-2 flex-grow-1">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="search-input" placeholder="Rechercher...">
+                            </div>
+                        </div>
+                        <div class="filter-group me-2 mb-2">
+                            <select class="form-select" id="department-select">
+                                <option value="">Tous les départements</option>
+                                <option value="Informatique">Informatique</option>
+                                <option value="Physique">Physique</option>
+                                <option value="Chimie">Chimie</option>
+                                <option value="Biologie">Biologie</option>
+                                <option value="SCAD">SCAD</option>
+                                <option value="Histoire">Histoire</option>
+                                <option value="Anglais">Anglais</option>
+                                <option value="Mathématique">Mathématique</option>
+                            </select>
+                        </div>
+                        <div class="action-buttons mb-2">
+                            <button class="btn btn-primary me-2" id="imprimer-btn" data-bs-toggle="tooltip" title="Imprimer">
+                                <i class="fas fa-print"></i> <span class="d-none d-sm-inline">Imprimer</span>
+                            </button>
+                            <button class="btn btn-secondary" id="reset-search-btn" data-bs-toggle="tooltip" title="Réinitialiser">
+                                <i class="fas fa-sync"></i> <span class="d-none d-sm-inline">Réinitialiser</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Barre de progression pour la migration -->
+                    <div id="migration-progress" class="progress mb-3" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="table-responsive-sm mt-2">
+                        <table class="table table-bordered table-hover table-responsive-cards" id="courses-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width: 40px;">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="select-all">
+                                        </div>
+                                    </th>
+                                    <th class="text-center">CodeUE</th>
+                                    <th>Intitulé UE</th>
+                                    <th>Intitulé EC</th>
+                                    <th class="text-center">Crdt</th>
+                                    <th class="text-center">Cmi</th>
+                                    <th class="text-center">TdTp</th>
+                                    <th class="text-center">Class</th>
+                                    <th class="text-center">Sem</th>
+                                    <th class="text-center"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="courses-tbody">
+                                {% for cours in available_courses %}
+                                <tr data-departement="{{ cours.departement }}">
+                                    <td class="text-center">
+                                        <div class="form-check">
+                                            <input class="form-check-input course-checkbox" type="checkbox" 
+                                                   value="{{ cours.id }}" 
+                                                   data-cmi="{{ cours.cmi }}" 
+                                                   data-td-tp="{{ cours.td_tp }}"
+                                                   data-td-tp="{{ cours.td_tp }}"
+                                                   data-td-tp="{{ cours.td_tp }}"
+                                                   >
+                                        </div>
+                                    </td>
+                                    <td class="text-center"><strong>{{ cours.code_ue }}</strong></td>
+                                    <td>{{ cours.intitule_ue }}</td>
+                                    <td>{{ cours.intitule_ec }}</td>
+                                    <td class="text-center">{{ cours.credit }}</td>
+                                    <td class="text-center">{{ cours.cmi }}</td>
+                                    <td class="text-center">{{ cours.td_tp }}</td>
+                                    <td class="text-center"><span class="badge bg-primary">{{ cours.classe|default:"—" }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ cours.semestre|default:"—" }}</span></td>
+
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-danger btn-sm delete-course" 
+                                                data-course-id="{{ cours.id }}"
+                                                data-code-ue="{{ cours.code_ue }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="11" class="text-center">Aucun cours disponible</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'js/progress.js' %}"></script>
+<script>
+    // Fonction globale pour mettre à jour les totaux
+    function updateTotals() {
+        let totalCmi = 0;
+        let totalTdTp = 0;
+        let totalCombined = 0;
+        let totalCourses = 0;
+
+        // Compter toutes les lignes visibles
+        $('#courses-table tbody tr:visible').each(function() {
+            const cmi = parseFloat($(this).find('td:eq(5)').text()) || 0;
+            const tdTp = parseFloat($(this).find('td:eq(6)').text()) || 0;
+
+            totalCmi += cmi;
+            totalTdTp += tdTp;
+            totalCombined += (cmi + tdTp);
+            totalCourses++;
+        });
+
+        // Mettre à jour les totaux dans le tableau de bord
+        $('#total-cmi').text(totalCmi.toFixed(2));
+        $('#total-td-tp').text(totalTdTp.toFixed(2));
+        $('#total-combined').text(totalCombined.toFixed(2));
+        $('#total-courses').text(totalCourses);
+    }
+
+    $(document).ready(function() {
+        // Gérer le changement d'enseignant
+        $('#teacher-select').change(function() {
+            var teacherId = $(this).val();
+            if (teacherId) {
+                $.get('{% url "attribution:get_teacher_info" %}', {
+                    'teacher_id': teacherId
+                }).done(function(data) {
+                    $('#teacher_matricule').val(data.matricule);
+                    $('#teacher-grade').val(data.grade);
+                }).fail(function() {
+                    alert('Erreur : Impossible de récupérer les informations de l\'enseignant.');
+                });
+            } else {
+                $('#teacher_matricule').val('');
+                $('#teacher-grade').val('');
+            }
+        });
+    
+        // Gérer le filtrage par département
+        $('#department-select').change(function() {
+            var selectedDept = $(this).val();
+            if (selectedDept) {
+                $('#courses-table tbody tr').hide();
+                $('#courses-table tbody tr[data-departement="' + selectedDept + '"]').show();
+            } else {
+                $('#courses-table tbody tr').show();
+            }
+            updateTotals();
+        });
+    
+        // Gérer la sélection/désélection de toutes les cases
+        $('#select-all').change(function() {
+            $('.course-checkbox').filter(function() {
+                return $(this).closest('tr').is(':visible');
+            }).prop('checked', $(this).is(':checked'));
+            updateTotals();
+            updateDashboard();
+        });
+    
+        // Mettre à jour les totaux lors de changements dans les cases
+        $(document).on('change', '.course-checkbox', function() {
+            updateTotals();
+            updateDashboard();
+        });
+    
+        // Fonction pour mettre à jour le tableau de bord
+        function updateDashboard() {
+            let totalCmi = 0;
+            let totalTdTp = 0;
+            let totalCombined = 0;
+            let totalCourses = 0;
+    
+            // Calculer les totaux pour les cases cochées visibles
+            $('.course-checkbox:checked').each(function() {
+                if ($(this).closest('tr').is(':visible')) {
+                    const row = $(this).closest('tr');
+                    const cmi = parseFloat(row.find('td:eq(5)').text()) || 0;
+                    const tdTp = parseFloat(row.find('td:eq(6)').text()) || 0;
+    
+                    totalCmi += cmi;
+                    totalTdTp += tdTp;
+                    totalCombined += (cmi + tdTp);
+                    totalCourses++;
+                }
+            });
+    
+            // Afficher les totaux dans le tableau de bord
+            $('#total-cmi').text(totalCmi.toFixed(2));
+            $('#total-td-tp').text(totalTdTp.toFixed(2));
+            $('#total-combined').text(totalCombined.toFixed(2));
+            $('#total-courses').text(totalCourses);
+        }
+    
+        // Gérer le bouton Migrer
+        $('#migrer-btn').click(function(e) {
+            e.preventDefault();
+            if (confirm('Voulez-vous vraiment migrer toutes les UE vers la nouvelle année académique ?')) {
+                $.post('{% url "attribution:migrate_courses" %}', {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                }).done(function() {
+                    location.reload();
+                }).fail(function() {
+                    alert('Erreur lors de la migration.');
+                });
+            }
+        });
+    
+        // Gérer le bouton Ajouter
+        $('#add-course-btn').click(function(e) {
+            e.preventDefault();
+            var selectedCourse = $('#code-ue').val();
+            if (!selectedCourse) {
+                alert('Veuillez sélectionner un cours.');
+                return;
+            }
+    
+            $.post('{% url "attribution:add_course_attribution" %}', {
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'code_ue': selectedCourse
+            }).done(function() {
+                location.reload();
+            }).fail(function() {
+                alert('Une erreur est survenue lors de l\'ajout du cours.');
+            });
+        });
+    
+        // Gérer le bouton Vider
+        $('#vider-cours-btn').click(function() {
+            if (confirm('Êtes-vous sûr de vouloir supprimer tous les cours ?')) {
+                $.post('{% url "attribution:vider_cours" %}', {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                }).done(function() {
+                    location.reload();
+                }).fail(function() {
+                    alert('Une erreur est survenue lors de la suppression des cours.');
+                });
+            }
+        });
+    
+        // Gérer le bouton Attribuer
+        $('#attribuer-btn').click(function(e) {
+            e.preventDefault();
+            
+            // Récupérer les valeurs des champs
+            var teacherMatricule = $('#teacher_matricule').val();
+            var teacherAcademicYear = $('#teacher_academic_year').val();
+            var typeCharge = $('#type_charge').val();
+            var selectedCourses = getSelectedCourses();
+            
+            // Vérification des données avant envoi
+            if (!teacherMatricule || !teacherAcademicYear || !typeCharge) {
+                alert('Veuillez remplir tous les champs requis (matricule, année académique et type de charge).');
+                return;
+            }
+
+            if (selectedCourses.length === 0) {
+                alert('Veuillez sélectionner au moins un cours.');
+                return;
+            }
+
+            // Log des données avant envoi
+            console.log('Données à envoyer:', {
+                selected_cours: selectedCourses,
+                teacher_matricule: teacherMatricule,
+                teacher_academic_year: teacherAcademicYear,
+                type_charge: typeCharge
+            });
+
+            // Envoi de la requête avec les données
+            $.ajax({
+                url: '{% url "attribution:create_attribution" %}',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    selected_cours: selectedCourses,
+                    teacher_matricule: teacherMatricule,
+                    teacher_academic_year: teacherAcademicYear,
+                    type_charge: typeCharge
+                }),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('Attribution réussie : ' + response.message);
+                        location.reload();
+                    } else {
+                        alert('Erreur lors de l\'attribution : ' + response.message);
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Erreur:', xhr.responseText);
+                    alert('Une erreur est survenue lors de l\'attribution des cours. Vérifiez la console pour plus de détails.');
+                }
+            });
+        });
+    
+        // Fonction pour obtenir les cours sélectionnés
+        function getSelectedCourses() {
+            let selectedCourses = [];
+
+            $('.course-checkbox:checked').each(function() {
+                let $row = $(this).closest('tr');
+                let courseData = {
+                    id: $(this).val(),
+                    code_ue: $row.find('td:eq(1)').text().trim(),
+                    cmi: parseFloat($(this).data('cmi') || 0),
+                    td_tp: parseFloat($(this).data('td-tp') || 0)
+                };
+                selectedCourses.push(courseData);
+            });
+
+            console.log('Selected Courses:', JSON.stringify(selectedCourses)); // Log des cours sélectionnés
+
+            return selectedCourses;
+        }
+    
+        // Vérification des attributs de données et des valeurs
+        $(document).ready(function() {
+            $('.course-checkbox').each(function() {
+                console.log('Checkbox Value:', $(this).val());
+                console.log('Data CMI:', $(this).data('cmi'));
+                console.log('Data TD-TP:', $(this).data('td-tp'));
+            });
+        });
+    
+        // Initialiser les totaux au chargement
+        updateTotals();
+        $('#teacher-select').trigger('change');
+    
+        // Gestion de la suppression des cours
+        $('.delete-course').on('click', function(e) {
+            e.preventDefault();
+            var $button = $(this);
+            var courseId = $button.data('course-id');
+            var codeUe = $button.data('code-ue');
+            
+            if (confirm('Êtes-vous sûr de vouloir supprimer le cours ' + codeUe + ' ?')) {
+                // Créer un formulaire temporaire pour la requête POST
+                var $form = $('<form>', {
+                    'method': 'POST',
+                    'action': '/attribution/delete/' + courseId + '/'
+                });
+                
+                // Ajouter le token CSRF
+                $form.append($('<input>', {
+                    'type': 'hidden',
+                    'name': 'csrfmiddlewaretoken',
+                    'value': '{{ csrf_token }}'
+                }));
+                
+                // Ajouter le formulaire au document, le soumettre et le supprimer
+                $('body').append($form);
+                $form.submit();
+            }
+        });
+    });
+    $(document).ready(function() {
+            // Fonction pour filtrer les lignes en fonction de la recherche et du département sélectionné
+            function filterRows() {
+                var searchText = $('#search-input').val().toLowerCase();
+                var selectedDept = $('#department-select').val();
+                
+                $('#courses-tbody tr').each(function() {
+                    var row = $(this);
+                    var rowText = row.text().toLowerCase();
+                    var rowDept = row.attr('data-departement');
+                    var deptMatch = !selectedDept || rowDept === selectedDept;
+                    var searchMatch = !searchText || rowText.indexOf(searchText) > -1;
+                    
+                    if (deptMatch && searchMatch) {
+                        row.show();
+                    } else {
+                        row.hide();
+                    }
+                });
+                
+                // Mettre à jour les totaux après filtrage
+                updateTotals();
+            }
+            
+            // Filtrer les cours par département
+            $('#department-select').change(function() {
+                filterRows();
+            });
+            
+            // Filtrer les cours avec la barre de recherche (en temps réel)
+            $('#search-input').on('keyup', function() {
+                filterRows();
+            });
+            
+            // Réinitialiser tous les filtres avec le bouton de reset
+            $('#reset-search-btn').click(function() {
+                $('#search-input').val('');
+                $('#department-select').val('');
+                filterRows();
+            });
+
+            // Générer un PDF pour les cours visibles uniquement
+            $('#imprimer-btn').click(function() {
+                var visibleCourseIds = [];
+                
+                // Collecter les IDs de tous les cours actuellement visibles dans le tableau
+                $('#courses-tbody tr:visible').each(function() {
+                    var courseId = $(this).find('.course-checkbox').val();
+                    if (courseId) {
+                        visibleCourseIds.push(courseId);
+                    }
+                });
+                
+                if (visibleCourseIds.length === 0) {
+                    alert('Aucun cours visible à imprimer.');
+                    return;
+                }
+                
+                // Créer l'URL avec les IDs des cours visibles
+                var url = "{% url 'attribution:generate_pdf' %}";
+                url += '?course_ids=' + visibleCourseIds.join(',');
+                
+                // Ajouter également le filtre de département si sélectionné
+                var selectedDept = $('#department-select').val();
+                if (selectedDept) {
+                    url += '&departement=' + encodeURIComponent(selectedDept);
+                }
+                
+                window.location.href = url; // Rediriger vers l'URL pour générer le PDF
+            });
+        });
+</script>
+{% endblock %}

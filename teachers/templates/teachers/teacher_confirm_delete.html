@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h4><i class="fas fa-exclamation-triangle"></i> Confirmer la suppression</h4>
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">Êtes-vous sûr de vouloir supprimer l'enseignant "{{ object.nom_complet }}" ?</h5>
+            <p class="text-muted">Cette action est irréversible.</p>
+            
+            <div class="mt-4">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Confirmer la suppression
+                        </button>
+                        <a href="{% url 'teachers:list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

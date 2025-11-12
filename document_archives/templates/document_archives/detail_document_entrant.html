@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h2>Détails du document entrant</h2>
+            <div>
+              {% if document.fichier %}
+              <a href="{{ document.fichier.url }}" class="btn btn-info me-2" target="_blank">
+                <i class="fas fa-file-download"></i> Télécharger le document
+              </a>
+              {% endif %}
+              <button class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editModal">
+                <i class="fas fa-edit"></i> Modifier
+              </button>
+              <button class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row mb-4">
+            <div class="col-md-8">
+              <h3 class="mb-3">{{ document.titre }}</h3>
+              <p class="text-muted">
+                <span class="badge {% if document.priorite == 'urgent' %}bg-danger{% elif document.priorite == 'normal' %}bg-primary{% else %}bg-secondary{% endif %}">
+                  {{ document.get_priorite_display }}
+                </span>
+                <span class="badge bg-info ms-2">{{ document.statut }}</span>
+              </p>
+              {% if document.reference %}
+              <p><strong>Référence:</strong> {{ document.reference }}</p>
+              {% endif %}
+            </div>
+            <div class="col-md-4 text-md-end">
+              <p class="mb-1"><strong>Date d'entrée:</strong> {{ document.date_entree|date:"d/m/Y" }}</p>
+              <p><strong>Date de réception:</strong> {{ document.date_reception|date:"d/m/Y" }}</p>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="card mb-3">
+                <div class="card-header">
+                  <h5 class="mb-0">Informations du document</h5>
+                </div>
+                <div class="card-body">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">Expéditeur</dt>
+                    <dd class="col-sm-8">{{ document.expediteur }}</dd>
+                    
+                    <dt class="col-sm-4">Destinataire</dt>
+                    <dd class="col-sm-8">{{ document.destinataire }}</dd>
+                    
+                    <dt class="col-sm-4">Département</dt>
+                    <dd class="col-sm-8">{% if document.departement %}{{ document.departement }}{% else %}Non spécifié{% endif %}</dd>
+                    
+                    {% if document.categorie %}
+                    <dt class="col-sm-4">Catégorie</dt>
+                    <dd class="col-sm-8">{{ document.categorie }}</dd>
+                    {% endif %}
+                  </dl>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header">
+                  <h5 class="mb-0">Métadonnées</h5>
+                </div>
+                <div class="card-body">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">Date de création</dt>
+                    <dd class="col-sm-8">{{ document.date_creation|date:"d/m/Y H:i" }}</dd>
+                    
+                    <dt class="col-sm-4">Dernière modification</dt>
+                    <dd class="col-sm-8">{{ document.date_modification|date:"d/m/Y H:i" }}</dd>
+                    
+                    {% if document.mots_cles %}
+                    <dt class="col-sm-4">Mots clés</dt>
+                    <dd class="col-sm-8">
+                      {% for mot in document.mots_cles.split|slice:':5' %}
+                      <span class="badge bg-secondary me-1">{{ mot }}</span>
+                      {% endfor %}
+                    </dd>
+                    {% endif %}
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Description</h5>
+            </div>
+            <div class="card-body">
+              {% if document.description %}
+              {{ document.description|linebreaks }}
+              {% else %}
+              <em>Aucune description fournie</em>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if document.note %}
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">Notes</h5>
+            </div>
+            <div class="card-body">
+              {{ document.note|linebreaks }}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="mt-3">
+            <a href="{% url 'document_archives:documents_entrants' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i> Retour à la liste
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de modification -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Modifier le document</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="titre" class="form-label">Libellé du document</label>
+              <input type="text" class="form-control" id="titre" name="titre" value="{{ document.titre }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="reference" class="form-label">Référence</label>
+              <input type="text" class="form-control" id="reference" name="reference" value="{{ document.reference }}">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="date_entree" class="form-label">Date d'entrée</label>
+              <input type="date" class="form-control" id="date_entree" name="date_entree" value="{{ document.date_entree|date:'Y-m-d' }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="date_reception" class="form-label">Date de réception</label>
+              <input type="date" class="form-control" id="date_reception" name="date_reception" value="{{ document.date_reception|date:'Y-m-d' }}" required>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="expediteur" class="form-label">Expéditeur</label>
+              <input type="text" class="form-control" id="expediteur" name="expediteur" value="{{ document.expediteur }}" required>
+            </div>
+            <div class="col-md-6">
+              <label for="destinataire" class="form-label">Destinataire</label>
+              <input type="text" class="form-control" id="destinataire" name="destinataire" value="{{ document.destinataire }}" required>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="statut" class="form-label">Statut</label>
+              <input type="text" class="form-control" id="statut" name="statut" value="{{ document.statut }}">
+            </div>
+            <div class="col-md-6">
+              <label for="priorite" class="form-label">Priorité</label>
+              <select class="form-select" id="priorite" name="priorite">
+                <option value="urgent" {% if document.priorite == 'urgent' %}selected{% endif %}>Urgent</option>
+                <option value="normal" {% if document.priorite == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="basse" {% if document.priorite == 'basse' %}selected{% endif %}>Basse</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="departement" class="form-label">Département</label>
+            <select class="form-select" id="departement" name="departement">
+              <option value="">-- Sélectionner --</option>
+              <!-- Départements à remplir dynamiquement -->
+              {% if document.departement %}
+              <option value="{{ document.departement.id }}" selected>{{ document.departement }}</option>
+              {% endif %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="3">{{ document.description }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label for="fichier" class="form-label">Fichier</label>
+            <input type="file" class="form-control" id="fichier" name="fichier">
+            {% if document.fichier %}
+            <div class="form-text">Fichier actuel: {{ document.fichier.name }}</div>
+            {% endif %}
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="categorie" class="form-label">Catégorie</label>
+              <input type="text" class="form-control" id="categorie" name="categorie" value="{{ document.categorie }}">
+            </div>
+            <div class="col-md-6">
+              <label for="mots_cles" class="form-label">Mots clés</label>
+              <input type="text" class="form-control" id="mots_cles" name="mots_cles" value="{{ document.mots_cles }}" placeholder="Séparés par des virgules">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="note" class="form-label">Notes</label>
+            <textarea class="form-control" id="note" name="note" rows="2">{{ document.note }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function confirmDelete() {
+  if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+    // Code pour supprimer le document
+    console.log('Suppression confirmée');
+    // Rediriger vers l'URL de suppression ou soumettre un formulaire de suppression
+  }
+}
+</script>
+{% endblock %}

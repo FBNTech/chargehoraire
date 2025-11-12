@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header py-2" style="background-color: #181c34;">
+                    <h6 class="mb-0 text-white">
+                        {% if is_update %}
+                            Modifier le cours
+                        {% else %}
+                            Ajouter un cours
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="row g-3">
+                        {% csrf_token %}
+                        
+                        <div class="col-md-6">
+                            {{ form.code_ue }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.classe }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            {{ form.intitule_ue }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.semestre }}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            {{ form.intitule_ec }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.departement }}
+                        </div>
+                        
+                        <div class="col-md-4">
+                            {{ form.credit }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.cmi }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.td_tp }}
+                        </div>
+                        
+                        <div class="col-12 text-end">
+                            <a href="{% url 'courses:list' %}" class="btn btn-secondary me-2">Annuler</a>
+                            <button type="submit" class="btn" style="background-color: #2596be; color: white;">
+                                {% if is_update %}
+                                    Modifier
+                                {% else %}
+                                    Ajouter
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

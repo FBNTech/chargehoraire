@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- Type de publication -->
+            <div class="mb-4">
+              <h4>Type de publication</h4>
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input
+                    " type="radio" name="type" id="type_article" value="article" checked>
+                    <label class="form-check-label" for="type_article">Article scientifique</label>
+                  </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_livre" value="livre">
+                    <label class="form-check-label" for="type_livre">Livre</label>
+                  </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_these" value="these">
+                    <label class="form-check-label" for="type_these">Thèse</label>
+                  </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_communication" value="communication">
+                    <label class="form-check-label" for="type_communication">Communication</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Informations générales -->
+            <div class="mb-4">
+              <h4>Informations générales</h4>
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="titre" class="form-label">Titre de la publication <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="titre" name="titre" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="date_publication" class="form-label">Date de publication <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" id="date_publication" name="date_publication" required>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+              </div>
+              
+              <div class="mb-3">
+                <label for="departement" class="form-label">Département</label>
+                <select class="form-select" id="departement" name="departement">
+                  <option value="">-- Sélectionner --</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept.CodeDept }}">{{ dept.DesignationDept }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label for="auteurs" class="form-label">Auteurs <span class="text-danger">*</span></label>
+                <select class="form-select" id="auteurs" name="auteurs" multiple size="5" required>
+                  {% for teacher in teachers %}
+                  <option value="{{ teacher.id }}">{{ teacher.nom_complet }}</option>
+                  {% endfor %}
+                </select>
+                <small class="form-text text-muted">Maintenez la touche Ctrl (ou Cmd) pour sélectionner plusieurs auteurs.</small>
+              </div>
+              
+              <div class="mb-3">
+                <label for="fichier" class="form-label">Fichier de la publication</label>
+                <input type="file" class="form-control" id="fichier" name="fichier">
+              </div>
+              
+            </div>
+            
+            
+            
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary">Enregistrer la publication</button>
+              <a href="{% url 'publications:publication_list' %}" class="btn btn-secondary ms-2">Annuler</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+{% endblock %}
+
+{% endblock %}

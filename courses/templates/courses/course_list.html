@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Liste des Cours{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    {% if is_enseignant and not is_administrative_role and not is_section_role and not is_department_role %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        En tant qu'enseignant, vous avez accès à cette liste en lecture seule. Vous pouvez consulter les cours mais ne pouvez pas les modifier.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- Barre d'actions -->
+    <div class="d-flex align-items-center mb-3">
+        <!-- Champ de recherche (largeur réduite) -->
+        <div style="width: 50%;">
+            <form method="get" action="{% url 'courses:list' %}" class="d-flex search-form">
+                <input type="text" name="search" class="form-control" placeholder="Rechercher un cours..." value="{{ request.GET.search }}">
+                <button type="submit" class="btn ms-2 btn-blue">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
+        
+        <!-- Espacement flexible pour pousser les boutons à droite -->
+        <div class="flex-grow-1"></div>
+        
+        <!-- Boutons d'action - Masqués pour les enseignants ordinaires -->
+        {% if can_edit_courses_teachers %}
+        <div class="d-flex gap-2">
+            <!-- Bouton Ajouter -->
+            <a href="{% url 'courses:create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Ajouter
+            </a>
+            
+            <!-- Formulaire d'import Excel -->
+            <form method="post" action="{% url 'courses:import_courses' %}" enctype="multipart/form-data" id="import-form" class="m-0">
+                {% csrf_token %}
+                <input type="file" name="file" id="excel_file_input" accept=".xls,.xlsx" style="display: none;">
+                <input type="hidden" name="use_progress" value="1" id="use_progress_field">
+                <button type="button" class="btn" style="background-color: #1D6F42; color: white;" onclick="document.getElementById('excel_file_input').click()">
+                    <i class="fas fa-file-excel"></i> Importer Excel
+                </button>
+            </form>
+            
+            <!-- Bouton Supprimer tout -->
+            <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">
+                <i class="fas fa-trash-alt"></i> Supprimer tout
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <style>
+        .courses-table {
+            table-layout: auto;
+            width: 100%;
+        }
+        .courses-table th.code-column { width: 8%; }
+        .courses-table th.intitule-ue-column { width: 17%; }
+        .courses-table th.intitule-ec-column { width: 17%; }
+        .courses-table th.classe-column { width: 8%; }
+        .courses-table th.semestre-column { width: 8%; }
+        .courses-table th.departement-column { width: 12%; }
+        .courses-table th.credit-column { width: 5%; }
+        .courses-table th.cmi-column { width: 5%; }
+        .courses-table th.tdtp-column { width: 7%; }
+        .courses-table th.actions-column { width: 8%; }
+        .courses-table td { white-space: normal; overflow-wrap: break-word; }
+    </style>
+    
+    <!-- Table des cours -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-responsive-cards courses-table">
+                    <thead>
+                        <tr>
+                            <th class="code-column">Code UE</th>
+                            <th class="intitule-ue-column">Intitulé UE</th>
+                            <th class="intitule-ec-column">Intitulé EC</th>
+                            <th class="classe-column">Classe</th>
+                            <th class="semestre-column">Semestre</th>
+                            <th class="departement-column">Département</th>
+                            <th class="credit-column">Crédit</th>
+                            <th class="cmi-column">CMI</th>
+                            <th class="tdtp-column">TD+TP</th>
+                            <th class="actions-column">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in courses %}
+                        <tr>
+                            <td data-label="Code UE">{{ course.code_ue }}</td>
+                            <td data-label="Intitulé UE">{{ course.intitule_ue }}</td>
+                            <td data-label="Intitulé EC">{{ course.intitule_ec }}</td>
+                            <td data-label="Classe">{{ course.classe }}</td>
+                            <td data-label="Semestre">{{ course.semestre }}</td>
+                            <td data-label="Département">{{ course.departement }}</td>
+                            <td data-label="Crédit">{{ course.credit }}</td>
+                            <td data-label="CMI">{{ course.cmi }}</td>
+                            <td data-label="TD+TP">{{ course.td_tp }}</td>
+                            <td data-label="Actions">
+                                {% if can_edit_courses_teachers %}
+                                <div class="btn-group">
+                                    <a href="{% url 'courses:update' course.id %}" class="btn btn-sm btn-primary me-2">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'courses:delete' course.id %}" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                                {% else %}
+                                <span class="text-muted"><i class="fas fa-eye"></i> Lecture seule</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center">Aucun cours trouvé</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de progression -->
+    <div class="modal fade" id="progressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-upload me-2"></i>Importation en cours...
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span id="progressText">Préparation de l'importation...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                 role="progressbar" 
+                                 id="progressBar"
+                                 style="width: 0%;" 
+                                 aria-valuenow="0" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                <span class="fw-bold">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="progressDetails" class="text-muted small">
+                        <div><i class="fas fa-check-circle text-success"></i> <span id="addedCount">0</span> cours ajoutés</div>
+                        <div><i class="fas fa-exclamation-triangle text-warning"></i> <span id="skippedCount">0</span> lignes ignorées</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Fonction pour confirmer la suppression de tous les cours
+    function confirmDeleteAll() {
+        if (confirm('⚠️ ATTENTION ⚠️\n\nÊtes-vous absolument sûr de vouloir supprimer TOUS les cours ?\n\nCette action est IRRÉVERSIBLE et supprimera définitivement tous les cours de la base de données.\n\nCliquez sur OK pour confirmer la suppression.')) {
+            // Demander une double confirmation
+            if (confirm('Dernière confirmation !\n\nVous allez supprimer TOUS les cours. Confirmez-vous cette action ?')) {
+                // Rediriger vers l'URL de suppression
+                window.location.href = "{% url 'courses:delete_all' %}";
+            }
+        }
+    }
+
+    let progressInterval = null;
+    let importSessionId = null;
+
+    // Fonction pour mettre à jour la barre de progression
+    function updateProgress(percent, text, added, skipped) {
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+        
+        progressBar.style.width = percent + '%';
+        progressBar.setAttribute('aria-valuenow', percent);
+        progressBar.querySelector('span').textContent = Math.round(percent) + '%';
+        
+        if (text) progressText.textContent = text;
+        progressPercent.textContent = Math.round(percent) + '%';
+        
+        if (added !== undefined) document.getElementById('addedCount').textContent = added;
+        if (skipped !== undefined) document.getElementById('skippedCount').textContent = skipped;
+    }
+
+    // Fonction pour vérifier la progression
+    function checkProgress() {
+        if (!importSessionId) return;
+        
+        fetch(`{% url 'courses:import_progress' %}?session_id=${importSessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'processing') {
+                    const percent = (data.current / data.total) * 100;
+                    updateProgress(percent, `Traitement: ${data.current}/${data.total} lignes`, 
+                                 data.added, data.skipped);
+                } else if (data.status === 'completed') {
+                    clearInterval(progressInterval);
+                    updateProgress(100, 'Import terminé !', data.added, data.skipped);
+                    
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else if (data.status === 'error') {
+                    clearInterval(progressInterval);
+                    alert('Erreur: ' + data.message);
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la vérification de la progression:', error);
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const importForm = document.getElementById('import-form');
+        const fileInput = document.getElementById('excel_file_input');
+        const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+
+        // Soumettre le formulaire avec gestion de progression
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                const fileName = this.files[0].name;
+                if (confirm(`Voulez-vous importer le fichier "${fileName}" ?`)) {
+                    // Générer un ID de session unique
+                    importSessionId = 'import_' + Date.now();
+                    
+                    // Ajouter l'ID de session au formulaire
+                    let sessionInput = document.getElementById('session_id_field');
+                    if (!sessionInput) {
+                        sessionInput = document.createElement('input');
+                        sessionInput.type = 'hidden';
+                        sessionInput.name = 'session_id';
+                        sessionInput.id = 'session_id_field';
+                        importForm.appendChild(sessionInput);
+                    }
+                    sessionInput.value = importSessionId;
+                    
+                    // Réinitialiser la progression
+                    updateProgress(0, 'Préparation de l\'importation...', 0, 0);
+                    
+                    // Afficher la modal
+                    progressModal.show();
+                    
+                    // Soumettre le formulaire
+                    importForm.submit();
+                    
+                    // Démarrer la vérification de progression après 1 seconde
+                    setTimeout(() => {
+                        progressInterval = setInterval(checkProgress, 500);
+                    }, 1000);
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

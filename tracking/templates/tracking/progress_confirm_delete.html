@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12 col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Confirmation de suppression</h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="mb-4">Voulez-vous vraiment supprimer cet enregistrement ?</h4>
+                    
+                    <div class="alert alert-warning">
+                        <p><strong>Attention :</strong> Cette action est irréversible.</p>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Détails de l'enregistrement</h5>
+                            <table class="table table-striped">
+                                <tr>
+                                    <th>Enseignant :</th>
+                                    <td>{{ object.teacher.nom }} {{ object.teacher.prenoms }}</td>
+                                </tr>
+                                <tr>
+                                    <th>UE (Cours) :</th>
+                                    <td>{{ object.course.code_ue }} - {{ object.course.intitule_ue }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Semaine :</th>
+                                    <td>{{ object.week.designation }} ({{ object.week.date_debut|date:"d/m/Y" }})</td>
+                                </tr>
+                                <tr>
+                                    <th>Heures réalisées :</th>
+                                    <td>{{ object.hours_done }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date d'enregistrement :</th>
+                                    <td>{{ object.created_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'tracking:progress_detail' object.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{% if object %}Modifier Fonction{% else %}Nouvelle Fonction{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow border-0">
+                <div class="card-header {% if object %}bg-primary{% else %}bg-success{% endif %} text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-briefcase me-2"></i>
+                        {% if object %}Modifier Fonction{% else %}Nouvelle Fonction{% endif %}
+                    </h4>
+                </div>
+                
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.CodeFonction.id_for_label }}" class="form-label">
+                                Code <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="{{ form.CodeFonction.name }}" 
+                                   class="form-control {% if form.CodeFonction.errors %}is-invalid{% endif %}" 
+                                   value="{{ form.CodeFonction.value|default:'' }}"
+                                   placeholder="Ex: DG, CD, ENS..."
+                                   required>
+                            {% if form.CodeFonction.errors %}
+                                <div class="invalid-feedback">{{ form.CodeFonction.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="{{ form.DesignationFonction.id_for_label }}" class="form-label">
+                                Désignation <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   name="{{ form.DesignationFonction.name }}" 
+                                   class="form-control {% if form.DesignationFonction.errors %}is-invalid{% endif %}" 
+                                   value="{{ form.DesignationFonction.value|default:'' }}"
+                                   placeholder="Ex: Directeur Général, Chef de Département..."
+                                   required>
+                            {% if form.DesignationFonction.errors %}
+                                <div class="invalid-feedback">{{ form.DesignationFonction.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'reglage:fonction_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-1"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn {% if object %}btn-primary{% else %}btn-success{% endif %} flex-grow-1">
+                                <i class="fas fa-check me-1"></i> 
+                                {% if object %}Enregistrer{% else %}Créer{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'reglage/_form_base_style.html' %}
+{% endblock %}

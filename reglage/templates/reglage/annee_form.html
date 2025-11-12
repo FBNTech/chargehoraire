@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Modifier{% else %}Créer{% endif %} une Année Académique{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-calendar-week"></i>
+                        {% if form.instance.pk %}Modifier{% else %}Créer{% endif %} une Année Académique
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Code <span class="text-danger">*</span></label>
+                            {{ form.code }}
+                            <div class="form-text">Format: 2024-2025</div>
+                            {% if form.code.errors %}
+                                <div class="text-danger">{{ form.code.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Désignation <span class="text-danger">*</span></label>
+                            {{ form.designation }}
+                            {% if form.designation.errors %}
+                                <div class="text-danger">{{ form.designation.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Date Début</label>
+                                {{ form.date_debut }}
+                                {% if form.date_debut.errors %}
+                                    <div class="text-danger">{{ form.date_debut.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Date Fin</label>
+                                {{ form.date_fin }}
+                                {% if form.date_fin.errors %}
+                                    <div class="text-danger">{{ form.date_fin.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.est_en_cours }}
+                                <label class="form-check-label" for="{{ form.est_en_cours.id_for_label }}">
+                                    <strong>Marquer comme année en cours</strong>
+                                </label>
+                                <div class="form-text">Si cochée, cette année sera l'année académique active. Les autres années seront automatiquement désactivées.</div>
+                            </div>
+                            {% if form.est_en_cours.errors %}
+                                <div class="text-danger">{{ form.est_en_cours.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'reglage:annee_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    input[type="text"], input[type="date"], textarea {
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}

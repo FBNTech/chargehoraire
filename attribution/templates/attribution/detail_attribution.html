@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3>Détails de l'Attribution</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Informations Enseignant</h5>
+                    <p><strong>Matricule :</strong> {{ attribution.matricule.matricule }}</p>
+                    <p><strong>Nom :</strong> {{ attribution.matricule.nom_complet }}</p>
+                    <p><strong>Grade :</strong> {{ attribution.matricule.grade }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>Informations UE</h5>
+                    <p><strong>Code UE :</strong> {{ attribution.code_ue.code_ue }}</p>
+                    <p><strong>Intitulé UE :</strong> {{ attribution.code_ue.intitule_ue }}</p>
+                    <p><strong>Semestre :</strong> {{ attribution.code_ue.semestre }}</p>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <h5>Détails de l'Attribution</h5>
+                    <p><strong>Année Académique :</strong> {{ attribution.annee_academique }}</p>
+                    <p><strong>Type de Charge :</strong> {{ attribution.type_charge }}</p>
+                    <p><strong>Crédits :</strong> {{ attribution.code_ue.credit }}</p>
+                    <p><strong>TD+TP :</strong> {{ attribution.code_ue.td_tp }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <a href="{% url 'attribution:liste_charges' %}" class="btn btn-secondary">Retour à la liste</a>
+            <a href="{% url 'attribution:edit_attribution' attribution.id %}" class="btn btn-warning">Modifier</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

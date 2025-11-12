@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h3>Modifier l'Attribution</h3>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="card-body">
+                {% for field in form %}
+                <div class="form-group mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="text-danger">
+                        {% for error in field.errors %}
+                        <small>{{ error }}</small>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'attribution:liste_charges' %}" class="btn btn-secondary">Annuler</a>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Personnaliser le rendu des champs de formulaire
+        $('select, input').addClass('form-control');
+    });
+</script>
+{% endblock %}

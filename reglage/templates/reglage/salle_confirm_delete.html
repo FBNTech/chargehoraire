@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Supprimer Salle{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Confirmation de Suppression</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Êtes-vous sûr de vouloir supprimer cette salle ?</p>
+                    <div class="alert alert-warning">
+                        <p><strong>Code :</strong> {{ object.code }}</p>
+                        <p class="mb-0"><strong>Désignation :</strong> {{ object.designation }}</p>
+                    </div>
+                    <p class="text-danger"><strong>⚠️ Cette action est irréversible !</strong></p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'reglage:salle_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Supprimer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

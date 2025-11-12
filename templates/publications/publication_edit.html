@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h2>Modifier la publication</h2>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- Type de publication -->
+            <div class="mb-4">
+              <h4>Type de publication</h4>
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_article" value="article" {% if publication.type == 'article' %}checked{% endif %}>
+                    <label class="form-check-label" for="type_article">Article scientifique</label>
+                  </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_livre" value="livre" {% if publication.type == 'livre' %}checked{% endif %}>
+                    <label class="form-check-label" for="type_livre">Livre</label>
+                  </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_these" value="these" {% if publication.type == 'these' %}checked{% endif %}>
+                    <label class="form-check-label" for="type_these">Thèse</label>
+                  </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="type" id="type_communication" value="communication" {% if publication.type == 'communication' %}checked{% endif %}>
+                    <label class="form-check-label" for="type_communication">Communication</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Informations générales -->
+            <div class="mb-4">
+              <h4>Informations générales</h4>
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="titre" class="form-label">Titre de la publication <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="titre" name="titre" value="{{ publication.titre }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="date_publication" class="form-label">Date de publication <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" id="date_publication" name="date_publication" value="{{ publication.date_publication|date:'Y-m-d' }}" required>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ publication.description }}</textarea>
+              </div>
+              
+              <div class="mb-3">
+                <label for="departement" class="form-label">Département</label>
+                <select class="form-select" id="departement" name="departement">
+                  <option value="">-- Sélectionner --</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept.CodeDept }}" {% if publication.departement and publication.departement.CodeDept == dept.CodeDept %}selected{% endif %}>{{ dept.DesignationDept }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label for="auteurs" class="form-label">Auteurs <span class="text-danger">*</span></label>
+                <select class="form-select" id="auteurs" name="auteurs" multiple size="5" required>
+                  {% for teacher in teachers %}
+                  <option value="{{ teacher.id }}" {% if teacher in publication.auteurs.all %}selected{% endif %}>{{ teacher.nom_complet }}</option>
+                  {% endfor %}
+                </select>
+                <small class="form-text text-muted">Maintenez la touche Ctrl (ou Cmd) pour sélectionner plusieurs auteurs.</small>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="fichier" class="form-label">Fichier de la publication</label>
+                  <input type="file" class="form-control" id="fichier" name="fichier">
+                  {% if publication.fichier %}
+                  <small class="form-text text-muted">Fichier actuel: {{ publication.fichier.name }}</small>
+                  {% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="url" class="form-label">URL externe</label>
+                  <input type="url" class="form-control" id="url" name="url" placeholder="https://..." value="{{ publication.url }}">
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="mots_cles" class="form-label">Mots clés</label>
+                <input type="text" class="form-control" id="mots_cles" name="mots_cles" placeholder="Séparés par des espaces" value="{{ publication.mots_cles }}">
+              </div>
+            </div>
+            
+            <!-- Détails spécifiques aux articles -->
+            <div id="details_article" class="mb-4" {% if publication.type != 'article' %}style="display: none;"{% endif %}>
+              <h4>Détails de l'article scientifique</h4>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="journal" class="form-label">Nom du journal/revue <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="journal" name="journal" value="{{ specific_publication.journal|default:'' }}">
+                </div>
+                <div class="col-md-2 mb-3">
+                  <label for="volume" class="form-label">Volume</label>
+                  <input type="text" class="form-control" id="volume" name="volume" value="{{ specific_publication.volume|default:'' }}">
+                </div>
+                <div class="col-md-2 mb-3">
+                  <label for="numero" class="form-label">Numéro</label>
+                  <input type="text" class="form-control" id="numero" name="numero" value="{{ specific_publication.numero|default:'' }}">
+                </div>
+                <div class="col-md-2 mb-3">
+                  <label for="pages" class="form-label">Pages</label>
+                  <input type="text" class="form-control" id="pages" name="pages" placeholder="ex: 123-145" value="{{ specific_publication.pages|default:'' }}">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="impact_factor" class="form-label">Facteur d'impact</label>
+                  <input type="number" step="0.01" class="form-control" id="impact_factor" name="impact_factor" value="{{ specific_publication.impact_factor|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="doi" class="form-label">DOI</label>
+                  <input type="text" class="form-control" id="doi" name="doi" value="{{ specific_publication.doi|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" id="peer_reviewed" name="peer_reviewed" {% if specific_publication and specific_publication.peer_reviewed %}checked{% endif %}>
+                    <label class="form-check-label" for="peer_reviewed">
+                      À comité de lecture
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Détails spécifiques aux livres -->
+            <div id="details_livre" class="mb-4" {% if publication.type != 'livre' %}style="display: none;"{% endif %}>
+              <h4>Détails du livre</h4>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="editeur" class="form-label">Éditeur <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="editeur" name="editeur" value="{{ specific_publication.editeur|default:'' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="lieu_publication" class="form-label">Lieu de publication</label>
+                  <input type="text" class="form-control" id="lieu_publication" name="lieu_publication" value="{{ specific_publication.lieu_publication|default:'' }}">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="isbn" class="form-label">ISBN</label>
+                  <input type="text" class="form-control" id="isbn" name="isbn" value="{{ specific_publication.isbn|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="nombre_pages" class="form-label">Nombre de pages</label>
+                  <input type="number" class="form-control" id="nombre_pages" name="nombre_pages" value="{{ specific_publication.nombre_pages|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="edition" class="form-label">Édition</label>
+                  <input type="text" class="form-control" id="edition" name="edition" value="{{ specific_publication.edition|default:'' }}">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Détails spécifiques aux thèses/mémoires -->
+            <div id="details_these" class="mb-4" {% if publication.type != 'these' and publication.type != 'memoire' %}style="display: none;"{% endif %}>
+              <h4>Détails de la thèse/mémoire</h4>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="niveau" class="form-label">Niveau <span class="text-danger">*</span></label>
+                  <select class="form-select" id="niveau" name="niveau">
+                    <option value="doctorat" {% if specific_publication and specific_publication.niveau == 'doctorat' %}selected{% endif %}>Doctorat</option>
+                    <option value="master" {% if specific_publication and specific_publication.niveau == 'master' %}selected{% endif %}>Master</option>
+                    <option value="licence" {% if specific_publication and specific_publication.niveau == 'licence' %}selected{% endif %}>Licence</option>
+                    <option value="autre" {% if specific_publication and specific_publication.niveau == 'autre' %}selected{% endif %}>Autre</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="universite" class="form-label">Université <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="universite" name="universite" value="{{ specific_publication.universite|default:'' }}">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="directeur" class="form-label">Directeur de thèse</label>
+                  <input type="text" class="form-control" id="directeur" name="directeur" value="{{ specific_publication.directeur|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="nombre_pages_these" class="form-label">Nombre de pages</label>
+                  <input type="number" class="form-control" id="nombre_pages_these" name="nombre_pages_these" value="{{ specific_publication.nombre_pages|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="mention" class="form-label">Mention</label>
+                  <input type="text" class="form-control" id="mention" name="mention" value="{{ specific_publication.mention|default:'' }}">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Détails spécifiques aux communications -->
+            <div id="details_communication" class="mb-4" {% if publication.type != 'communication' %}style="display: none;"{% endif %}>
+              <h4>Détails de la communication</h4>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="nom_conference" class="form-label">Nom de la conférence <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="nom_conference" name="nom_conference" value="{{ specific_publication.nom_conference|default:'' }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="lieu" class="form-label">Lieu</label>
+                  <input type="text" class="form-control" id="lieu" name="lieu" value="{{ specific_publication.lieu|default:'' }}">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="date_debut" class="form-label">Date de début <span class="text-danger">*</span></label>
+                  <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ specific_publication.date_debut|date:'Y-m-d'|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="date_fin" class="form-label">Date de fin</label>
+                  <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ specific_publication.date_fin|date:'Y-m-d'|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" id="publie_dans_actes" name="publie_dans_actes" {% if specific_publication and specific_publication.publie_dans_actes %}checked{% endif %}>
+                    <label class="form-check-label" for="publie_dans_actes">
+                      Publié dans les actes
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="presentation_type" class="form-label">Type de présentation</label>
+                <input type="text" class="form-control" id="presentation_type" name="presentation_type" placeholder="ex: Poster, Communication orale..." value="{{ specific_publication.presentation_type|default:'' }}">
+              </div>
+            </div>
+            
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+              <a href="{% url 'publications:publication_detail' publication.id %}" class="btn btn-secondary ms-2">Annuler</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Fonction pour afficher/masquer les sections selon le type de publication
+    function updateFormSections() {
+      const articleSection = document.getElementById('details_article');
+      const livreSection = document.getElementById('details_livre');
+      const theseSection = document.getElementById('details_these');
+      const communicationSection = document.getElementById('details_communication');
+      
+      // Masquer toutes les sections
+      articleSection.style.display = 'none';
+      livreSection.style.display = 'none';
+      theseSection.style.display = 'none';
+      communicationSection.style.display = 'none';
+      
+      // Afficher la section correspondante
+      if (document.getElementById('type_article').checked) {
+        articleSection.style.display = 'block';
+      } else if (document.getElementById('type_livre').checked) {
+        livreSection.style.display = 'block';
+      } else if (document.getElementById('type_these').checked) {
+        theseSection.style.display = 'block';
+      } else if (document.getElementById('type_communication').checked) {
+        communicationSection.style.display = 'block';
+      }
+    }
+    
+    // Ajouter des écouteurs d'événements pour les boutons radio
+    document.getElementById('type_article').addEventListener('change', updateFormSections);
+    document.getElementById('type_livre').addEventListener('change', updateFormSections);
+    document.getElementById('type_these').addEventListener('change', updateFormSections);
+    document.getElementById('type_communication').addEventListener('change', updateFormSections);
+    
+    // Initialiser le formulaire
+    updateFormSections();
+  });
+</script>
+{% endblock %}
+
+{% endblock %}

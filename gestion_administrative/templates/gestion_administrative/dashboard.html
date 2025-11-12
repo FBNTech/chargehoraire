@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+
+          <!-- Première rangée de cartes -->
+          <div class="row g-3 justify-content-center mb-4">
+            <div class="col-md-4 col-lg-3">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-user-tie fa-3x text-primary mb-3"></i>
+                  <h5 class="card-title">Gestion absence des enseignants</h5>
+                  <a href="{% url 'gestion_administrative:autorisation_absence_enseignant' %}" class="btn btn-primary">
+                    Accéder
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-4 col-lg-3">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-user-graduate fa-3x text-success mb-3"></i>
+                  <h5 class="card-title">Gestion absence des étudiants</h5>
+                  <a href="{% url 'gestion_administrative:liste_etudiants' %}" class="btn btn-primary">
+                    Accéder
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-4 col-lg-3">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-money-bill-wave fa-3x text-warning mb-3"></i>
+                  <h5 class="card-title">Gestion financière</h5>
+                  <a href="{% url 'finances:dashboard' %}" class="btn btn-primary">
+                    Accéder
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Deuxième rangée de cartes -->
+          <div class="row g-3 justify-content-center">
+            <div class="col-md-4 col-lg-3">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-folder-open fa-3x text-info mb-3"></i>
+                  <h5 class="card-title">Archivage de documents</h5>
+                  <a href="{% url 'document_archives:dashboard' %}" class="btn btn-primary">
+                    Accéder
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-4 col-lg-3">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-book fa-3x text-danger mb-3"></i>
+                  <h5 class="card-title">Publications des enseignants</h5>
+                  <a href="{% url 'publications:dashboard' %}" class="btn btn-primary">
+                    Accéder
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Carte pour la gestion d'annonces et communiqués -->
+            <div class="col-md-4 col-lg-3">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-bullhorn fa-3x text-purple mb-3"></i>
+                  <h5 class="card-title">Gestion des annonces et communiqués</h5>
+                  <a href="{% url 'gestion_administrative:annonces' %}" class="btn btn-primary">
+                    Accéder
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
