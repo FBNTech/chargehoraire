@@ -716,94 +716,193 @@ def dashboard_pdf_view(request):
         'total_teachers': Teacher.objects.count(),
     }
     
-    # Progression des cours groupés par département avec filtrage
-    course_progress_filter = {'week__annee_academique': academic_year}
+    # Récupérer l'enseignant CSAE sélectionné pour filtrer par section
+    csae_teacher = None
+    csae_section_designation = None
+    csae_section_code = None
+    csae_id = request.GET.get('csae_id')
+    if csae_id:
+        try:
+            csae_teacher = Teacher.objects.get(id=csae_id)
+            # Récupérer la désignation complète de la section
+            if csae_teacher.departement:
+                from reglage.models import Departement
+                try:
+                    dept = Departement.objects.get(CodeDept=csae_teacher.departement)
+                    csae_section_designation = dept.section.DesignationSection
+                    csae_section_code = dept.section.CodeSection
+                except Departement.DoesNotExist:
+                    pass
+        except Teacher.DoesNotExist:
+            pass
     
-    # Ajouter le filtre par semaine si spécifié
-    if semaine_date_debut:
-        course_progress_filter['week__date_debut'] = semaine_date_debut
+    # Récupérer tous les cours avec leur progression (ou 0 si pas de progression)
+    # Construire les filtres pour les cours
+    course_filter = {}
+    
+    # Filtrer par section du CSAE si disponible
+    if csae_section_code:
+        course_filter['section'] = csae_section_code
     
     # Ajouter le filtre par type de semestre (impair/pair)
     if type_semestre == 'impair':
-        course_progress_filter['course__semestre__in'] = ['S1', 'S3', 'S5', 'S7']
+        course_filter['semestre__in'] = ['S1', 'S3', 'S5', 'S7']
     elif type_semestre == 'pair':
-        course_progress_filter['course__semestre__in'] = ['S2', 'S4', 'S6', 'S8']
+        course_filter['semestre__in'] = ['S2', 'S4', 'S6', 'S8']
     
-    course_progress_query = TeachingProgress.objects.filter(
-        **course_progress_filter
-    ).select_related('course').values(
-        'course__code_ue',
-        'course__intitule_ue',
-        'course__intitule_ec',
-        'course__classe',
-        'course__semestre',
-        'course__departement',
-        'course__cmi',
-        'course__td_tp',
-        'course__id'
-    ).annotate(
-        total_hours_done=Sum('hours_done'),
-        total_volume=ExpressionWrapper(
-            F('course__cmi') + F('course__td_tp'),
-            output_field=FloatField()
-        ),
-        progression_percentage=Case(
-            When(total_volume__gt=0, then=(F('total_hours_done') * 100.0) / F('total_volume')),
-            default=Value(0),
-            output_field=FloatField()
-        )
-    ).order_by('course__departement', 'course__code_ue')
+    # Récupérer tous les cours
+    all_courses = Course.objects.filter(**course_filter).values(
+        'code_ue',
+        'intitule_ue',
+        'intitule_ec',
+        'classe',
+        'semestre',
+        'departement',
+        'section',
+        'cmi',
+        'td_tp',
+        'id'
+    ).order_by('departement', 'section', 'semestre', 'classe', 'code_ue')
     
-    # Appliquer le filtre de semestre pour les cours
+    # Créer un dictionnaire pour mapper les codes de département vers leurs désignations complètes
+    from reglage.models import Departement as DepartementModel
+    dept_mapping = {}
+    for dept in DepartementModel.objects.all():
+        dept_mapping[dept.CodeDept] = dept.DesignationDept
+    
+    # Construire un dictionnaire des progressions par cours (cumul de toutes les semaines)
+    progress_filter = {'week__annee_academique': academic_year}
+    # Ne pas filtrer par semaine spécifique pour avoir le cumul
+    # if semaine_date_debut:
+    #     progress_filter['week__date_debut'] = semaine_date_debut
+    if type_semestre == 'impair':
+        progress_filter['course__semestre__in'] = ['S1', 'S3', 'S5', 'S7']
+    elif type_semestre == 'pair':
+        progress_filter['course__semestre__in'] = ['S2', 'S4', 'S6', 'S8']
+    
+    progress_by_course = {}
+    progress_data = TeachingProgress.objects.filter(
+        **progress_filter
+    ).values('course_id').annotate(
+        total_hours=Sum('hours_done')
+    )
+    
+    for prog in progress_data:
+        progress_by_course[prog['course_id']] = prog['total_hours'] or 0
+    
+    # Créer la liste des cours avec leur progression
     course_progress = []
-    for course in course_progress_query:
-        semester = course['course__semestre']
-        if semester:
+    for course in all_courses:
+        semester = course['semestre']
+        
+        # Appliquer le filtre de semestre
+        include_course = False
+        if semester_filter == 'all':
+            include_course = True
+        elif semester:
             semester_match = re.search(r'S(\d+)', semester)
             if semester_match:
                 semester_number = int(semester_match.group(1))
-                if semester_filter == 'all':
-                    course_progress.append(course)
-                elif semester_filter == 'odd' and semester_number % 2 == 1:
-                    course_progress.append(course)
+                if semester_filter == 'odd' and semester_number % 2 == 1:
+                    include_course = True
                 elif semester_filter == 'even' and semester_number % 2 == 0:
-                    course_progress.append(course)
+                    include_course = True
+        
+        if include_course:
+            # Calculer la progression
+            hours_done = progress_by_course.get(course['id'], 0)
+            
+            # N'inclure que les cours avec au moins une heure réalisée
+            if hours_done > 0:
+                total_volume = float(course['cmi'] or 0) + float(course['td_tp'] or 0)
+                progression_pct = (float(hours_done) / total_volume * 100.0) if total_volume > 0 else 0
+                
+                course_progress.append({
+                    'course__code_ue': course['code_ue'],
+                    'course__intitule_ue': course['intitule_ue'],
+                    'course__intitule_ec': course['intitule_ec'],
+                    'course__classe': course['classe'],
+                    'course__semestre': course['semestre'],
+                    'course__departement': course['departement'],
+                    'course__section': course['section'],
+                    'course__cmi': course['cmi'],
+                    'course__td_tp': course['td_tp'],
+                    'course__id': course['id'],
+                    'total_hours_done': hours_done,
+                    'total_volume': total_volume,
+                    'progression_percentage': progression_pct
+                })
     
-    # Grouper les cours par département puis par semestre avec statistiques
+    # Grouper les cours par département → section → semestre → classe
     courses_by_department = {}
     for course in course_progress:
-        department = course.get('course__departement', 'Non spécifié')
-        if not department:
-            department = 'Non spécifié'
-        semester = course.get('course__semestre', 'Non spécifié')
+        department_code = course.get('course__departement', 'Non spécifié')
+        if not department_code:
+            department_code = 'Non spécifié'
         
+        # Utiliser le nom complet du département au lieu du code
+        department = dept_mapping.get(department_code, department_code)
+        
+        section = course.get('course__section', 'Non spécifié')
+        if not section:
+            section = 'Non spécifié'
+            
+        semester = course.get('course__semestre', 'Non spécifié')
+        classe = course.get('course__classe', 'Non spécifié')
+        
+        # Initialiser le département
         if department not in courses_by_department:
             courses_by_department[department] = {
+                'sections': {},
+                'total_hours': 0,
+                'course_count': 0
+            }
+        
+        # Initialiser la section
+        if section not in courses_by_department[department]['sections']:
+            courses_by_department[department]['sections'][section] = {
                 'semesters': {},
                 'total_hours': 0,
                 'course_count': 0
             }
         
-        if semester not in courses_by_department[department]['semesters']:
-            courses_by_department[department]['semesters'][semester] = {
+        # Initialiser le semestre
+        if semester not in courses_by_department[department]['sections'][section]['semesters']:
+            courses_by_department[department]['sections'][section]['semesters'][semester] = {
+                'classes': {},
+                'total_hours': 0,
+                'course_count': 0
+            }
+        
+        # Initialiser la classe
+        if classe not in courses_by_department[department]['sections'][section]['semesters'][semester]['classes']:
+            courses_by_department[department]['sections'][section]['semesters'][semester]['classes'][classe] = {
                 'courses': [],
                 'total_hours': 0,
                 'course_count': 0
             }
         
-        courses_by_department[department]['semesters'][semester]['courses'].append(course)
-        courses_by_department[department]['semesters'][semester]['total_hours'] += float(course.get('total_hours_done', 0) or 0)
-        courses_by_department[department]['semesters'][semester]['course_count'] += 1
+        # Ajouter le cours
+        courses_by_department[department]['sections'][section]['semesters'][semester]['classes'][classe]['courses'].append(course)
+        courses_by_department[department]['sections'][section]['semesters'][semester]['classes'][classe]['total_hours'] += float(course.get('total_hours_done', 0) or 0)
+        courses_by_department[department]['sections'][section]['semesters'][semester]['classes'][classe]['course_count'] += 1
+        
+        # Mettre à jour les totaux
+        courses_by_department[department]['sections'][section]['semesters'][semester]['total_hours'] += float(course.get('total_hours_done', 0) or 0)
+        courses_by_department[department]['sections'][section]['semesters'][semester]['course_count'] += 1
+        courses_by_department[department]['sections'][section]['total_hours'] += float(course.get('total_hours_done', 0) or 0)
+        courses_by_department[department]['sections'][section]['course_count'] += 1
         courses_by_department[department]['total_hours'] += float(course.get('total_hours_done', 0) or 0)
         courses_by_department[department]['course_count'] += 1
     
     # Progression des enseignants
     teacher_progress = []
     
-    # Filtrer les enseignants avec le filtre de semaine et type semestre
+    # Filtrer les enseignants avec le filtre de type semestre (cumul de toutes les semaines)
     teacher_progress_filter = {'week__annee_academique': academic_year}
-    if semaine_date_debut:
-        teacher_progress_filter['week__date_debut'] = semaine_date_debut
+    # Ne pas filtrer par semaine spécifique pour avoir le cumul
+    # if semaine_date_debut:
+    #     teacher_progress_filter['week__date_debut'] = semaine_date_debut
     if type_semestre == 'impair':
         teacher_progress_filter['course__semestre__in'] = ['S1', 'S3', 'S5', 'S7']
     elif type_semestre == 'pair':
@@ -832,14 +931,15 @@ def dashboard_pdf_view(request):
             type_charge=charge_type
         ).values_list('code_ue__id', flat=True)
         
-        # Appliquer le filtre par semaine et type semestre aux heures effectuées
+        # Appliquer le filtre par type semestre aux heures effectuées (cumul de toutes les semaines)
         teacher_hours_filter = {
             'teacher__matricule': teacher_matricule,
             'week__annee_academique': academic_year,
             'course__id__in': courses_for_charge
         }
-        if semaine_date_debut:
-            teacher_hours_filter['week__date_debut'] = semaine_date_debut
+        # Ne pas filtrer par semaine spécifique pour avoir le cumul
+        # if semaine_date_debut:
+        #     teacher_hours_filter['week__date_debut'] = semaine_date_debut
         if type_semestre == 'impair':
             teacher_hours_filter['course__semestre__in'] = ['S1', 'S3', 'S5', 'S7']
         elif type_semestre == 'pair':
@@ -880,24 +980,6 @@ def dashboard_pdf_view(request):
     from django.conf import settings
     import os
     static_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'entete.PNG')
-    
-    # Récupérer l'enseignant CSAE sélectionné avec la désignation de sa section
-    csae_teacher = None
-    csae_section_designation = None
-    csae_id = request.GET.get('csae_id')
-    if csae_id:
-        try:
-            csae_teacher = Teacher.objects.get(id=csae_id)
-            # Récupérer la désignation complète de la section
-            if csae_teacher.departement:
-                from reglage.models import Departement
-                try:
-                    dept = Departement.objects.get(CodeDept=csae_teacher.departement)
-                    csae_section_designation = dept.section.DesignationSection
-                except Departement.DoesNotExist:
-                    pass
-        except Teacher.DoesNotExist:
-            pass
     
     # Récupérer la semaine sélectionnée
     selected_week = None

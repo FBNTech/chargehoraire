@@ -39,33 +39,109 @@ class ScheduleEntryForm(forms.ModelForm):
         help_text='Sélectionner la semaine'
     )
     
+    # Champ pour la date de début
+    date_debut = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'placeholder': 'Date de début'
+        }),
+        label='Date de début',
+    )
+    
+    # Champ pour la date de fin de la plage
+    date_fin = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control', 
+            'type': 'date',
+            'placeholder': 'Date de fin (optionnel)'
+        }),
+        label='Date de fin',
+    )
+    
+    # Champ pour la sélection du créneau
+    creneau_select = forms.ModelChoiceField(
+        queryset=Creneau.objects.filter(est_actif=True).order_by('heure_debut'),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Créneau horaire',
+        help_text='Sélectionner un créneau horaire. Laissez vide pour un cours ponctuel'
+    )
+    
+    # Champ pour la sélection de la salle
     salle_select = forms.ModelChoiceField(
-        queryset=Salle.objects.filter(est_disponible=True),
+        queryset=Salle.objects.filter(est_disponible=True).order_by('code'),
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'}),
         label='Salle',
         help_text='Sélectionner une salle disponible'
     )
     
-    creneau_select = forms.ModelChoiceField(
-        queryset=Creneau.objects.filter(est_actif=True),
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-select'}),
-        label='Créneau',
-        help_text='Sélectionner un créneau actif'
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Récupérer les données pour les listes déroulantes
+        from reglage.models import SemaineCours, Creneau, Salle
+        
+        # Champ pour la sélection de la semaine
+        self.fields['semaine_select'] = forms.ModelChoiceField(
+            queryset=SemaineCours.objects.all().order_by('-date_debut'),
+            label='Semaine de cours',
+            widget=forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_semaine_select'
+            }),
+            required=False
+        )
+        
+        # Configuration du champ date_fin
+        self.fields['date_fin'].widget.attrs.update({
+            'class': 'form-control',
+            'type': 'date',
+            'placeholder': 'Date de fin (optionnel)'
+        })
+        
+        # Configuration du champ date_cours (caché)
+        self.fields['date_cours'].widget = forms.HiddenInput()
+        
+        # Configuration du champ année académique
+        self.fields['annee_academique'].widget = forms.HiddenInput()
+        
+        # Configuration du champ remarques
+        self.fields['remarques'].widget.attrs.update({
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Remarques optionnelles',
+            'maxlength': '500'
+        })
     
     class Meta:
         model = ScheduleEntry
-        fields = ['attribution', 'annee_academique', 'semaine_debut', 'date_cours', 'creneau', 'salle', 'remarques']
+        fields = [
+            'attribution', 'annee_academique', 'semaine_debut', 
+            'date_fin', 'date_cours', 'creneau', 'salle', 'remarques'
+        ]
+        
         widgets = {
             'attribution': forms.Select(attrs={'class': 'form-select'}),
-            'annee_academique': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '2024-2025'}),
-            'semaine_debut': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'date_cours': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'creneau': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Code créneau'}),
-            'salle': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: B1'}),
-            'remarques': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Remarques optionnelles'}),
+            'annee_academique': forms.HiddenInput(),
+            'semaine_debut': forms.HiddenInput(),
+            'creneau': forms.Select(attrs={'class': 'form-select'}),
+            'salle': forms.Select(attrs={'class': 'form-select'}),
+            'date_cours': forms.HiddenInput(),
+            'date_fin': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+                'placeholder': 'Date de fin (optionnel)'
+            }),
+            'remarques': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 3, 
+                'placeholder': 'Remarques optionnelles',
+                'maxlength': '500'
+            }),
         }
         labels = {
             'attribution': 'Cours (UE + Enseignant)',
@@ -83,12 +159,23 @@ class ScheduleEntryForm(forms.ModelForm):
         # Rendre les champs du modèle non requis car nous utilisons les champs personnalisés
         self.fields['annee_academique'].required = False
         self.fields['creneau'].required = False
-        self.fields['semaine_debut'].required = False
+        self.fields['semaine_debut'].required = True  # Maintenant requis pour la plage de dates
+        self.fields['date_cours'].required = False
+        
+        # Définir la date minimale pour les champs de date (aujourd'hui par défaut)
+        today = datetime.now().date()
+        self.fields['semaine_debut'].widget.attrs['min'] = today
+        self.fields['date_fin'].widget.attrs['min'] = today
+        self.fields['date_cours'].widget.attrs['min'] = today
         
         # Personnaliser l'affichage des attributions avec intitulés UE/EC concis
         self.fields['attribution'].queryset = Attribution.objects.select_related(
             'matricule', 'code_ue'
         ).order_by('code_ue__code_ue', 'code_ue__classe')
+        
+        # Rendre le champ d'attribution désactivé par défaut (sera activé après sélection de la classe)
+        self.fields['attribution'].disabled = True
+        self.fields['attribution'].widget.attrs['disabled'] = 'disabled'
         
         def format_ue_label(attribution):
             ue = attribution.code_ue
@@ -132,11 +219,6 @@ class ScheduleEntryForm(forms.ModelForm):
             self.fields['creneau_select'].empty_label = f"{premier_creneau.designation} ({premier_creneau.get_format_court()})"
         
         # Personnaliser l'affichage des salles avec placeholder
-        self.fields['salle_select'].label_from_instance = lambda obj: (
-            f"{obj.code} - {obj.designation} ({obj.capacite} places)" if obj.capacite 
-            else f"{obj.code} - {obj.designation}"
-        )
-        # Placeholder salle
         premiere_salle = Salle.objects.filter(est_disponible=True).first()
         if premiere_salle:
             if premiere_salle.capacite:

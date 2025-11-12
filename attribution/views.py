@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from django.urls import reverse_lazy
 from .forms import AttributionForm, ScheduleEntryForm
+from .views_schedule import get_ues_by_classe
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -26,7 +27,75 @@ from reglage.models import Grade, Departement, Section, AnneeAcademique
 from django.db import transaction
 from datetime import datetime
 import json
+import re
 import traceback
+
+# Fonction pour ne garder que le nom de famille
+def truncate_teacher_name(full_name):
+    if not full_name:
+        return ''
+    # Prendre uniquement le premier mot (nom de famille)
+    return full_name.split()[0] if full_name.strip() else ''
+
+# Fonction pour tronquer les intitulés des UE
+def truncate_ue_title(title):
+    if not title:
+        return ''
+        
+    # Dictionnaire d'abréviations courantes
+    abbreviations = {
+        'didactique': 'Didact.',
+        'informatique': 'Info',
+        'introduction': 'Intro.',
+        'programmation': 'Prog.',
+        'développement': 'Dév.',
+        'application': 'Appli.',
+        'technologie': 'Techno.',
+        'système': 'Sys.',
+        'réseau': 'Réseau',
+        'base de données': 'BD',
+        'mathématique': 'Math.',
+        'physique': 'Phys.',
+        'chimie': 'Chimie',
+        # 'chimie analytique': 'Chimie An.',  # Ne plus abréger chimie analytique
+        'biologie': 'Bio.',
+        'économie': 'Éco.',
+        'gestion': 'Gest.',
+        'communication': 'Com.',
+        'langue': 'Lang.',
+        'français': 'Fr.',
+        'anglais': 'Angl.',
+        'espagnol': 'Esp.',
+        'allemand': 'All.',
+        'histoire': 'Hist.',
+        'géographie': 'Géo.',
+        'philosophie': 'Philo.',
+        'psychologie': 'Psy.',
+        'sociologie': 'Socio.',
+        'pédagogie': 'Pédago.',
+        'méthodologie': 'Méthodo.'
+    }
+    
+    # Remplacer les expressions complètes (les plus longues d'abord)
+    lower_title = title.lower()
+    
+    # Trier les clés par longueur décroissante pour remplacer les expressions les plus longues d'abord
+    sorted_abbr = sorted(abbreviations.items(), key=lambda x: -len(x[0]))
+    
+    # Faire une passe pour les remplacements en respectant la casse
+    for word, abbr in sorted_abbr:
+        if word in lower_title:
+            # Remplacer en respectant la casse d'origine
+            title = re.sub(r'\b' + re.escape(word) + r'\b', 
+                          abbr, 
+                          title, 
+                          flags=re.IGNORECASE)
+            # Mettre à jour la version en minuscules pour les prochaines vérifications
+            lower_title = title.lower()
+    
+    # Retourner le titre avec les abréviations mais sans troncature
+    return title
+
 
 # Configuration de wkhtmltopdf
 # config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
@@ -272,9 +341,21 @@ def create_attribution(request):
                     'success': False,
                     'message': 'Aucun cours sélectionné.'
                 }, status=400)
+            
+            # Dédupliquer les cours sélectionnés par code_ue
+            seen_codes = set()
+            unique_cours = []
+            for cours in selected_cours:
+                code_ue = cours.get('code_ue')
+                if code_ue and code_ue not in seen_codes:
+                    seen_codes.add(code_ue)
+                    unique_cours.append(cours)
+            
+            selected_cours = unique_cours
+            print(f"Cours après déduplication: {selected_cours}")
 
             attributions_created = []
-            ids_to_delete = []  # Changement : collecter les IDs au lieu des code_ue
+            ids_to_delete = []  # Collecter les IDs des cours attribués pour suppression dans Cours_Attribution
             skipped_courses = []
             errors = []
 
@@ -282,7 +363,7 @@ def create_attribution(request):
             with transaction.atomic():
                 for cours in selected_cours:
                     # Validation de la structure de chaque cours
-                    if not isinstance(cours, dict) or 'id' not in cours or 'code_ue' not in cours:
+                    if not isinstance(cours, dict) or 'code_ue' not in cours:
                         return JsonResponse({
                             'success': False,
                             'message': f'Format de données incorrect pour le cours: {cours}'
@@ -292,8 +373,13 @@ def create_attribution(request):
                         # Récupération de l'enseignant
                         teacher = Teacher.objects.get(matricule=matricule)
                         
-                        # Récupérer le cours depuis Cours_Attribution (table source)
-                        cours_attr = Cours_Attribution.objects.get(id=cours['id'])
+                        # Récupérer le cours depuis Cours_Attribution (table source) par code_ue
+                        # Utiliser filter().first() pour éviter MultipleObjectsReturned
+                        cours_attr = Cours_Attribution.objects.filter(code_ue=cours['code_ue']).first()
+                        
+                        if not cours_attr:
+                            errors.append(f"Cours avec code_ue {cours['code_ue']} non trouvé dans Cours_Attribution")
+                            continue
                         
                         # Créer/récupérer le cours dans Course avec get_or_create
                         # La clé unique : code_ue + intitule_ue + intitule_ec + credit + cmi + td_tp + classe
@@ -321,7 +407,7 @@ def create_attribution(request):
                         
                         if existing_attribution:
                             # Si l'attribution existe déjà, on l'ignore et on continue
-                            skipped_courses.append(f"{cours['code_ue']} (ID:{cours['id']})")
+                            skipped_courses.append(f"{cours['code_ue']}")
                             continue
 
                         # Création de l'attribution
@@ -334,14 +420,13 @@ def create_attribution(request):
                         attributions_created.append(attribution)
 
                         # Ajout de l'ID exact pour suppression précise dans Cours_Attribution
-                        ids_to_delete.append(cours['id'])
+                        ids_to_delete.append(cours_attr.id)
 
                     except Teacher.DoesNotExist:
                         errors.append(f"Enseignant avec matricule {matricule} non trouvé")
-                    except Course.DoesNotExist:
-                        errors.append(f"Cours avec ID {cours['id']} (code_ue: {cours['code_ue']}) non trouvé")
                     except Exception as e:
-                        errors.append(f"Erreur pour {cours['code_ue']} (ID:{cours['id']}): {str(e)}")
+                        print(f"Erreur détaillée pour {cours['code_ue']}: {type(e).__name__}: {str(e)}")
+                        errors.append(f"Erreur pour {cours['code_ue']}: {str(e)}")
 
                 # Suppression précise : uniquement les cours réellement attribués (par ID)
                 if ids_to_delete:
@@ -800,24 +885,42 @@ def generate_courses_pdf(request, cours_attribution_objects, departement=None):
         ]
         data.append(row)
     
-    # Créer le tableau avec les entêtes et les données
+    # Ajouter ligne de sous-total
+    sous_total_row = ['', '', 'Sous-total', 
+                    str(sum(float(attr.cmi or 0) for attr in cours_tries)), 
+                    str(sum(float(attr.td_tp or 0) for attr in cours_tries)), 
+                    str(sum(float(attr.cmi or 0) for attr in cours_tries) + sum(float(attr.td_tp or 0) for attr in cours_tries)), 
+                    '', '']
+    data.append(sous_total_row)
+    
+    # Combiner les en-têtes et les données
     all_data = header_data + data
+    
+    # Définir les largeurs de colonnes
     col_widths = [60, 180, 120, 40, 40, 40, 60, 60, 100]  # Largeurs des colonnes ajustées
-    table = Table(all_data, colWidths=col_widths)
+    
+    # Créer le tableau
+    table = Table(all_data, colWidths=col_widths, repeatRows=1)
     
     # Style du tableau
     table_style = TableStyle([
+        # Style des entêtes
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Aligner le code UE à gauche
-        ('ALIGN', (3, 1), (8, -1), 'CENTER'),  # Aligner les colonnes numériques au centre
+        ('SPAN', (3, 1), (4, 1)),  # Fusion des cellules pour "Heures prévues"
+        
+        # Style des cellules de données
+        ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        
+        # Style pour la ligne de sous-total
+        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('SPAN', (0, -1), (2, -1)),  # Fusion des 3 premières cellules pour le texte "Sous-total"
     ])
     
     # Alternance de couleurs pour les lignes
@@ -903,7 +1006,8 @@ def schedule_pdf(request):
         if not classe_val:
             return None
         
-        classe_upper = classe_val.upper().strip()
+        # Supprimer tous les espaces et convertir en majuscules
+        classe_upper = classe_val.upper().strip().replace(' ', '')
         
         # Méthode 1: Format exact L1BC, L2MI, M1PHY, etc.
         match = re.match(r'^(L[1-3]|M[1-2])(BC|CST|MI|PHY|IT|IG)', classe_upper)
@@ -958,8 +1062,12 @@ def schedule_pdf(request):
 
     elements = []
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('SchedTitle', parent=styles['Heading2'], fontSize=13, alignment=1, fontName='Times-Bold')
-    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=9, leading=11, alignment=1, wordWrap='CJK', fontName='Times-Roman')
+    title_style = ParagraphStyle('SchedTitle', parent=styles['Heading2'], fontSize=8, alignment=1, fontName='Times-Bold')
+    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=8, leading=10, alignment=1, wordWrap='CJK', fontName='Times-Roman')
+    # Styles personnalisés
+    ue_title_style = ParagraphStyle('UETitle', parent=styles['Normal'], fontSize=8, alignment=1, wordWrap=None, fontName='Times-Italic')
+    teacher_style = ParagraphStyle('Teacher', parent=styles['Normal'], fontSize=8, alignment=1, wordWrap=None, fontName='Times-Roman')
+    code_style = ParagraphStyle('Code', parent=styles['Normal'], fontSize=8, alignment=1, wordWrap=None, fontName='Times-Bold')
     
     # Calculer les dates de début et fin de semaine pour le titre
     from datetime import timedelta
@@ -1005,8 +1113,8 @@ def schedule_pdf(request):
     # Boucle sur chaque niveau pour créer une page par niveau
     page_count = 0
     for niveau in niveaux_a_generer:
-        # Filtrer les horaires pour ce niveau
-        entries_niveau = all_entries.filter(attribution__code_ue__classe__startswith=niveau)
+        # Filtrer les horaires pour ce niveau (gérer les espaces dans les classes)
+        entries_niveau = all_entries.filter(attribution__code_ue__classe__icontains=niveau)
         
         # Debug: afficher le nombre d'horaires trouvés pour ce niveau
         print(f"\n=== Niveau {niveau} ===")
@@ -1025,7 +1133,7 @@ def schedule_pdf(request):
         # Titre selon l'image - sans mention du niveau sur la première ligne
         titre = f"<b>SECTION DES SCIENCES & TECHNOLOGIES</b><br/>"\
                 f"Horaires des Cours : semaine du {semaine_info}"
-        titre_para = Paragraph(titre, ParagraphStyle('TitleCustom', parent=styles['Normal'], fontSize=12, alignment=1, fontName='Times-Bold', leading=14))
+        titre_para = Paragraph(titre, ParagraphStyle('TitleCustom', parent=styles['Normal'], fontSize=8, alignment=1, fontName='Times-Bold', leading=10))
         elements.append(titre_para)
         elements.append(Spacer(1, 8))
         
@@ -1092,29 +1200,59 @@ def schedule_pdf(request):
                         
                         # Vérifier que l'entry correspond au jour et créneau actuel
                         # Comparaison flexible : accepter e.creneau == slot_code OU e.creneau.upper() == slot_code
-                        creneau_match = (
-                            e.creneau == slot_code or 
-                            e.creneau.upper() == slot_code or
-                            e.creneau.upper() == slot_code.upper()
-                        )
+                        # Si le créneau est vide, afficher dans tous les créneaux (pour compatibilité)
+                        if not e.creneau or e.creneau.strip() == '':
+                            # Créneau vide : afficher dans le premier créneau (AM) par défaut
+                            creneau_match = (slot_code == 'AM' or i == 0)
+                        else:
+                            creneau_match = (
+                                e.creneau == slot_code or 
+                                e.creneau.upper() == slot_code or
+                                e.creneau.upper() == slot_code.upper()
+                            )
                         
                         if e.jour == jour_label and creneau_match:
                             code = a.code_ue.code_ue or ''
-                            title = a.code_ue.intitule_ue or ''
-                            teacher_name = a.matricule.nom_complet or ''
+                            title = truncate_ue_title(a.code_ue.intitule_ue or '')
+                            teacher_name = truncate_teacher_name(a.matricule.nom_complet or '')
                             grade = a.matricule.grade or ''
+                            # Utiliser des espaces normaux pour permettre la troncature
                             if grade:
-                                txt = f"<b>{code}</b><br/><i>({title})</i><br/>{grade} {teacher_name}"
+                                txt = f"<b>{code}</b><br/><i>{title}</i><br/>{grade} {teacher_name}"
                             else:
-                                txt = f"<b>{code}</b><br/><i>({title})</i><br/>{teacher_name}"
+                                txt = f"<b>{code}</b><br/>{title}<br/>{teacher_name}"
                             items.append(txt)
                     
                     # Créer le contenu de la cellule - utiliser espace si vide
                     if items:
+                        # Créer un style personnalisé pour le contenu de la cellule
+                        style = ParagraphStyle(
+                            'CellContent',
+                            parent=styles['Normal'],
+                            fontSize=7,  # Taille de police légèrement réduite
+                            leading=8,   # Espacement entre les lignes réduit
+                            alignment=1,
+                            wordWrap='CJK',
+                            fontName='Times-Roman',
+                            splitLongWords=False,
+                            spaceShrinkage=0.85,  # Réduit encore plus l'espacement
+                            maxSpace=20,  # Largeur maximale avant troncature
+                            ellipsis='...',
+                            # Réduire les marges
+                            leftIndent=0,
+                            rightIndent=0,
+                            firstLineIndent=0,
+                            spaceBefore=0,
+                            spaceAfter=0,
+                            # Espacement entre les paragraphes
+                            paragraphSpaceBefore=0,
+                            paragraphSpaceAfter=0
+                        )
+                        # Joindre les éléments avec des sauts de ligne et créer un seul Paragraph
                         cell_content = '<br/><br/>'.join(items)
+                        row.append(Paragraph(cell_content, style))
                     else:
-                        cell_content = '&nbsp;'  # Espace insécable HTML
-                    row.append(Paragraph(cell_content, cell_style))
+                        row.append(Paragraph('&nbsp;', cell_style))  # Espace insécable HTML
                 
                 data.append(row)
         
@@ -1150,18 +1288,22 @@ def schedule_pdf(request):
         
         col_widths = [50, 70] + [largeur_colonne] * nb_cols
         
-        table = Table(data, colWidths=col_widths, repeatRows=1)
+        table = Table(data, colWidths=col_widths, repeatRows=1, hAlign='CENTER')
         style = TableStyle([
-            ('GRID', (0,0), (-1,-1), 1, colors.black),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.black),  # Lignes plus fines
             ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
-            ('ALIGN', (0,0), (-1,0), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),  # TOP au lieu de MIDDLE pour plus d'espace
-            ('FONTNAME', (0,0), (-1,0), 'Times-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 9),
-            ('LEFTPADDING', (0,0), (-1,-1), 2),
-            ('RIGHTPADDING', (0,0), (-1,-1), 2),
-            ('TOPPADDING', (0,0), (-1,-1), 2),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,0), 7),  # Taille de police réduite pour l'en-tête
+            # Réduire les marges et espacements
+            ('LEFTPADDING', (0,0), (-1,-1), 1),  # Marge gauche réduite
+            ('RIGHTPADDING', (0,0), (-1,-1), 1),  # Marge droite réduite
+            ('TOPPADDING', (0,0), (-1,-1), 1),    # Marge haute réduite
+            ('BOTTOMPADDING', (0,0), (-1,-1), 1), # Marge basse réduite
+            # Hauteur de ligne réduite
+            ('LEADING', (0,0), (-1,-1), 7),      # Espacement entre les lignes réduit
+            ('FONTSIZE', (0,1), (-1,-1), 7),     # Taille de police réduite pour les données
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ])
         
         # Fusionner les cellules de la colonne Jour pour éviter la redondance
@@ -1178,7 +1320,7 @@ def schedule_pdf(request):
         elements.append(table)
         
         # Signatures en bas de chaque page
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 10))  # Réduire l'espace avant les signatures
         chef_section = Teacher.objects.filter(id=chef_section_id).first() if chef_section_id else None
         chef_adjoint = Teacher.objects.filter(id=chef_adjoint_id).first() if chef_adjoint_id else None
 
@@ -1194,7 +1336,7 @@ def schedule_pdf(request):
                 return code_grade  # Fallback sur le code si la désignation n'existe pas
 
         # Style pour les signatures avec Times New Roman
-        sig_style = ParagraphStyle('SigStyle', parent=styles['Normal'], fontSize=10, alignment=0, fontName='Times-Roman')
+        sig_style = ParagraphStyle('SigStyle', parent=styles['Normal'], fontSize=8, alignment=0, fontName='Times-Roman')
         
         # Créer le contenu des signatures selon l'image
         chef_section_text = "LE CHEF DE SECTION<br/>"
@@ -1537,6 +1679,7 @@ def generate_pdf(request):
             ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         elements.append(titre_table)
@@ -1692,28 +1835,34 @@ class ScheduleEntryListView(ListView):
     paginate_by = 50
     
     def get_queryset(self):
+        # Récupérer le queryset de base avec les jointures nécessaires
         queryset = ScheduleEntry.objects.select_related(
             'attribution__matricule',
-            'attribution__code_ue'
-        ).order_by('-date_cours', 'creneau')
+            'attribution__code_ue',
+            'creneau'
+        ).order_by('-date_cours', 'jour')
         
-        # Filtrage
+        # Récupérer les paramètres GET
         annee = self.request.GET.get('annee')
         jour = self.request.GET.get('jour')
         creneau = self.request.GET.get('creneau')
         classe = self.request.GET.get('classe')
-        semaine = self.request.GET.get('semaine')
         
+        # Appliquer les filtres
         if annee:
             queryset = queryset.filter(annee_academique=annee)
+            
         if jour:
             queryset = queryset.filter(jour=jour)
+            
         if creneau:
-            queryset = queryset.filter(creneau=creneau)
+            # Filtrer par code de créneau (au lieu de l'ID)
+            queryset = queryset.filter(creneau__code=creneau)
+            
         if classe:
             queryset = queryset.filter(attribution__code_ue__classe__icontains=classe)
-        if semaine:
-            queryset = queryset.filter(semaine_debut=semaine)
+            
+        return queryset
         
         return queryset
     
@@ -1762,10 +1911,10 @@ class ScheduleEntryListView(ListView):
             for a in attributions
         ]
         
-        # Nombre de salles utilisées
-        context['salles_count'] = ScheduleEntry.objects.exclude(
-            salle__isnull=True
-        ).exclude(salle='').values('salle').distinct().count()
+        # Nombre de salles utilisées (version corrigée pour les clés étrangères)
+        context['salles_count'] = ScheduleEntry.objects.filter(
+            salle__isnull=False
+        ).values('salle').distinct().count()
         
         return context
 
@@ -1778,23 +1927,44 @@ class ScheduleEntryCreateView(CreateView):
     success_url = reverse_lazy('attribution:schedule_entry_list')
     
     def get_context_data(self, **kwargs):
-        from reglage.models import AnneeAcademique
+        from reglage.models import AnneeAcademique, Classe
         context = super().get_context_data(**kwargs)
         context['annee_courante'] = AnneeAcademique.objects.filter(est_en_cours=True).first()
+        # Ajouter la liste des classes ordonnées par code
+        context['classes'] = Classe.objects.all().order_by('CodeClasse')
         return context
     
     def form_valid(self, form):
+        from datetime import timedelta
         from reglage.models import AnneeAcademique, SemaineCours
         from .validators import ScheduleConflictValidator
+        
+        # Récupérer la date de fin de la plage (si spécifiée)
+        date_fin = form.cleaned_data.get('date_fin')
+        date_debut = form.cleaned_data.get('semaine_debut')
+        
+        # Vérifier si une plage de dates est spécifiée et valide
+        if date_fin and date_debut:
+            if date_fin < date_debut:
+                form.add_error('date_fin', "La date de fin doit être postérieure ou égale à la date de début.")
+                return self.form_invalid(form)
+            
+            # Calculer le nombre de jours dans la plage
+            delta = date_fin - date_debut
+            jours_plage = delta.days + 1  # +1 pour inclure le jour de début
+            
+            if jours_plage > 31:  # Limiter à 1 mois pour des raisons de performance
+                form.add_error('date_fin', "La plage de dates ne peut pas dépasser 31 jours.")
+                return self.form_invalid(form)
         
         # Insérer automatiquement l'année académique en cours
         annee_courante = AnneeAcademique.objects.filter(est_en_cours=True).first()
         if annee_courante:
             form.instance.annee_academique = annee_courante.code
         
-        # Calculer et sauvegarder le jour depuis cleaned_data
-        if 'jour' in form.cleaned_data and form.cleaned_data['jour']:
-            form.instance.jour = form.cleaned_data['jour']
+        # Calculer et sauvegarder le jour depuis la date de début
+        if date_debut:
+            form.instance.jour = date_debut.strftime('%A').lower()
         
         # Sauvegarder la salle depuis cleaned_data
         if 'salle' in form.cleaned_data and form.cleaned_data['salle']:
@@ -1804,49 +1974,92 @@ class ScheduleEntryCreateView(CreateView):
         if 'creneau' in form.cleaned_data and form.cleaned_data['creneau']:
             form.instance.creneau = form.cleaned_data['creneau']
         
-        # Sauvegarder le numéro de semaine depuis SemaineCours
-        if form.instance.semaine_debut:
-            try:
-                semaine_obj = SemaineCours.objects.get(date_debut=form.instance.semaine_debut)
-                form.instance.numero_semaine = semaine_obj.numero_semaine
-            except SemaineCours.DoesNotExist:
-                pass
+        # Liste pour stocker toutes les entrées créées (pour les messages de confirmation)
+        created_entries = []
         
-        # *** VALIDATION DES CONFLITS ***
+        # Si une plage de dates est spécifiée, créer plusieurs entrées
+        if date_fin and date_debut and date_fin > date_debut:
+            current_date = date_debut
+            while current_date <= date_fin:
+                # Créer une copie du formulaire pour chaque date
+                entry = ScheduleEntry(
+                    attribution=form.instance.attribution,
+                    annee_academique=form.instance.annee_academique,
+                    semaine_debut=current_date,
+                    date_cours=current_date,  # Utiliser la date du jour comme date de cours
+                    jour=current_date.strftime('%A').lower(),
+                    creneau=form.instance.creneau,
+                    salle=form.instance.salle,
+                    remarques=form.instance.remarques
+                )
+                
+                # Valider l'entrée pour cette date
+                validation_result = self._validate_entry(entry)
+                if not validation_result['valid']:
+                    for error in validation_result['errors']:
+                        form.add_error(None, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
+                    return self.form_invalid(form)
+                
+                # Sauvegarder l'entrée
+                entry.save()
+                created_entries.append(entry)
+                
+                # Passer au jour suivant
+                current_date += timedelta(days=1)
+            
+            # Message de succès avec le nombre d'entrées créées
+            messages.success(
+                self.request, 
+                f"✅ {len(created_entries)} entrées d'horaire créées avec succès dans la plage du "
+                f"{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}."
+            )
+            return redirect(self.get_success_url())
+        
+        # Si pas de plage de dates, créer une seule entrée
+        else:
+            # Valider l'entrée unique
+            validation_result = self._validate_entry(form.instance)
+            if not validation_result['valid']:
+                for error in validation_result['errors']:
+                    form.add_error(None, error)
+                return self.form_invalid(form)
+            
+            # Sauvegarder le numéro de semaine depuis SemaineCours
+            if form.instance.semaine_debut:
+                try:
+                    semaine_obj = SemaineCours.objects.get(date_debut=form.instance.semaine_debut)
+                    form.instance.numero_semaine = semaine_obj.numero_semaine
+                except SemaineCours.DoesNotExist:
+                    pass
+            
+            messages.success(self.request, "✅ Horaire créé avec succès. Aucun conflit détecté.")
+            return super().form_valid(form)
+    
+    def _validate_entry(self, entry):
+        """Valide une entrée d'horaire et retourne le résultat de la validation."""
+        from .validators import ScheduleConflictValidator
+        
         print(f"\n=== VALIDATION DES CONFLITS ===")
-        print(f"Attribution: {form.instance.attribution}")
-        print(f"Jour: {form.instance.jour}")
-        print(f"Créneau: {form.instance.creneau}")
-        print(f"Semaine: {form.instance.semaine_debut}")
-        print(f"Salle: {form.instance.salle}")
+        print(f"Attribution: {entry.attribution}")
+        print(f"Jour: {entry.jour}")
+        print(f"Créneau: {entry.creneau}")
+        print(f"Date: {entry.semaine_debut}")
+        print(f"Salle: {entry.salle}")
         
         validation_result = ScheduleConflictValidator.validate_schedule_entry(
-            attribution=form.instance.attribution,
-            jour=form.instance.jour,
-            creneau=form.instance.creneau,
-            semaine=form.instance.semaine_debut,
-            salle=form.instance.salle,
-            exclude_id=None  # Pas d'exclusion pour création
+            attribution=entry.attribution,
+            jour=entry.jour,
+            creneau=entry.creneau,
+            semaine=entry.semaine_debut,
+            salle=entry.salle,
+            exclude_id=entry.pk if entry.pk else None
         )
         
         print(f"Résultat validation: {validation_result}")
         print(f"Valid: {validation_result['valid']}")
         print(f"Errors: {validation_result['errors']}")
         
-        # Si des conflits sont détectés, afficher les erreurs et bloquer
-        if not validation_result['valid']:
-            print(f"CONFLIT DÉTECTÉ! Ajout de {len(validation_result['errors'])} message(s) d'erreur")
-            for error in validation_result['errors']:
-                messages.error(self.request, error)
-                print(f"  - {error}")
-            return self.form_invalid(form)
-        
-        # Afficher les avertissements s'il y en a
-        for warning in validation_result['warnings']:
-            messages.warning(self.request, warning)
-        
-        messages.success(self.request, "✅ Horaire créé avec succès. Aucun conflit détecté.")
-        return super().form_valid(form)
+        return validation_result
     
     def form_invalid(self, form):
         messages.error(self.request, "Erreur lors de la création de l'horaire. Vérifiez les données.")
@@ -1861,9 +2074,11 @@ class ScheduleEntryUpdateView(UpdateView):
     success_url = reverse_lazy('attribution:schedule_entry_list')
     
     def get_context_data(self, **kwargs):
-        from reglage.models import AnneeAcademique
+        from reglage.models import AnneeAcademique, Classe
         context = super().get_context_data(**kwargs)
         context['annee_courante'] = AnneeAcademique.objects.filter(est_en_cours=True).first()
+        # Ajouter la liste des classes ordonnées par code
+        context['classes'] = Classe.objects.all().order_by('CodeClasse')
         return context
     
     def form_valid(self, form):
@@ -2076,34 +2291,12 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
     styles = getSampleStyleSheet()
     
     # Styles
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        textColor=colors.HexColor('#181c34'),
-        spaceAfter=12,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
+    title_style = ParagraphStyle('SchedTitle', parent=styles['Heading2'], fontSize=16, alignment=1, fontName='Times-Bold')
+    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=11, leading=13, alignment=1, wordWrap='CJK', fontName='Times-Roman')
     
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Normal'],
-        fontSize=12,
-        textColor=colors.HexColor('#495057'),
-        spaceAfter=10,
-        alignment=TA_CENTER
-    )
-    
-    section_style = ParagraphStyle(
-        'SectionStyle',
-        parent=styles['Normal'],
-        fontSize=14,
-        textColor=colors.HexColor('#181c34'),
-        spaceAfter=10,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
+    # Fonction pour tronquer le texte
+    def truncate_text(text, length=20):
+        return (text[:length] + '...') if len(text) > length else text
     
     # En-tête avec image
     from django.conf import settings
@@ -2122,14 +2315,15 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
             from reglage.models import Section as SectionModel
             section_obj = SectionModel.objects.filter(CodeSection=section).first()
             section_designation = section_obj.DesignationSection if section_obj else section
+            
             section_text = f"SECTION : {section_designation.upper()}"
         except:
             section_text = f"SECTION : {section.upper()}"
-        elements.append(Paragraph(section_text, section_style))
+        elements.append(Paragraph(section_text, ParagraphStyle('SectionStyle', parent=styles['Normal'], fontSize=14, alignment=1, fontName='Helvetica-Bold')))
     
     # Année académique ensuite
     info_text = f"<b>Année Académique:</b> {annee_academique or 'Toutes'}"
-    elements.append(Paragraph(info_text, subtitle_style))
+    elements.append(Paragraph(info_text, ParagraphStyle('SubtitleStyle', parent=styles['Normal'], fontSize=12, alignment=1)))
     
     # Titre principal en dernier
     titre = "RAPPORT DES HEURES SUPPLÉMENTAIRES PAR GRADE"
@@ -2185,25 +2379,33 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
         
         # Créer le tableau (largeurs ajustées pour format portrait)
         col_widths = [60, 100, 80, 70, 70, 80]
-        table = Table(data, colWidths=col_widths)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#495057')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        
+        # Créer le tableau avec les données
+        table = Table(data, colWidths=col_widths, repeatRows=1, hAlign='CENTER')
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
-            ('TOPPADDING', (0, 1), (-1, -1), 5),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e9ecef')),
-            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ]))
+            ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),  # Taille de police réduite pour l'en-tête
+            # Réduire les marges et espacements
+            ('LEFTPADDING', (0, 0), (-1, -1), 1),  # Marge gauche réduite
+            ('RIGHTPADDING', (0, 0), (-1, -1), 1), # Marge droite réduite
+            ('TOPPADDING', (0, 0), (-1, -1), 1),   # Marge haute réduite
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),# Marge basse réduite
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            # Hauteur de ligne réduite
+            ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
+            ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
+            ('LINEBEFORE', (0, 0), (0, -1), 0.5, colors.black),
+            ('LINEAFTER', (-1, 0), (-1, -1), 0.5, colors.black),
+            # Réduire l'espacement des cellules de données
+            ('FONTSIZE', (0, 1), (-1, -1), 7),  # Taille de police réduite pour les données
+            ('LEADING', (0, 1), (-1, -1), 7),   # Espacement entre les lignes réduit
+        ])
         
+        table.setStyle(style)
         elements.append(table)
     
     # Générer le PDF
@@ -2272,7 +2474,7 @@ def heures_supplementaires_par_grade(request):
             }
         
         # Ajouter l'enseignant (set pour éviter les doublons)
-        stats_par_grade[grade]['nombre_enseignants'].add(attribution.matricule.matricule)
+        stats_par_grade[grade]['enseignants'].add(attribution.matricule.matricule)
         
         # Compter le cours
         stats_par_grade[grade]['nombre_cours'] += 1
@@ -2287,7 +2489,7 @@ def heures_supplementaires_par_grade(request):
     
     # Convertir les sets en nombres
     for grade in stats_par_grade:
-        stats_par_grade[grade]['nombre_enseignants'] = len(stats_par_grade[grade]['nombre_enseignants'])
+        stats_par_grade[grade]['nombre_enseignants'] = len(stats_par_grade[grade]['enseignants'])
     
     # Convertir en liste pour le template et trier par grade
     stats_list = sorted(stats_par_grade.values(), key=lambda x: x['grade'])
@@ -2439,46 +2641,10 @@ def imprimer_charges_section(request):
     styles = getSampleStyleSheet()
     
     # Style pour le titre
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        textColor=colors.HexColor('#181c34'),
-        spaceAfter=12,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
-    
-    # Style pour les sous-titres
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Normal'],
-        fontSize=12,
-        textColor=colors.HexColor('#495057'),
-        spaceAfter=20,
-        alignment=TA_CENTER
-    )
-    
-    section_title_style = ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Heading2'],
-        fontSize=13,
-        textColor=colors.white,
-        spaceAfter=8,
-        alignment=TA_LEFT,
-        fontName='Helvetica-Bold'
-    )
-    
-    dept_title_style = ParagraphStyle(
-        'DeptTitle',
-        parent=styles['Heading3'],
-        fontSize=11,
-        textColor=colors.HexColor('#181c34'),
-        spaceAfter=8,
-        spaceBefore=8,
-        alignment=TA_LEFT,
-        fontName='Helvetica-Bold'
-    )
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, alignment=1, fontName='Helvetica-Bold')
+    subtitle_style = ParagraphStyle('CustomSubtitle', parent=styles['Normal'], fontSize=12, alignment=1)
+    section_title_style = ParagraphStyle('SectionTitle', parent=styles['Heading2'], fontSize=13, alignment=1, fontName='Helvetica-Bold')
+    dept_title_style = ParagraphStyle('DeptTitle', parent=styles['Heading3'], fontSize=11, alignment=1, fontName='Helvetica-Bold')
     
     # En-tête avec image
     from django.conf import settings
@@ -2490,31 +2656,29 @@ def imprimer_charges_section(request):
         img = Image(entete_path, width=doc.width, height=1.5*inch)
         elements.append(img)
         elements.append(Spacer(1, 10))
-    else:
-        # Fallback si l'image n'existe pas
-        header_data = [
-            [Paragraph('<b>RÉPUBLIQUE DÉMOCRATIQUE DU CONGO</b>', ParagraphStyle('header', parent=styles['Normal'], fontSize=11, alignment=TA_CENTER))],
-            [Paragraph('<b>MINISTÈRE DE L\'ENSEIGNEMENT SUPÉRIEUR ET UNIVERSITAIRE</b>', ParagraphStyle('header', parent=styles['Normal'], fontSize=10, alignment=TA_CENTER))],
-        ]
-        header_table = Table(header_data, colWidths=[doc.width])
-        header_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ]))
-        elements.append(header_table)
-        elements.append(Spacer(1, 15))
     
-    # Titre principal
+    # Section d'abord
+    if section and section != 'ALL':
+        try:
+            from reglage.models import Section as SectionModel
+            section_obj = SectionModel.objects.filter(CodeSection=section).first()
+            section_designation = section_obj.DesignationSection if section_obj else section
+            
+            section_text = f"SECTION : {section_designation.upper()}"
+        except:
+            section_text = f"SECTION : {section.upper()}"
+        elements.append(Paragraph(section_text, section_title_style))
+    
+    # Année académique ensuite
+    info_text = f"<b>Année Académique:</b> {annee_academique}"
+    elements.append(Paragraph(info_text, subtitle_style))
+    
+    # Titre principal en dernier
     titre = "LISTE DES CHARGES HORAIRES PAR SECTION"
     if section != 'ALL':
         titre = f"LISTE DES CHARGES HORAIRES - SECTION {section_designation.upper()}"
     
     elements.append(Paragraph(titre, title_style))
-    
-    # Informations - uniquement l'année académique
-    info_text = f"<b>Année Académique:</b> {annee_academique}"
-    elements.append(Paragraph(info_text, subtitle_style))
     elements.append(Spacer(1, 15))
     
     # Parcourir chaque section
@@ -2583,7 +2747,7 @@ def imprimer_charges_section(request):
                     data.append([
                         charge.code_ue.code_ue,
                         Paragraph(charge.code_ue.intitule_ue[:60], styles['Normal']),
-                        Paragraph(classe_text, ParagraphStyle('classe', parent=styles['Normal'], fontSize=7, alignment=TA_CENTER)),
+                        Paragraph(classe_text, ParagraphStyle('classe', parent=styles['Normal'], fontSize=7, alignment=1)),
                         charge.code_ue.semestre or '—',
                         str(charge.code_ue.credit or 0),
                         str(int(total)),

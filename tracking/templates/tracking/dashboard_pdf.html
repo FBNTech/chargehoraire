@@ -279,6 +279,13 @@
     <!-- Suivi des cours par département -->
     <div class="section-title">📚 Suivi des Cours par Département</div>
     
+    <!-- Debug: Afficher le nombre de départements -->
+    {% if courses_by_department %}
+        <p style="font-size: 10px; color: #666; margin-bottom: 5px;">
+            <em>Nombre de départements trouvés : {{ courses_by_department|length }}</em>
+        </p>
+    {% endif %}
+    
     <table class="table-courses">
         <thead>
             <tr>
@@ -294,30 +301,43 @@
             {% for department, dept_data in courses_by_department.items %}
                 <!-- En-tête du département -->
                 <tr>
-                    <td colspan="6" class="semester-header" style="background-color: #4a4a4a; color: white;">
-                        🏛️ DÉPARTEMENT {{ department|upper }}
+                    <td colspan="6" class="semester-header" style="background-color: #2c3e50; color: white; font-size: 12px;">
+                        🏛️ DÉPARTEMENT : {{ department|upper }}
                     </td>
                 </tr>
                 
-                <!-- Boucle sur les semestres du département -->
-                {% for semester, semester_data in dept_data.semesters.items %}
-                    <!-- En-tête du semestre -->
-                    <tr>
-                        <td colspan="6" style="background-color: #d0d0d0; font-weight: bold; padding-left: 20px;">
-                            📖 {{ semester }}
-                        </td>
-                    </tr>
-                    
-                    <!-- Cours du semestre -->
-                    {% for course in semester_data.courses %}
-                    <tr>
-                        <td>{{ course.course__code_ue }}</td>
-                        <td>{{ course.course__intitule_ue }}</td>
-                        <td>{{ course.course__intitule_ec|default:"-" }}</td>
-                        <td>{{ course.course__classe }}</td>
-                        <td class="text-center">{{ course.total_hours_done|floatformat:1 }}</td>
-                        <td class="text-center">{{ course.progression_percentage|floatformat:0 }}%</td>
-                    </tr>
+                <!-- Boucle sur les sections du département -->
+                {% for section, section_data in dept_data.sections.items %}
+                    <!-- Boucle sur les semestres de la section -->
+                    {% for semester, semester_data in section_data.semesters.items %}
+                        <!-- En-tête du semestre -->
+                        <tr>
+                            <td colspan="6" style="background-color: #95a5a6; font-weight: bold; padding-left: 25px; font-size: 11px;">
+                                📖 SEMESTRE : {{ semester }}
+                            </td>
+                        </tr>
+                        
+                        <!-- Boucle sur les classes du semestre -->
+                        {% for classe, classe_data in semester_data.classes.items %}
+                            <!-- En-tête de la classe -->
+                            <tr>
+                                <td colspan="6" style="background-color: #bdc3c7; font-weight: bold; padding-left: 35px; font-size: 10px;">
+                                    🎓 CLASSE : {{ classe }}
+                                </td>
+                            </tr>
+                            
+                            <!-- Cours de la classe -->
+                            {% for course in classe_data.courses %}
+                            <tr>
+                                <td>{{ course.course__code_ue }}</td>
+                                <td>{{ course.course__intitule_ue }}</td>
+                                <td>{{ course.course__intitule_ec|default:"-" }}</td>
+                                <td>{{ course.course__classe }}</td>
+                                <td class="text-center">{{ course.total_hours_done|floatformat:1 }}</td>
+                                <td class="text-center">{{ course.progression_percentage|floatformat:0 }}%</td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
                     {% endfor %}
                 {% endfor %}
             {% empty %}

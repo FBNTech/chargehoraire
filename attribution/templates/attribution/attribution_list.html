@@ -289,9 +289,8 @@
                                         <div class="form-check">
                                             <input class="form-check-input course-checkbox" type="checkbox" 
                                                    value="{{ cours.id }}" 
+                                                   data-code-ue="{{ cours.code_ue }}"
                                                    data-cmi="{{ cours.cmi }}" 
-                                                   data-td-tp="{{ cours.td_tp }}"
-                                                   data-td-tp="{{ cours.td_tp }}"
                                                    data-td-tp="{{ cours.td_tp }}"
                                                    >
                                         </div>
@@ -541,12 +540,8 @@
             let selectedCourses = [];
 
             $('.course-checkbox:checked').each(function() {
-                let $row = $(this).closest('tr');
                 let courseData = {
-                    id: $(this).val(),
-                    code_ue: $row.find('td:eq(1)').text().trim(),
-                    cmi: parseFloat($(this).data('cmi') || 0),
-                    td_tp: parseFloat($(this).data('td-tp') || 0)
+                    code_ue: $(this).data('code-ue')
                 };
                 selectedCourses.push(courseData);
             });

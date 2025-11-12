@@ -93,11 +93,10 @@ document.getElementById('selectAll').addEventListener('change', function() {
 document.getElementById('attributionForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    // Récupérer les cours cochés avec leurs données complètes
+    // Récupérer les cours cochés avec leur code_ue uniquement
     const selectedCours = Array.from(document.getElementsByClassName('cours-checkbox'))
         .filter(cb => cb.checked)
         .map(cb => ({
-            id: cb.value,
             code_ue: cb.getAttribute('data-code-ue')
         }));
     

@@ -164,7 +164,7 @@ def import_excel(request):
             df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
             
             # Vérifier les colonnes requises
-            required_columns = ['matricule', 'nom_complet', 'fonction', 'grade', 'categorie', 'departement']
+            required_columns = ['matricule', 'nom_complet', 'fonction', 'grade', 'section', 'categorie', 'departement']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -276,7 +276,7 @@ def import_teachers(request):
             df.columns = [col.strip().lower().replace(' ', '_') for col in df.columns]
             
             # Vérifier les colonnes requises
-            required_columns = ['matricule', 'nom_complet', 'fonction', 'grade', 'categorie', 'departement']
+            required_columns = ['matricule', 'nom_complet', 'fonction', 'grade', 'section', 'categorie', 'departement']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -293,6 +293,7 @@ def import_teachers(request):
                     'nom_complet': str(row['nom_complet']).strip(),
                     'fonction': str(row['fonction']).strip(),
                     'grade': str(row['grade']).strip(),
+                    'section': str(row['section']).strip(),
                     'categorie': str(row['categorie']).strip(),
                     'departement': str(row['departement']).strip()
                 }

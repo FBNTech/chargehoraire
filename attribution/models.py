@@ -82,12 +82,15 @@ class ScheduleEntry(models.Model):
 
     attribution = models.ForeignKey(Attribution, on_delete=models.CASCADE, related_name='schedule_entries')
     annee_academique = models.CharField(max_length=9)
-    semaine_debut = models.DateField(null=True, blank=True)
+    semaine_debut = models.DateField(null=True, blank=True, help_text="Date de début de la plage de dates")
+    date_fin = models.DateField(null=True, blank=True, help_text="Date de fin de la plage de dates (inclusive)")
     numero_semaine = models.IntegerField(null=True, blank=True, help_text="Numéro de la semaine de cours")
-    date_cours = models.DateField(null=True, blank=True, help_text="Date exacte du cours")
+    date_cours = models.DateField(null=True, blank=True, help_text="Date exacte du cours (pour compatibilité)")
     jour = models.CharField(max_length=10, choices=DAYS)
-    creneau = models.CharField(max_length=20)  # Accepte n'importe quel code de créneau
-    salle = models.CharField(max_length=50, null=True, blank=True)
+    creneau = models.ForeignKey('reglage.Creneau', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Créneau horaire")
+    salle = models.CharField(max_length=50, null=True, blank=True, verbose_name="Salle (ancien)")
+    salle_link = models.ForeignKey('reglage.Salle', on_delete=models.SET_NULL, null=True, blank=True, 
+                                 related_name='schedule_entries', verbose_name="Salle")
     remarques = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
@@ -98,10 +101,6 @@ class ScheduleEntry(models.Model):
     
     def get_creneau_display_complet(self):
         """Retourne l'affichage des heures du créneau"""
-        try:
-            from reglage.models import Creneau
-            creneau_obj = Creneau.objects.get(code=self.creneau)
-            return creneau_obj.get_format_court()
-        except:
-            # Fallback si le créneau n'existe pas dans la table Réglage
-            return self.creneau
+        if self.creneau:
+            return self.creneau.get_format_court()
+        return "Non défini"
