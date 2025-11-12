@@ -79,44 +79,6 @@ class ScheduleEntryForm(forms.ModelForm):
         help_text='Sélectionner une salle disponible'
     )
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Récupérer les données pour les listes déroulantes
-        from reglage.models import SemaineCours, Creneau, Salle
-        
-        # Champ pour la sélection de la semaine
-        self.fields['semaine_select'] = forms.ModelChoiceField(
-            queryset=SemaineCours.objects.all().order_by('-date_debut'),
-            label='Semaine de cours',
-            widget=forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'id_semaine_select'
-            }),
-            required=False
-        )
-        
-        # Configuration du champ date_fin
-        self.fields['date_fin'].widget.attrs.update({
-            'class': 'form-control',
-            'type': 'date',
-            'placeholder': 'Date de fin (optionnel)'
-        })
-        
-        # Configuration du champ date_cours (caché)
-        self.fields['date_cours'].widget = forms.HiddenInput()
-        
-        # Configuration du champ année académique
-        self.fields['annee_academique'].widget = forms.HiddenInput()
-        
-        # Configuration du champ remarques
-        self.fields['remarques'].widget.attrs.update({
-            'class': 'form-control',
-            'rows': 3,
-            'placeholder': 'Remarques optionnelles',
-            'maxlength': '500'
-        })
-    
     class Meta:
         model = ScheduleEntry
         fields = [
@@ -225,6 +187,28 @@ class ScheduleEntryForm(forms.ModelForm):
                 self.fields['salle_select'].empty_label = f"{premiere_salle.code} - {premiere_salle.designation} ({premiere_salle.capacite} places)"
             else:
                 self.fields['salle_select'].empty_label = f"{premiere_salle.code} - {premiere_salle.designation}"
+        
+        # Configuration des champs cachés (les _select sont utilisés pour l'affichage)
+        self.fields['annee_academique'].widget = forms.HiddenInput()
+        self.fields['semaine_debut'].widget = forms.HiddenInput()
+        self.fields['date_cours'].widget = forms.HiddenInput()
+        self.fields['salle'].widget = forms.HiddenInput()
+        self.fields['creneau'].widget = forms.HiddenInput()
+        
+        # Configuration du champ remarques
+        self.fields['remarques'].widget.attrs.update({
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Remarques optionnelles',
+            'maxlength': '500'
+        })
+        
+        # Configuration du champ date_fin
+        self.fields['date_fin'].widget.attrs.update({
+            'class': 'form-control',
+            'type': 'date',
+            'placeholder': 'Date de fin (optionnel)'
+        })
     
     def clean(self):
         cleaned_data = super().clean()

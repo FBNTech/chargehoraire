@@ -196,38 +196,40 @@
 
                             <!-- Sélecteur de créneau -->
                             <div class="col-md-6">
-                                <label for="{{ form.creneau.id_for_label }}" class="form-label fw-bold">
+                                <label for="{{ form.creneau_select.id_for_label }}" class="form-label fw-bold">
                                     Créneau horaire <span class="text-danger">*</span>
                                 </label>
-                                {{ form.creneau }}
-                                {% if form.creneau.help_text %}
-                                <div class="form-text">{{ form.creneau.help_text }}</div>
+                                {{ form.creneau_select }}
+                                {% if form.creneau_select.help_text %}
+                                <div class="form-text">{{ form.creneau_select.help_text }}</div>
                                 {% endif %}
-                                {% if form.creneau.errors %}
+                                {% if form.creneau_select.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {{ form.creneau.errors.0 }}
+                                    {{ form.creneau_select.errors.0 }}
                                 </div>
                                 {% endif %}
                             </div>
 
                             <!-- Sélecteur de salle -->
                             <div class="col-md-6">
-                                <label for="{{ form.salle.id_for_label }}" class="form-label fw-bold">
+                                <label for="{{ form.salle_select.id_for_label }}" class="form-label fw-bold">
                                     Salle
                                 </label>
-                                {{ form.salle }}
-                                {% if form.salle.help_text %}
-                                <div class="form-text">{{ form.salle.help_text }}</div>
+                                {{ form.salle_select }}
+                                {% if form.salle_select.help_text %}
+                                <div class="form-text">{{ form.salle_select.help_text }}</div>
                                 {% endif %}
-                                {% if form.salle.errors %}
+                                {% if form.salle_select.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {{ form.salle.errors.0 }}
+                                    {{ form.salle_select.errors.0 }}
                                 </div>
                                 {% endif %}
                             </div>
                             
-                            <!-- Champ semaine_debut caché (utilisé pour la soumission) -->
+                            <!-- Champs cachés (utilisés pour la soumission) -->
                             {{ form.semaine_debut }}
+                            {{ form.creneau }}
+                            {{ form.salle }}
 
                             <!-- Champ remarques -->
                             <div class="col-12">
