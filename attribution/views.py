@@ -752,6 +752,11 @@ def liste_charges(request):
     else:
         academic_years = [annee.code for annee in annees_academiques]
     
+    # Récupérer les années et sections pour le modal heures supplémentaires
+    from reglage.models import Section as SectionReglage
+    annees_modal = list(AnneeAcademique.objects.all().order_by('-date_debut'))
+    sections_modal = list(SectionReglage.objects.all().order_by('CodeSection'))
+    
     context = {
         'attributions': attributions,
         'teachers': Teacher.objects.all().order_by('nom_complet'),
@@ -764,6 +769,8 @@ def liste_charges(request):
         'teachers_with_assignments': teachers_with_assignments,
         'cours_ues': cours_ues,
         'ue_enseignants': ue_enseignants,
+        'annees_modal': annees_modal,
+        'sections_modal': sections_modal,
     }
     
     return render(request, 'attribution/charge.html', context)
@@ -953,12 +960,25 @@ def schedule_builder(request):
     return redirect('attribution:schedule_entry_list')
 
 def schedule_pdf(request):
+    from datetime import datetime, timedelta
+    
     classe = request.GET.get('classe')  # Ex: L1BC ou juste L1
     annee = request.GET.get('annee')
     week_start = request.GET.get('semaine')  # YYYY-MM-DD
     chef_section_id = request.GET.get('chef_section')
     chef_adjoint_id = request.GET.get('chef_adjoint')
+    section_code = request.GET.get('section', '')  # Code de la section
     attribution_id = request.GET.get('attribution_id')
+    
+    # Récupérer la désignation complète de la section depuis la base de données
+    section_designation = ""
+    if section_code:
+        from reglage.models import Section
+        try:
+            section_obj = Section.objects.get(CodeSection=section_code)
+            section_designation = section_obj.DesignationSection
+        except Section.DoesNotExist:
+            section_designation = section_code  # Fallback sur le code si non trouvé
 
     # Extraire le niveau (L1, L2, L3, M1, M2) de la classe
     import re
@@ -1033,23 +1053,53 @@ def schedule_pdf(request):
     days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
     
     # Récupérer toutes les entries
-    if week_start and not annee:
+    # Si aucune semaine ni année n'est spécifiée, afficher TOUTES les entrées (comme la liste)
+    print(f"PDF: Paramètres reçus - week_start='{week_start}', annee='{annee}'")
+    
+    if not week_start and not annee:
+        print("PDF: Branche 1 - Aucun filtre")
+        all_entries = ScheduleEntry.objects.all()
+        print(f"PDF: Aucun filtre - Affichage de TOUTES les {all_entries.count()} entrées")
+    elif week_start and not annee:
+        print("PDF: Branche 2 - Filtre par semaine uniquement")
         try:
             y, m, d = [int(x) for x in week_start.split('-')]
             semaine_date = datetime(y, m, d).date()
-            all_entries = ScheduleEntry.objects.filter(semaine_debut=semaine_date)
-        except Exception:
+            # Inclure toutes les entrées de la semaine (du lundi au samedi)
+            semaine_fin = semaine_date + timedelta(days=5)  # 6 jours de cours
+            # CORRECTION: Utiliser date_cours au lieu de semaine_debut
+            all_entries = ScheduleEntry.objects.filter(
+                date_cours__gte=semaine_date,
+                date_cours__lte=semaine_fin
+            )
+            print(f"PDF: Filtre semaine du {semaine_date} au {semaine_fin}, trouvé {all_entries.count()} entrées")
+            if all_entries.exists():
+                print("Entrées trouvées:")
+                for e in all_entries[:10]:
+                    print(f"  - {e.attribution.code_ue.classe} | {e.attribution.code_ue.code_ue} | {e.jour} | date_cours={e.date_cours}")
+        except Exception as ex:
+            print(f"PDF: ERREUR dans branche 2 - {ex}")
             all_entries = ScheduleEntry.objects.none()
     else:
+        print("PDF: Branche 3 - Filtre par année")
         all_entries = ScheduleEntry.objects.filter(
             annee_academique=annee if annee else all_attributions.first().annee_academique if all_attributions.exists() else '',
         )
+        print(f"PDF: Après filtre année: {all_entries.count()} entrées")
         if week_start:
             try:
                 y, m, d = [int(x) for x in week_start.split('-')]
                 semaine_date = datetime(y, m, d).date()
-                all_entries = all_entries.filter(semaine_debut=semaine_date)
-            except Exception:
+                # Inclure toutes les entrées de la semaine (du lundi au samedi)
+                semaine_fin = semaine_date + timedelta(days=5)  # 6 jours de cours
+                # CORRECTION: Utiliser date_cours au lieu de semaine_debut
+                all_entries = all_entries.filter(
+                    date_cours__gte=semaine_date,
+                    date_cours__lte=semaine_fin
+                )
+                print(f"PDF: Après filtre semaine: {all_entries.count()} entrées")
+            except Exception as ex:
+                print(f"PDF: ERREUR filtre semaine - {ex}")
                 pass
 
     def footer(canvas, doc):
@@ -1059,6 +1109,25 @@ def schedule_pdf(request):
         text = f"Page {page_num}"
         canvas.drawRightString(landscape(A4)[0]-20, 10, text)
         canvas.restoreState()
+
+    # Debug: Afficher le nombre total d'entrées après filtrage
+    print(f"\n=== TOTAL ENTRÉES APRÈS FILTRAGE ===")
+    print(f"Nombre total d'entrées: {all_entries.count()}")
+    if all_entries.exists():
+        print("Exemples d'entrées:")
+        for e in all_entries[:5]:
+            creneau_info = f"{e.creneau.code}" if e.creneau else "None"
+            print(f"  - ID={e.id} | classe={e.attribution.code_ue.classe} | code={e.attribution.code_ue.code_ue} | jour={e.jour} | creneau={creneau_info} | date_cours={e.date_cours}")
+    else:
+        # Si aucune entrée trouvée, afficher TOUTES les entrées de la base
+        print("\n⚠️ AUCUNE ENTRÉE TROUVÉE AVEC LES FILTRES!")
+        all_in_db = ScheduleEntry.objects.all()
+        print(f"Total dans la base de données: {all_in_db.count()}")
+        if all_in_db.exists():
+            print("Toutes les entrées disponibles:")
+            for e in all_in_db[:10]:
+                creneau_info = f"{e.creneau.code}" if e.creneau else "None"
+                print(f"  - ID={e.id} | classe={e.attribution.code_ue.classe} | code={e.attribution.code_ue.code_ue} | jour={e.jour} | creneau={creneau_info} | date_cours={e.date_cours} | semaine_debut={e.semaine_debut}")
 
     elements = []
     styles = getSampleStyleSheet()
@@ -1070,24 +1139,65 @@ def schedule_pdf(request):
     code_style = ParagraphStyle('Code', parent=styles['Normal'], fontSize=8, alignment=1, wordWrap=None, fontName='Times-Bold')
     
     # Calculer les dates de début et fin de semaine pour le titre
-    from datetime import timedelta
     semaine_info = ""
+    numero_semaine_str = ""
     day_dates = {}
     
-    # Si pas de semaine spécifiée, utiliser la semaine en cours
-    if not week_start:
-        # Trouver la semaine en cours
-        from reglage.models import SemaineCours
-        semaine_en_cours = SemaineCours.objects.filter(est_en_cours=True).first()
-        if semaine_en_cours:
-            week_start = semaine_en_cours.date_debut.strftime('%Y-%m-%d')
+    # Si pas de semaine spécifiée, utiliser toutes les entrées
+    if not week_start and all_entries.exists():
+        # Trouver la plage de dates des entrées
+        premiere_entree = all_entries.order_by('date_cours').first()
+        derniere_entree = all_entries.order_by('-date_cours').first()
+        
+        if premiere_entree and derniere_entree and premiere_entree.date_cours and derniere_entree.date_cours:
+            # Utiliser la première date comme référence pour le week_start
+            week_start = premiere_entree.date_cours.strftime('%Y-%m-%d')
+            
+            # Calculer le numéro de semaine à partir de la première entrée
+            from reglage.models import SemaineCours
+            semaine_obj = SemaineCours.objects.filter(
+                date_debut__lte=premiere_entree.date_cours,
+                date_fin__gte=premiere_entree.date_cours
+            ).first()
+            if semaine_obj:
+                numero_semaine_str = f"S{semaine_obj.numero_semaine}"
+            
+            print(f"PDF: Plage automatique détectée du {premiere_entree.date_cours} au {derniere_entree.date_cours}")
+        else:
+            # Fallback : utiliser la semaine en cours
+            semaine_en_cours = SemaineCours.objects.filter(est_en_cours=True).first()
+            if semaine_en_cours:
+                week_start = semaine_en_cours.date_debut.strftime('%Y-%m-%d')
+                numero_semaine_str = f"S{semaine_en_cours.numero_semaine}"
     
     if week_start:
         try:
             y, m, d = [int(x) for x in week_start.split('-')]
-            date_debut = datetime(y, m, d).date()
-            date_fin = date_debut + timedelta(days=5)  # Samedi (6 jours de cours)
-            semaine_info = f"{date_debut.strftime('%d')} au {date_fin.strftime('%d %B %Y')}"
+            date_reference = datetime(y, m, d).date()
+            
+            # Trouver le lundi de la semaine contenant cette date
+            # weekday(): lundi=0, mardi=1, ..., dimanche=6
+            jours_depuis_lundi = date_reference.weekday()
+            date_debut = date_reference - timedelta(days=jours_depuis_lundi)  # Lundi
+            date_fin = date_debut + timedelta(days=5)  # Samedi
+            
+            print(f"PDF: Date référence {date_reference}, Lundi de la semaine: {date_debut}, Samedi: {date_fin}")
+            
+            # Récupérer le numéro de semaine depuis SemaineCours
+            from reglage.models import SemaineCours
+            # Chercher la semaine qui contient le lundi
+            semaine_obj = SemaineCours.objects.filter(
+                date_debut__lte=date_debut,
+                date_fin__gte=date_debut
+            ).first()
+            if semaine_obj:
+                numero_semaine_str = f"S{semaine_obj.numero_semaine}"
+            
+            # Créer l'info avec le numéro de semaine si disponible
+            if numero_semaine_str:
+                semaine_info = f"{numero_semaine_str} : {date_debut.strftime('%d')} au {date_fin.strftime('%d %B %Y')}"
+            else:
+                semaine_info = f"{date_debut.strftime('%d')} au {date_fin.strftime('%d %B %Y')}"
             
             # Calculer les dates pour chaque jour
             days_map = {
@@ -1096,6 +1206,7 @@ def schedule_pdf(request):
             }
             for day, offset in days_map.items():
                 day_dates[day] = date_debut + timedelta(days=offset)
+                print(f"PDF: {day} = {day_dates[day]}")
         except:
             semaine_info = week_start
     
@@ -1130,8 +1241,17 @@ def schedule_pdf(request):
             elements.append(PageBreak())
         page_count += 1
         
-        # Titre selon l'image - sans mention du niveau sur la première ligne
-        titre = f"<b>SECTION DES SCIENCES & TECHNOLOGIES</b><br/>"\
+        # Titre selon l'image - avec la désignation complète de la section si fournie
+        if section_designation:
+            # Si la désignation commence déjà par "SECTION", ne pas le dupliquer
+            if section_designation.upper().startswith("SECTION"):
+                section_title = section_designation.upper()
+            else:
+                section_title = f"SECTION {section_designation.upper()}"
+        else:
+            section_title = "SECTION DES SCIENCES & TECHNOLOGIES"
+        
+        titre = f"<b>{section_title}</b><br/>"\
                 f"Horaires des Cours : semaine du {semaine_info}"
         titre_para = Paragraph(titre, ParagraphStyle('TitleCustom', parent=styles['Normal'], fontSize=8, alignment=1, fontName='Times-Bold', leading=10))
         elements.append(titre_para)
@@ -1156,8 +1276,6 @@ def schedule_pdf(request):
                 colonnes_detectees.add(col_key)
                 if col_key not in by_col:
                     by_col[col_key] = []
-                    if col_key not in col_keys_predefinies:
-                        print(f"Colonne ajoutée dynamiquement: {col_key} pour le niveau {niveau}")
                 by_col[col_key].append((e, a))
         
         # Finaliser la liste des colonnes triées
@@ -1167,6 +1285,11 @@ def schedule_pdf(request):
         for col in col_keys:
             if col not in by_col:
                 by_col[col] = []
+        
+        # Debug: afficher le nombre d'entrées par colonne
+        print(f"PDF Niveau {niveau}: {len(col_keys)} colonnes détectées: {col_keys}")
+        for col in col_keys:
+            print(f"  Colonne {col}: {len(by_col[col])} entrées")
         
         # En-tête colonnes - s'assurer qu'il n'y a pas de None
         table_header = ['Jour', 'Heures'] + [str(k) if k is not None else 'N/A' for k in col_keys]
@@ -1199,16 +1322,19 @@ def schedule_pdf(request):
                         jour_label = day.lower()
                         
                         # Vérifier que l'entry correspond au jour et créneau actuel
-                        # Comparaison flexible : accepter e.creneau == slot_code OU e.creneau.upper() == slot_code
-                        # Si le créneau est vide, afficher dans tous les créneaux (pour compatibilité)
-                        if not e.creneau or e.creneau.strip() == '':
-                            # Créneau vide : afficher dans le premier créneau (AM) par défaut
+                        # e.creneau est maintenant un objet Creneau (ForeignKey) ou None
+                        # Obtenir le code du créneau
+                        creneau_code = e.creneau.code if e.creneau else None
+                        
+                        # Si le créneau est vide, afficher dans le premier créneau (AM) par défaut
+                        if not creneau_code or creneau_code.strip() == '':
                             creneau_match = (slot_code == 'AM' or i == 0)
                         else:
+                            # Comparaison flexible du code du créneau
                             creneau_match = (
-                                e.creneau == slot_code or 
-                                e.creneau.upper() == slot_code or
-                                e.creneau.upper() == slot_code.upper()
+                                creneau_code == slot_code or 
+                                creneau_code.upper() == slot_code or
+                                creneau_code.upper() == slot_code.upper()
                             )
                         
                         if e.jour == jour_label and creneau_match:
@@ -1943,6 +2069,13 @@ class ScheduleEntryCreateView(CreateView):
         date_fin = form.cleaned_data.get('date_fin')
         date_debut = form.cleaned_data.get('semaine_debut')
         
+        # Debug: afficher les dates reçues
+        print(f"\n=== DEBUG CRÉATION HORAIRE ===")
+        print(f"Date début (semaine_debut): {date_debut}")
+        print(f"Date fin (date_fin): {date_fin}")
+        print(f"Type date_debut: {type(date_debut)}")
+        print(f"Type date_fin: {type(date_fin)}")
+        
         # Vérifier si une plage de dates est spécifiée et valide
         if date_fin and date_debut:
             if date_fin < date_debut:
@@ -1962,15 +2095,19 @@ class ScheduleEntryCreateView(CreateView):
         if annee_courante:
             form.instance.annee_academique = annee_courante.code
         
-        # Calculer et sauvegarder le jour depuis la date de début
+        # Calculer et sauvegarder le jour depuis la date de début (en français)
         if date_debut:
-            form.instance.jour = date_debut.strftime('%A').lower()
+            # Mapper les jours en français
+            jours_fr = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+            form.instance.jour = jours_fr[date_debut.weekday()]
         
-        # Sauvegarder la salle depuis cleaned_data
+        # Sauvegarder la salle depuis cleaned_data (les deux champs pour compatibilité)
         if 'salle' in form.cleaned_data and form.cleaned_data['salle']:
             form.instance.salle = form.cleaned_data['salle']
+        if 'salle_link' in form.cleaned_data and form.cleaned_data['salle_link']:
+            form.instance.salle_link = form.cleaned_data['salle_link']
         
-        # Sauvegarder le créneau depuis cleaned_data
+        # Sauvegarder le créneau depuis cleaned_data (déjà une instance)
         if 'creneau' in form.cleaned_data and form.cleaned_data['creneau']:
             form.instance.creneau = form.cleaned_data['creneau']
         
@@ -1978,18 +2115,37 @@ class ScheduleEntryCreateView(CreateView):
         created_entries = []
         
         # Si une plage de dates est spécifiée, créer plusieurs entrées
-        if date_fin and date_debut and date_fin > date_debut:
+        # Note: On utilise >= au lieu de > pour permettre une plage d'un seul jour
+        if date_fin and date_debut and date_fin >= date_debut:
+            print(f"CRÉATION D'UNE PLAGE DE {date_debut} à {date_fin}")
             current_date = date_debut
+            entry_count = 0
             while current_date <= date_fin:
+                entry_count += 1
+                print(f"  -> Création entrée #{entry_count} pour {current_date} ({current_date.strftime('%A')})")
+                # Mapper les jours en français
+                jours_fr = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+                
+                # Trouver la semaine correspondant à cette date
+                from reglage.models import SemaineCours
+                semaine_obj = SemaineCours.objects.filter(
+                    date_debut__lte=current_date,
+                    date_fin__gte=current_date
+                ).first()
+                numero_semaine = semaine_obj.numero_semaine if semaine_obj else None
+                print(f"     Semaine trouvée: S{numero_semaine} pour {current_date}")
+                
                 # Créer une copie du formulaire pour chaque date
                 entry = ScheduleEntry(
                     attribution=form.instance.attribution,
                     annee_academique=form.instance.annee_academique,
                     semaine_debut=current_date,
                     date_cours=current_date,  # Utiliser la date du jour comme date de cours
-                    jour=current_date.strftime('%A').lower(),
+                    numero_semaine=numero_semaine,  # Numéro de semaine correspondant à la date
+                    jour=jours_fr[current_date.weekday()],  # Jour en français
                     creneau=form.instance.creneau,
                     salle=form.instance.salle,
+                    salle_link=form.instance.salle_link,
                     remarques=form.instance.remarques
                 )
                 
@@ -2013,10 +2169,13 @@ class ScheduleEntryCreateView(CreateView):
                 f"✅ {len(created_entries)} entrées d'horaire créées avec succès dans la plage du "
                 f"{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}."
             )
-            return redirect(self.get_success_url())
+            # Définir self.object pour get_success_url (utiliser la dernière entrée créée)
+            self.object = created_entries[-1] if created_entries else None
+            return redirect(self.success_url)
         
         # Si pas de plage de dates, créer une seule entrée
         else:
+            print(f"CRÉATION D'UNE SEULE ENTRÉE pour {date_debut}")
             # Valider l'entrée unique
             validation_result = self._validate_entry(form.instance)
             if not validation_result['valid']:
@@ -2027,8 +2186,13 @@ class ScheduleEntryCreateView(CreateView):
             # Sauvegarder le numéro de semaine depuis SemaineCours
             if form.instance.semaine_debut:
                 try:
-                    semaine_obj = SemaineCours.objects.get(date_debut=form.instance.semaine_debut)
-                    form.instance.numero_semaine = semaine_obj.numero_semaine
+                    # Chercher la semaine qui contient cette date
+                    semaine_obj = SemaineCours.objects.filter(
+                        date_debut__lte=form.instance.semaine_debut,
+                        date_fin__gte=form.instance.semaine_debut
+                    ).first()
+                    if semaine_obj:
+                        form.instance.numero_semaine = semaine_obj.numero_semaine
                 except SemaineCours.DoesNotExist:
                     pass
             
@@ -2291,7 +2455,7 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
     styles = getSampleStyleSheet()
     
     # Styles
-    title_style = ParagraphStyle('SchedTitle', parent=styles['Heading2'], fontSize=16, alignment=1, fontName='Times-Bold')
+    title_style = ParagraphStyle('SchedTitle', parent=styles['Heading2'], fontSize=12, alignment=1, fontName='Times-Bold')
     cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=11, leading=13, alignment=1, wordWrap='CJK', fontName='Times-Roman')
     
     # Fonction pour tronquer le texte
@@ -2316,12 +2480,13 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
             section_obj = SectionModel.objects.filter(CodeSection=section).first()
             section_designation = section_obj.DesignationSection if section_obj else section
             
-            section_text = f"SECTION : {section_designation.upper()}"
+            section_text = f"{section_designation.upper()}"
         except:
-            section_text = f"SECTION : {section.upper()}"
+            section_text = f"{section.upper()}"
         elements.append(Paragraph(section_text, ParagraphStyle('SectionStyle', parent=styles['Normal'], fontSize=14, alignment=1, fontName='Helvetica-Bold')))
     
-    # Année académique ensuite
+    # Année académique ensuite avec un peu d'espace au-dessus
+    elements.append(Spacer(1, 10))
     info_text = f"<b>Année Académique:</b> {annee_academique or 'Toutes'}"
     elements.append(Paragraph(info_text, ParagraphStyle('SubtitleStyle', parent=styles['Normal'], fontSize=12, alignment=1)))
     
@@ -2378,31 +2543,41 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
         ])
         
         # Créer le tableau (largeurs ajustées pour format portrait)
-        col_widths = [60, 100, 80, 70, 70, 80]
+        col_widths = [70, 90, 85, 75, 75, 85]
         
         # Créer le tableau avec les données
         table = Table(data, colWidths=col_widths, repeatRows=1, hAlign='CENTER')
         style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            # En-tête avec fond gris foncé et texte blanc
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Times-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 7),  # Taille de police réduite pour l'en-tête
-            # Réduire les marges et espacements
-            ('LEFTPADDING', (0, 0), (-1, -1), 1),  # Marge gauche réduite
-            ('RIGHTPADDING', (0, 0), (-1, -1), 1), # Marge droite réduite
-            ('TOPPADDING', (0, 0), (-1, -1), 1),   # Marge haute réduite
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),# Marge basse réduite
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            # Hauteur de ligne réduite
-            ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
-            ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.black),
-            ('LINEBEFORE', (0, 0), (0, -1), 0.5, colors.black),
-            ('LINEAFTER', (-1, 0), (-1, -1), 0.5, colors.black),
-            # Réduire l'espacement des cellules de données
-            ('FONTSIZE', (0, 1), (-1, -1), 7),  # Taille de police réduite pour les données
-            ('LEADING', (0, 1), (-1, -1), 7),   # Espacement entre les lignes réduit
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),  # Taille de police augmentée pour l'en-tête
+            # Padding pour l'en-tête
+            ('LEFTPADDING', (0, 0), (-1, 0), 8),
+            ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            # Padding pour les données
+            ('LEFTPADDING', (0, 1), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 1), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            # Bordures
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#34495e')),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#34495e')),
+            # Police des données
+            ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -2), 10),  # Taille de police augmentée pour les données
+            # Ligne de total en gras avec fond gris clair
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#ecf0f1')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, -1), (-1, -1), 11),
+            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#34495e')),
+            # Alternance de couleurs pour les lignes
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
         ])
         
         table.setStyle(style)
@@ -2424,113 +2599,186 @@ def heures_supplementaires_par_grade(request):
     """Vue pour afficher les heures supplémentaires attribuées par grade"""
     from django.db.models import Sum, Count, F
     from django.db.models.functions import Coalesce
+    import traceback
     
-    # Récupérer l'année académique sélectionnée (optionnel)
-    annee_academique = request.GET.get('annee_academique')
-    section = request.GET.get('section')
-    format_pdf = request.GET.get('format') == 'pdf'
-    
-    # Filtrer les attributions de type "supplementaire"
-    attributions = Attribution.objects.filter(type_charge='Supplementaire').select_related('matricule', 'code_ue')
-    
-    # Filtrer par année si spécifiée
-    if annee_academique:
-        attributions = attributions.filter(annee_academique=annee_academique)
-    
-    # Filtrer par section si spécifiée
-    if section and section != 'ALL':
-        from django.db.models import Q
-        try:
-            from reglage.models import Section as SectionModel
-            section_obj = SectionModel.objects.filter(CodeSection=section).first()
-            section_designation = section_obj.DesignationSection if section_obj else section
-            
-            attributions = attributions.filter(
-                Q(matricule__section=section) | 
-                Q(matricule__section=section_designation) |
-                Q(matricule__section__icontains=section_designation)
-            )
-        except:
-            attributions = attributions.filter(matricule__section=section)
-    
-    # Si format PDF demandé, générer le PDF
-    if format_pdf:
-        return generer_pdf_heures_supplementaires(request, attributions, annee_academique, section)
-    
-    # Grouper par grade et calculer les statistiques
-    stats_par_grade = {}
-    
-    for attribution in attributions:
-        grade = attribution.matricule.grade if attribution.matricule.grade else "Non spécifié"
+    try:
+        # Récupérer l'année académique sélectionnée (optionnel)
+        annee_academique = request.GET.get('annee_academique')
+        section = request.GET.get('section')
+        format_pdf = request.GET.get('format') == 'pdf'
         
-        if grade not in stats_par_grade:
-            stats_par_grade[grade] = {
-                'grade': grade,
-                'nombre_enseignants': set(),
-                'nombre_cours': 0,
-                'total_cmi': 0,
-                'total_td_tp': 0,
-                'total_heures': 0,
-            }
+        # Valider et nettoyer l'année académique
+        if annee_academique and (not annee_academique.strip() or annee_academique.startswith(':')):
+            annee_academique = None
         
-        # Ajouter l'enseignant (set pour éviter les doublons)
-        stats_par_grade[grade]['enseignants'].add(attribution.matricule.matricule)
+        # DEBUG: Vérifier les types de charge disponibles
+        types_charges = Attribution.objects.values_list('type_charge', flat=True).distinct()
+        print(f"Types de charge disponibles: {list(types_charges)}")
+        print(f"Année académique reçue: '{annee_academique}'")
+        print(f"Section reçue: '{section}'")
         
-        # Compter le cours
-        stats_par_grade[grade]['nombre_cours'] += 1
+        # Filtrer les attributions de type "supplementaire" (insensible à la casse)
+        attributions = Attribution.objects.filter(type_charge__iexact='supplementaire').select_related('matricule', 'code_ue')
+        print(f"Nombre d'attributions supplémentaires trouvées: {attributions.count()}")
         
-        # Calculer les heures
-        cmi = float(attribution.code_ue.cmi) if attribution.code_ue.cmi else 0
-        td_tp = float(attribution.code_ue.td_tp) if attribution.code_ue.td_tp else 0
+        # DEBUG: Afficher les sections uniques des enseignants
+        sections_enseignants = set(attr.matricule.section for attr in attributions if attr.matricule and attr.matricule.section)
+        print(f"Sections des enseignants dans les attributions: {sections_enseignants}")
         
-        stats_par_grade[grade]['total_cmi'] += cmi
-        stats_par_grade[grade]['total_td_tp'] += td_tp
-        stats_par_grade[grade]['total_heures'] += (cmi + td_tp)
-    
-    # Convertir les sets en nombres
-    for grade in stats_par_grade:
-        stats_par_grade[grade]['nombre_enseignants'] = len(stats_par_grade[grade]['enseignants'])
-    
-    # Convertir en liste pour le template et trier par grade
-    stats_list = sorted(stats_par_grade.values(), key=lambda x: x['grade'])
-    
-    # Calculer les totaux généraux
-    totaux = {
-        'nombre_enseignants': sum(s['nombre_enseignants'] for s in stats_list),
-        'nombre_cours': sum(s['nombre_cours'] for s in stats_list),
-        'total_cmi': sum(s['total_cmi'] for s in stats_list),
-        'total_td_tp': sum(s['total_td_tp'] for s in stats_list),
-        'total_heures': sum(s['total_heures'] for s in stats_list),
-    }
-    
-    # Récupérer les années académiques disponibles
-    annees_disponibles = list(Attribution.objects.filter(
-        type_charge='Supplementaire'
-    ).values_list('annee_academique', flat=True).distinct().order_by('-annee_academique'))
-    
-    # Récupérer les sections disponibles
-    from teachers.models import Teacher
-    sections_disponibles = list(Teacher.objects.exclude(
-        section__isnull=True
-    ).exclude(
-        section=''
-    ).values_list('section', flat=True).distinct().order_by('section'))
-    
-    context = {
-        'stats_par_grade': stats_list,
-        'totaux': totaux,
-        'annee_selectionnee': annee_academique,
-        'annees_disponibles': annees_disponibles,
-        'sections_disponibles': sections_disponibles,
-        'section_selectionnee': section,
-    }
-    
-    # Si la requête est en AJAX, retourner en JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse(context, safe=False)
-    
-    # Sinon, retourner le template HTML
-    return render(request, 'attribution/heures_supplementaires_grade.html', context)
+        # Filtrer par année si spécifiée
+        if annee_academique:
+            attributions = attributions.filter(annee_academique=annee_academique)
+            print(f"Après filtrage par année: {attributions.count()}")
+        
+        # Filtrer par section si spécifiée
+        if section and section != 'ALL':
+            from django.db.models import Q
+            try:
+                from reglage.models import Section as SectionModel
+                # Essayer de trouver la section par désignation ou code
+                section_obj = SectionModel.objects.filter(
+                    Q(DesignationSection=section) | Q(CodeSection=section)
+                ).first()
+                
+                if section_obj:
+                    # Filtrer par code ET désignation pour couvrir tous les cas
+                    attributions = attributions.filter(
+                        Q(matricule__section=section_obj.CodeSection) | 
+                        Q(matricule__section=section_obj.DesignationSection) |
+                        Q(matricule__section__icontains=section_obj.DesignationSection) |
+                        Q(matricule__section__icontains=section_obj.CodeSection)
+                    )
+                    print(f"Filtrage par section: {section_obj.DesignationSection} ({section_obj.CodeSection})")
+                else:
+                    # Si la section n'est pas trouvée, filtrer directement par la valeur fournie
+                    attributions = attributions.filter(
+                        Q(matricule__section=section) |
+                        Q(matricule__section__icontains=section)
+                    )
+                    print(f"Filtrage par section (direct): {section}")
+                
+                print(f"Après filtrage par section: {attributions.count()}")
+            except Exception as e:
+                print(f"Erreur filtrage section: {e}")
+                import traceback
+                print(traceback.format_exc())
+                attributions = attributions.filter(matricule__section__icontains=section)
+        
+        # Si format PDF demandé, générer le PDF
+        if format_pdf:
+            return generer_pdf_heures_supplementaires(request, attributions, annee_academique, section)
+        
+        # Grouper par grade et calculer les statistiques
+        stats_par_grade = {}
+        
+        for attribution in attributions:
+            try:
+                # Vérifier que l'attribution a un matricule et un code_ue
+                if not attribution.matricule or not attribution.code_ue:
+                    print(f"Attribution {attribution.id} sans matricule ou code_ue")
+                    continue
+                
+                grade = attribution.matricule.grade if attribution.matricule.grade else "Non spécifié"
+                
+                if grade not in stats_par_grade:
+                    stats_par_grade[grade] = {
+                        'grade': grade,
+                        'enseignants': set(),
+                        'nombre_cours': 0,
+                        'total_cmi': 0,
+                        'total_td_tp': 0,
+                        'total_heures': 0,
+                    }
+                
+                # Ajouter l'enseignant (set pour éviter les doublons)
+                stats_par_grade[grade]['enseignants'].add(attribution.matricule.matricule)
+                
+                # Compter le cours
+                stats_par_grade[grade]['nombre_cours'] += 1
+                
+                # Calculer les heures
+                cmi = float(attribution.code_ue.cmi) if attribution.code_ue.cmi else 0
+                td_tp = float(attribution.code_ue.td_tp) if attribution.code_ue.td_tp else 0
+                
+                stats_par_grade[grade]['total_cmi'] += cmi
+                stats_par_grade[grade]['total_td_tp'] += td_tp
+                stats_par_grade[grade]['total_heures'] += (cmi + td_tp)
+            except Exception as e:
+                print(f"Erreur traitement attribution {attribution.id}: {e}")
+                continue
+        
+        # Convertir les sets en nombres
+        for grade in stats_par_grade:
+            stats_par_grade[grade]['nombre_enseignants'] = len(stats_par_grade[grade]['enseignants'])
+            # Supprimer le set pour éviter les problèmes de sérialisation JSON
+            del stats_par_grade[grade]['enseignants']
+        
+        # Convertir en liste pour le template et trier par grade
+        stats_list = sorted(stats_par_grade.values(), key=lambda x: x['grade'])
+        
+        # Calculer les totaux généraux
+        totaux = {
+            'nombre_enseignants': sum(s['nombre_enseignants'] for s in stats_list),
+            'nombre_cours': sum(s['nombre_cours'] for s in stats_list),
+            'total_cmi': sum(s['total_cmi'] for s in stats_list),
+            'total_td_tp': sum(s['total_td_tp'] for s in stats_list),
+            'total_heures': sum(s['total_heures'] for s in stats_list),
+        }
+        
+        # Récupérer les années académiques depuis reglage/AnneeAcademique
+        from reglage.models import AnneeAcademique, Section as SectionReglage
+        annees_disponibles = list(AnneeAcademique.objects.all().order_by('-date_debut').values_list('code', flat=True))
+        
+        # Récupérer les sections depuis reglage/Section
+        sections_disponibles = list(SectionReglage.objects.all().order_by('CodeSection').values_list('DesignationSection', flat=True))
+        
+        # DEBUG
+        print(f"=== HEURES SUPPLEMENTAIRES DEBUG ===")
+        print(f"Années disponibles: {annees_disponibles}")
+        print(f"Sections disponibles: {sections_disponibles}")
+        print(f"Nombre de stats: {len(stats_list)}")
+        print(f"Stats par grade: {[s['grade'] for s in stats_list]}")
+        print(f"Total enseignants: {totaux['nombre_enseignants']}, Total cours: {totaux['nombre_cours']}")
+        
+        context = {
+            'stats_par_grade': stats_list,
+            'totaux': totaux,
+            'annee_selectionnee': annee_academique,
+            'annees_disponibles': annees_disponibles,
+            'sections_disponibles': sections_disponibles,
+            'section_selectionnee': section,
+        }
+        
+        # Si la requête est en AJAX, retourner en JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            print(f"Retour AJAX avec {len(annees_disponibles)} années et {len(sections_disponibles)} sections")
+            return JsonResponse(context)
+        
+        # Sinon, retourner le template HTML
+        return render(request, 'attribution/heures_supplementaires_grade.html', context)
+        
+    except Exception as e:
+        print(f"=== ERREUR HEURES SUPPLEMENTAIRES ===")
+        print(f"Erreur: {e}")
+        print(traceback.format_exc())
+        
+        # Retourner une réponse d'erreur appropriée
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'error': str(e),
+                'stats_par_grade': [],
+                'totaux': {
+                    'nombre_enseignants': 0,
+                    'nombre_cours': 0,
+                    'total_cmi': 0,
+                    'total_td_tp': 0,
+                    'total_heures': 0,
+                },
+                'annees_disponibles': [],
+                'sections_disponibles': [],
+            }, status=500)
+        else:
+            return HttpResponse(f"Erreur lors du chargement des données: {str(e)}", status=500)
 
 def imprimer_charges_section(request):
     """Générer un PDF des charges regroupées par section d'appartenance des enseignants"""

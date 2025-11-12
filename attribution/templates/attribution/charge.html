@@ -286,12 +286,18 @@
                         <label for="annee-filter" class="form-label">Filtrer par année académique:</label>
                         <select class="form-select" id="annee-filter">
                             <option value="">Toutes les années</option>
+                            {% for annee in annees_modal %}
+                                <option value="{{ annee.code }}">{{ annee.code }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label for="section-filter" class="form-label">Filtrer par section:</label>
                         <select class="form-select" id="section-filter">
                             <option value="">Toutes les sections</option>
+                            {% for section in sections_modal %}
+                                <option value="{{ section.DesignationSection }}">{{ section.DesignationSection }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -616,14 +622,8 @@
         function afficherStatistiques(data) {
             var html = '';
             
-            // Charger les sections disponibles
-            if (data.sections_disponibles && data.sections_disponibles.length > 0) {
-                $('#section-filter').find('option:not(:first)').remove();
-                data.sections_disponibles.forEach(function(section) {
-                    var selected = (data.section_selectionnee && data.section_selectionnee === section) ? ' selected' : '';
-                    $('#section-filter').append(`<option value="${section}"${selected}>${section}</option>`);
-                });
-            }
+            // Ne pas recharger les sections car elles sont déjà dans le template
+            // Les combos sont remplis directement par Django
             
             // Vérifier s'il y a des données
             if (!data.stats_par_grade || data.stats_par_grade.length === 0) {
@@ -685,23 +685,8 @@
             
             $('#heures-supp-content').html(html);
             
-            // Remplir le sélecteur d'années
-            console.log('Années disponibles à ajouter:', data.annees_disponibles);
-            
-            if (data.annees_disponibles && data.annees_disponibles.length > 0) {
-                // Réinitialiser le select (garder seulement la première option "Toutes les années")
-                $('#annee-filter').find('option:not(:first)').remove();
-                
-                console.log('Remplissage du combo avec', data.annees_disponibles.length, 'années');
-                data.annees_disponibles.forEach(function(annee) {
-                    var selected = (data.annee_selectionnee && data.annee_selectionnee === annee) ? ' selected' : '';
-                    $('#annee-filter').append(`<option value="${annee}"${selected}>${annee}</option>`);
-                    console.log('Année ajoutée:', annee);
-                });
-                console.log('Nombre total d\'options après:', $('#annee-filter option').length);
-            } else {
-                console.log('Pas d\'années disponibles');
-            }
+            // Les combos années et sections sont déjà remplis dans le template
+            // Ne pas les recharger via AJAX
         }
         
         // Charger les données quand le modal s'ouvre
