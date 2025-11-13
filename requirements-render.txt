@@ -1,0 +1,18 @@
+# Requirements pour Render.com
+# Pandas est exclu temporairement car il a des problèmes de compilation sur Render
+
+Django==5.0
+Pillow==11.0.0
+django-crispy-forms==2.1
+crispy-bootstrap4==2023.1
+openpyxl==3.1.5
+xhtml2pdf==0.2.16
+# pandas==2.2.0  # Commenté temporairement
+
+# Deployment
+gunicorn==23.0.0
+whitenoise==6.7.0
+dj-database-url==2.2.0
+psycopg2-binary==2.9.9
+python-decouple==3.8
+reportlab==4.2.5
