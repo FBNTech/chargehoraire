@@ -66,12 +66,11 @@
                 </div>
             </div>
         </div>
-        <!-- Boutons d'action alignés à droite des cards (cachés pour gestionnaire) -->
-        {% if not is_gestionnaire %}
+        <!-- Boutons d'action alignés à droite des cards -->
         <div class="col d-flex justify-content-end align-items-start mb-2">
             <div>
                 <div class="row g-2">
-                    {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
+                    {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
                         <div class="col-auto">
                             <a href="{% url 'tracking:progress_list' %}" class="btn btn-info">
                                 <i class="fas fa-cogs me-2"></i> Gestion de suivi des enseignements
@@ -100,9 +99,7 @@
             </div>
         </div>
     </div>
-    {% endif %}
 
-    {% if not is_gestionnaire %}
     <div class="row">
         <!-- Tableau des cours -->
         <div class="col-lg-6 mb-4">
@@ -382,7 +379,6 @@
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 
 <!-- Modal de sélection de l'enseignant CSAE -->
