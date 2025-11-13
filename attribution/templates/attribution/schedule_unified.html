@@ -271,8 +271,8 @@
                             <option value="">-- Sélectionner le Chef de Section --</option>
                             {% if chefs_section %}
                                 {% for teacher in chefs_section %}
-                                    <option value="{{ teacher.id }}">
-                                        {{ teacher.nom_complet }}{% if teacher.get_grade_designation %} - {{ teacher.get_grade_designation }}{% endif %}
+                                    <option value="{{ teacher.id }}" data-section="{{ teacher.section|default:'' }}">
+                                        {{ teacher.nom_complet }}{% if teacher.get_grade_designation %} - {{ teacher.get_grade_designation }}{% endif %}{% if teacher.section %} ({{ teacher.section }}){% endif %}
                                     </option>
                                 {% endfor %}
                             {% endif %}
@@ -285,8 +285,8 @@
                             <option value="">-- Sélectionner le Chef de Section Adjoint --</option>
                             {% if chefs_adjoint %}
                                 {% for teacher in chefs_adjoint %}
-                                    <option value="{{ teacher.id }}">
-                                        {{ teacher.nom_complet }}{% if teacher.get_grade_designation %} - {{ teacher.get_grade_designation }}{% endif %}
+                                    <option value="{{ teacher.id }}" data-section="{{ teacher.section|default:'' }}">
+                                        {{ teacher.nom_complet }}{% if teacher.get_grade_designation %} - {{ teacher.get_grade_designation }}{% endif %}{% if teacher.section %} ({{ teacher.section }}){% endif %}
                                     </option>
                                 {% endfor %}
                             {% endif %}
@@ -357,11 +357,17 @@ function generatePDF() {
         return;
     }
     
+    // Récupérer la section du CS sélectionné
+    const csSelect = document.getElementById('pdfChefSection');
+    const selectedOption = csSelect.options[csSelect.selectedIndex];
+    const section = selectedOption.getAttribute('data-section') || '';
+    
     // Construire l'URL avec les paramètres
     const url = '{% url "attribution:schedule_pdf" %}' + 
                 '?semaine=' + encodeURIComponent(semaine) +
                 '&chef_section=' + encodeURIComponent(chefSection) +
-                '&chef_adjoint=' + encodeURIComponent(chefAdjoint);
+                '&chef_adjoint=' + encodeURIComponent(chefAdjoint) +
+                '&section=' + encodeURIComponent(section);
     
     // Ouvrir le PDF dans une nouvelle fenêtre
     window.open(url, '_blank');
@@ -370,5 +376,47 @@ function generatePDF() {
     const modal = bootstrap.Modal.getInstance(document.getElementById('pdfGenerateModal'));
     modal.hide();
 }
+
+// Filtrer automatiquement les CSAE de la même section que le CS sélectionné
+document.addEventListener('DOMContentLoaded', function() {
+    const csSelect = document.getElementById('pdfChefSection');
+    const csaeSelect = document.getElementById('pdfChefAdjoint');
+    
+    // Sauvegarder toutes les options CSAE
+    const allCsaeOptions = Array.from(csaeSelect.options).slice(1); // Exclure la première option vide
+    
+    csSelect.addEventListener('change', function() {
+        const selectedOption = csSelect.options[csSelect.selectedIndex];
+        const selectedSection = selectedOption.getAttribute('data-section');
+        
+        // Réinitialiser le select CSAE
+        csaeSelect.innerHTML = '<option value="">-- Sélectionner le Chef de Section Adjoint --</option>';
+        
+        if (selectedSection) {
+            // Filtrer et ajouter seulement les CSAE de la même section
+            let firstMatchingOption = null;
+            allCsaeOptions.forEach(option => {
+                const optionSection = option.getAttribute('data-section');
+                if (optionSection === selectedSection) {
+                    const newOption = option.cloneNode(true);
+                    csaeSelect.appendChild(newOption);
+                    if (!firstMatchingOption) {
+                        firstMatchingOption = newOption;
+                    }
+                }
+            });
+            
+            // Sélectionner automatiquement le premier CSAE de la même section
+            if (firstMatchingOption) {
+                csaeSelect.value = firstMatchingOption.value;
+            }
+        } else {
+            // Si aucune section, afficher tous les CSAE
+            allCsaeOptions.forEach(option => {
+                csaeSelect.appendChild(option.cloneNode(true));
+            });
+        }
+    });
+});
 </script>
 {% endblock %}

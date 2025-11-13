@@ -39,26 +39,26 @@ class ScheduleEntryForm(forms.ModelForm):
         help_text='Sélectionner la semaine'
     )
     
-    # Champ pour la date de début
-    date_debut = forms.DateField(
+    # Champ pour la date de début de la plage
+    date_debut_plage = forms.DateField(
         required=True,
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date',
-            'placeholder': 'Date de début'
-        }),
-        label='Date de début',
-    )
-    
-    # Champ pour la date de fin de la plage
-    date_fin = forms.DateField(
-        required=False,
         widget=forms.DateInput(attrs={
             'class': 'form-control', 
             'type': 'date',
-            'placeholder': 'Date de fin (optionnel)'
         }),
-        label='Date de fin',
+        label='Date de début de la plage',
+        help_text='Premier jour où le cours sera programmé'
+    )
+    
+    # Champ pour la date de fin de la plage
+    date_fin_plage = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control', 
+            'type': 'date',
+        }),
+        label='Date de fin de la plage',
+        help_text='Dernier jour où le cours sera programmé'
     )
     
     # Champ pour la sélection du créneau
@@ -82,14 +82,15 @@ class ScheduleEntryForm(forms.ModelForm):
     class Meta:
         model = ScheduleEntry
         fields = [
-            'attribution', 'annee_academique', 'semaine_debut', 
-            'date_fin', 'date_cours', 'creneau', 'salle', 'remarques'
+            'attribution', 'annee_academique', 'semaine_debut',
+            'date_fin', 'date_cours', 'creneau', 'salle', 'salle_link', 'remarques'
         ]
+        # semaine_debut est inclus mais sera caché et rempli via clean() depuis date_debut_select
         
         widgets = {
             'attribution': forms.Select(attrs={'class': 'form-select'}),
             'annee_academique': forms.HiddenInput(),
-            'semaine_debut': forms.HiddenInput(),
+            'semaine_debut': forms.HiddenInput(),  # Caché, rempli par clean()
             'creneau': forms.Select(attrs={'class': 'form-select'}),
             'salle': forms.Select(attrs={'class': 'form-select'}),
             'date_cours': forms.HiddenInput(),
@@ -120,14 +121,14 @@ class ScheduleEntryForm(forms.ModelForm):
         
         # Rendre les champs du modèle non requis car nous utilisons les champs personnalisés
         self.fields['annee_academique'].required = False
+        self.fields['semaine_debut'].required = False  # Sera rempli par clean() depuis date_debut_select
         self.fields['creneau'].required = False
-        self.fields['semaine_debut'].required = True  # Maintenant requis pour la plage de dates
         self.fields['date_cours'].required = False
         
         # Définir la date minimale pour les champs de date (aujourd'hui par défaut)
         today = datetime.now().date()
-        self.fields['semaine_debut'].widget.attrs['min'] = today
-        self.fields['date_fin'].widget.attrs['min'] = today
+        self.fields['date_debut_plage'].widget.attrs['min'] = today
+        self.fields['date_fin_plage'].widget.attrs['min'] = today
         self.fields['date_cours'].widget.attrs['min'] = today
         
         # Personnaliser l'affichage des attributions avec intitulés UE/EC concis
@@ -135,9 +136,8 @@ class ScheduleEntryForm(forms.ModelForm):
             'matricule', 'code_ue'
         ).order_by('code_ue__code_ue', 'code_ue__classe')
         
-        # Rendre le champ d'attribution désactivé par défaut (sera activé après sélection de la classe)
-        self.fields['attribution'].disabled = True
-        self.fields['attribution'].widget.attrs['disabled'] = 'disabled'
+        # Ne pas désactiver le champ ici, le JavaScript s'en occupe
+        # (Si désactivé par Django, la valeur n'est pas envoyée lors de la soumission)
         
         def format_ue_label(attribution):
             ue = attribution.code_ue
@@ -163,7 +163,6 @@ class ScheduleEntryForm(forms.ModelForm):
             semaine_courante = SemaineCours.objects.filter(est_en_cours=True).first()
             if semaine_courante:
                 self.fields['semaine_select'].initial = semaine_courante
-                self.fields['semaine_debut'].initial = semaine_courante.date_debut
         
         # Personnaliser l'affichage des semaines
         self.fields['semaine_select'].label_from_instance = lambda obj: (
@@ -190,9 +189,10 @@ class ScheduleEntryForm(forms.ModelForm):
         
         # Configuration des champs cachés (les _select sont utilisés pour l'affichage)
         self.fields['annee_academique'].widget = forms.HiddenInput()
-        self.fields['semaine_debut'].widget = forms.HiddenInput()
+        self.fields['semaine_debut'].widget = forms.HiddenInput()  # Caché, rempli dans clean()
         self.fields['date_cours'].widget = forms.HiddenInput()
         self.fields['salle'].widget = forms.HiddenInput()
+        self.fields['salle_link'].widget = forms.HiddenInput()
         self.fields['creneau'].widget = forms.HiddenInput()
         
         # Configuration du champ remarques
@@ -218,10 +218,19 @@ class ScheduleEntryForm(forms.ModelForm):
         if annee_select:
             cleaned_data['annee_academique'] = annee_select.code
         
-        # Si semaine sélectionnée depuis le combo, utiliser sa date_debut
-        semaine_select = cleaned_data.get('semaine_select')
-        if semaine_select:
-            cleaned_data['semaine_debut'] = semaine_select.date_debut
+        # Gérer les dates de la plage
+        date_debut_plage = cleaned_data.get('date_debut_plage')
+        date_fin_plage = cleaned_data.get('date_fin_plage')
+        
+        if date_debut_plage:
+            # Utiliser la date de début de la plage comme semaine_debut
+            cleaned_data['semaine_debut'] = date_debut_plage
+        else:
+            raise forms.ValidationError("Vous devez saisir une date de début pour la plage.")
+        
+        if date_fin_plage:
+            # Copier vers date_fin (champ du modèle)
+            cleaned_data['date_fin'] = date_fin_plage
         
         # Si date_cours fournie, calculer automatiquement le jour
         date_cours = cleaned_data.get('date_cours')
@@ -238,14 +247,17 @@ class ScheduleEntryForm(forms.ModelForm):
             }
             cleaned_data['jour'] = jours_map[date_cours.weekday()]
         
-        # Si salle sélectionnée depuis le combo, utiliser son code
+        # Si salle sélectionnée depuis le combo, utiliser l'instance
         salle_select = cleaned_data.get('salle_select')
         if salle_select:
+            # Utiliser salle_link pour la ForeignKey et salle pour le CharField (compatibilité)
+            cleaned_data['salle_link'] = salle_select
             cleaned_data['salle'] = salle_select.code
         
-        # Si créneau sélectionné depuis le combo, utiliser son code
+        # Si créneau sélectionné depuis le combo, utiliser l'instance
         creneau_select = cleaned_data.get('creneau_select')
         if creneau_select:
-            cleaned_data['creneau'] = creneau_select.code
+            # Assigner l'instance complète, pas juste le code
+            cleaned_data['creneau'] = creneau_select
         
         return cleaned_data

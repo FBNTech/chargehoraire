@@ -16,7 +16,7 @@ class Teacher(models.Model):
     departement = models.CharField(max_length=50)
 
     def __str__(self):
-        return f"{self.matricule} - {self.nom_complet}"
+        return f"{self.nom_complet}"
     
     def get_grade_designation(self):
         """Retourne la désignation complète du grade depuis la table Grade"""
