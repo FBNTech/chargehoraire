@@ -115,9 +115,11 @@
                     <button type="button" class="btn" style="background-color: #1D6F42; color: white;" data-bs-toggle="modal" data-bs-target="#importModal">
                         <i class="fas fa-file-excel"></i> Importer
                     </button>
+                    {% if can_delete_all %}
                     <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
                         <i class="fas fa-trash-alt"></i> Supprimer tout
                     </button>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>

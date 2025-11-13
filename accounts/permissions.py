@@ -143,7 +143,7 @@ class PersonnelAdminRequiredMixin(UserPassesTestMixin):
 
 # Fonctions utilitaires pour vérifier les permissions
 def check_admin_permission(user):
-    """Vérifie si l'utilisateur a des permissions d'administrateur (Administrateur, Gestionnaire)."""
+    """Vérifie si l'utilisateur a des permissions d'administrateur (Administrateur uniquement, pas Gestionnaire)."""
     if not user.is_authenticated:
         return False
         
@@ -151,8 +151,8 @@ def check_admin_permission(user):
     if user.is_staff or user.profile.is_admin:
         return True
         
-    # Les rôles administratifs spécifiques ont aussi tous les privilèges
-    if user.profile.roles.filter(name__in=Role.ADMIN_ROLES).exists():
+    # Seul le rôle ADMIN a tous les privilèges (pas le gestionnaire)
+    if user.profile.roles.filter(name=Role.ADMIN).exists():
         return True
         
     return False
@@ -191,8 +191,8 @@ def has_finance_access(user):
     if user.is_staff:
         return True
     
-    # Les rôles administratifs spécifiques ont aussi accès
-    if user.profile.roles.filter(name__in=Role.ADMIN_ROLES).exists():
+    # Administrateur et Gestionnaire ont accès
+    if user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists():
         return True
         
     return False
@@ -221,8 +221,8 @@ def has_reglage_access(user):
     if user.is_staff or user.profile.is_admin:
         return True
     
-    # Les rôles administratifs spécifiques ont aussi accès
-    if user.profile.roles.filter(name__in=['dg', 'sgac', 'sgr', 'sgad', 'ab']).exists():
+    # Gestionnaire a aussi accès aux réglages
+    if user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists():
         return True
         
     return False
@@ -275,3 +275,11 @@ def can_edit_courses_teachers(user):
     return (user.is_staff or 
             user.profile.is_admin or 
             user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())
+
+def can_delete_all(user):
+    """Vérifie si l'utilisateur peut utiliser le bouton 'Supprimer tout' (Administrateur uniquement)."""
+    if not user.is_authenticated:
+        return False
+    
+    # Seul l'administrateur peut supprimer tout
+    return user.is_staff or user.profile.roles.filter(name=Role.ADMIN).exists()

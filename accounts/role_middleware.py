@@ -25,10 +25,10 @@ class RoleBasedAccessMiddleware:
         # URLs pour les différents niveaux d'accès
         self.admin_only_urls = [
             '/admin/',
-            '/reglage/',
-            '/finance/',
             '/accounts/register/',
-            '/accounts/user/add/'
+            '/accounts/user/add/',
+            '/accounts/users/',  # Gestion des utilisateurs
+            '/tracking/action-history/',  # Historique des actions
         ]
         
         self.admin_and_direction_urls = [

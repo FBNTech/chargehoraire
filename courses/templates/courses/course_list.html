@@ -55,10 +55,12 @@
                 </button>
             </form>
             
-            <!-- Bouton Supprimer tout -->
+            <!-- Bouton Supprimer tout (Administrateur uniquement) -->
+            {% if can_delete_all %}
             <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">
                 <i class="fas fa-trash-alt"></i> Supprimer tout
             </button>
+            {% endif %}
         </div>
         {% endif %}
     </div>

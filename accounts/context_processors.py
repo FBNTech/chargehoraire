@@ -3,7 +3,7 @@ from .permissions import (
     check_admin_permission, check_administrative_role_permission,
     check_section_role_permission, check_department_role_permission,
     can_view_department_data, can_view_section_data, has_reglage_access, has_finance_access, 
-    has_user_creation_access, can_edit_courses_teachers
+    has_user_creation_access, can_edit_courses_teachers, can_delete_all
 )
 
 def user_roles(request):
@@ -25,6 +25,7 @@ def user_roles(request):
             'can_access_finance': has_finance_access(request.user),
             'can_create_users': has_user_creation_access(request.user),
             'can_edit_courses_teachers': can_edit_courses_teachers(request.user),
+            'can_delete_all': can_delete_all(request.user),
             
             # Fonctions utiles pour les templates
             'can_view_department_data': lambda dept: can_view_department_data(request.user, dept),
@@ -51,6 +52,7 @@ def user_roles(request):
         'can_access_reglage': False,
         'can_access_finance': False,
         'can_create_users': False,
+        'can_delete_all': False,
         
         # Fonctions utiles pour les templates
         'can_view_department_data': lambda dept: False,

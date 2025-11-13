@@ -255,7 +255,7 @@
                             <i class="fas fa-key me-2"></i> Changer de mot de passe
                         </a>
                     </li>
-                    {% if can_create_users %}
+                    {% if is_admin %}
                     <li>
                         <a class="dropdown-item" href="{% url 'accounts:user_list' %}">
                             <i class="fas fa-users-cog me-2"></i> Gestion des utilisateurs
@@ -297,54 +297,54 @@
         <nav class="sidebar">
             <div class="nav flex-column">
                 <!-- Accueil - accessible à tous -->
-                <a class="nav-link" href="{% url 'home' %}">
+                <a class="nav-link" href="{% url 'home' %}" title="Accueil" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
                 </a>
                 
                 <!-- Profil utilisateur - accessible aux utilisateurs connectés sauf étudiants -->
                 <!-- Liste des enseignants - accessible à tous sauf étudiants, avec restrictions selon le rôle -->
                 {% if is_admin or is_administrative_role or is_section_role or is_department_role or is_enseignant or is_gestionnaire %}
-                <a class="nav-link" href="{% url 'teachers:list' %}">
+                <a class="nav-link" href="{% url 'teachers:list' %}" title="Enseignants" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                 </a>
                 {% endif %}
                 
                 <!-- Liste des UEs - accessible à tous avec restrictions -->
-                <a class="nav-link" href="{% url 'courses:list' %}">
+                <a class="nav-link" href="{% url 'courses:list' %}" title="Cours (UE)" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
                 </a>
                 
-                <!-- Attribution - accessible à l'administration, chefs de section et département -->
-                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
-                <a class="nav-link" href="{% url 'attribution:attribution_list' %}">
+                <!-- Attribution - accessible à l'administration, gestionnaire, chefs de section et département -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'attribution:attribution_list' %}" title="Attributions" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-tasks"></i></div>
                 </a>
                 {% endif %}
                 
-                <!-- Liste des charges - accessible à l'administration, chefs de section et département -->
-                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
-                <a class="nav-link" href="{% url 'attribution:liste_charges' %}">
+                <!-- Liste des charges - accessible à l'administration, gestionnaire, chefs de section et département -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'attribution:liste_charges' %}" title="Liste des charges" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
                 </a>
                 {% endif %}
 
-                <!-- Générateur d'horaires (PDF) - accessible à l'administration, chefs de section et département -->
-                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
-                <a class="nav-link" href="{% url 'attribution:schedule_builder' %}" title="Horaires (PDF)" data-bs-toggle="tooltip" data-bs-placement="right">
+                <!-- Générateur d'horaires - accessible à l'administration, gestionnaire, chefs de section et département -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'attribution:schedule_builder' %}" title="Horaires" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
                 </a>
                 {% endif %}
 
                 
-                <!-- Suivi des enseignements - accessible à l'administration, chefs de section et département -->
-                {% if is_admin or is_administrative_role or is_section_role or is_department_role %}
-                <a class="nav-link" href="{% url 'tracking:dashboard' %}">
+                <!-- Suivi des enseignements - accessible à l'administration, gestionnaire, chefs de section et département -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <a class="nav-link" href="{% url 'tracking:dashboard' %}" title="Suivi" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 </a>
                 {% endif %}
                 
                 <!-- Historique des actions - accessible uniquement aux administrateurs -->
-                {% if user.is_superuser %}
+                {% if is_admin %}
                 <a class="nav-link" href="{% url 'tracking:action_history' %}" title="Historique des Actions" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-history"></i></div>
                 </a>
@@ -352,7 +352,7 @@
                                 
                 <!-- Réglage - accessible uniquement aux administrateurs -->
                 {% if can_access_reglage %}
-                <a class="nav-link" href="{% url 'reglage:gestion_entites' %}">
+                <a class="nav-link" href="{% url 'reglage:gestion_entites' %}" title="Réglages" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
                 </a>
                 {% endif %}
@@ -438,6 +438,12 @@
     <!-- JavaScript pour la responsivité -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialiser les tooltips Bootstrap
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
             // Gestion du menu mobile
             const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
             const sidebar = document.querySelector('.sidebar');
