@@ -159,7 +159,11 @@ def check_admin_permission(user):
 
 def check_administrative_role_permission(user):
     """Vérifie si l'utilisateur a un rôle administratif (Administrateur, Gestionnaire)."""
-    return user.is_authenticated and user.profile.is_administrative_role
+    if not user.is_authenticated:
+        return False
+    
+    # Vérifier si l'utilisateur a le rôle admin ou gestionnaire
+    return user.profile.is_administrative_role or user.profile.roles.filter(name=Role.GESTIONNAIRE).exists()
 
 def check_section_role_permission(user):
     """Historique: pas de rôle de section actif."""
