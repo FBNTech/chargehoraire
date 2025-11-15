@@ -79,6 +79,12 @@ class ScheduleEntryForm(forms.ModelForm):
         help_text='Sélectionner une salle disponible'
     )
     
+    force_conflicts = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Autoriser l'enregistrement malgré les conflits",
+    )
+    
     class Meta:
         model = ScheduleEntry
         fields = [

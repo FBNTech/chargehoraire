@@ -2065,6 +2065,8 @@ class ScheduleEntryCreateView(CreateView):
         from reglage.models import AnneeAcademique, SemaineCours
         from .validators import ScheduleConflictValidator
         
+        force_conflicts = form.cleaned_data.get('force_conflicts')
+
         # Récupérer la date de fin de la plage (si spécifiée)
         date_fin = form.cleaned_data.get('date_fin')
         date_debut = form.cleaned_data.get('semaine_debut')
@@ -2152,9 +2154,13 @@ class ScheduleEntryCreateView(CreateView):
                 # Valider l'entrée pour cette date
                 validation_result = self._validate_entry(entry)
                 if not validation_result['valid']:
-                    for error in validation_result['errors']:
-                        form.add_error(None, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
-                    return self.form_invalid(form)
+                    if force_conflicts:
+                        for error in validation_result['errors']:
+                            messages.warning(self.request, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
+                    else:
+                        for error in validation_result['errors']:
+                            form.add_error(None, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
+                        return self.form_invalid(form)
                 
                 # Sauvegarder l'entrée
                 entry.save()
@@ -2179,9 +2185,13 @@ class ScheduleEntryCreateView(CreateView):
             # Valider l'entrée unique
             validation_result = self._validate_entry(form.instance)
             if not validation_result['valid']:
-                for error in validation_result['errors']:
-                    form.add_error(None, error)
-                return self.form_invalid(form)
+                if force_conflicts:
+                    for error in validation_result['errors']:
+                        messages.warning(self.request, error)
+                else:
+                    for error in validation_result['errors']:
+                        form.add_error(None, error)
+                    return self.form_invalid(form)
             
             # Sauvegarder le numéro de semaine depuis SemaineCours
             if form.instance.semaine_debut:
@@ -2249,6 +2259,8 @@ class ScheduleEntryUpdateView(UpdateView):
         from reglage.models import SemaineCours
         from .validators import ScheduleConflictValidator
         
+        force_conflicts = form.cleaned_data.get('force_conflicts')
+        
         # Calculer et sauvegarder le jour depuis cleaned_data
         if 'jour' in form.cleaned_data and form.cleaned_data['jour']:
             form.instance.jour = form.cleaned_data['jour']
@@ -2279,11 +2291,15 @@ class ScheduleEntryUpdateView(UpdateView):
             exclude_id=form.instance.id  # Exclure l'horaire actuel de la vérification
         )
         
-        # Si des conflits sont détectés, afficher les erreurs et bloquer
+        # Si des conflits sont détectés
         if not validation_result['valid']:
-            for error in validation_result['errors']:
-                messages.error(self.request, error)
-            return self.form_invalid(form)
+            if force_conflicts:
+                for error in validation_result['errors']:
+                    messages.warning(self.request, error)
+            else:
+                for error in validation_result['errors']:
+                    messages.error(self.request, error)
+                return self.form_invalid(form)
         
         # Afficher les avertissements s'il y en a
         for warning in validation_result['warnings']:

@@ -214,6 +214,16 @@
                             <div class="d-none">
                                 {{ form.date_cours }}
                             </div>
+
+                            <!-- Case à cocher pour autoriser l'enregistrement malgré les conflits -->
+                            <div class="col-md-12 mt-3">
+                                <div class="form-check">
+                                    {{ form.force_conflicts }}
+                                    <label class="form-check-label" for="id_force_conflicts">
+                                        {{ form.force_conflicts.label }}
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Boutons d'action -->
