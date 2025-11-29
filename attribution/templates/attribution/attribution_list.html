@@ -448,19 +448,58 @@
         // Gérer le bouton Ajouter
         $('#add-course-btn').click(function(e) {
             e.preventDefault();
+            console.log('Bouton d\'ajout cliqué');
+            
             var selectedCourse = $('#code-ue').val();
+            var selectedCourseText = $('#code-ue option:selected').text();
+            
+            console.log('Cours sélectionné - Valeur:', selectedCourse, 'Texte:', selectedCourseText);
+            
             if (!selectedCourse) {
-                alert('Veuillez sélectionner un cours.');
+                var errorMsg = 'Veuillez sélectionner un cours dans la liste.';
+                console.error(errorMsg);
+                alert(errorMsg);
                 return;
             }
     
-            $.post('{% url "attribution:add_course_attribution" %}', {
-                'csrfmiddlewaretoken': '{{ csrf_token }}',
-                'code_ue': selectedCourse
-            }).done(function() {
-                location.reload();
-            }).fail(function() {
-                alert('Une erreur est survenue lors de l\'ajout du cours.');
+            console.log('Envoi de la requête AJAX pour ajouter le cours...');
+            
+            $.ajax({
+                url: '{% url "attribution:add_course_attribution" %}',
+                method: 'POST',
+                data: {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    'code_ue': selectedCourse
+                },
+                dataType: 'json',
+                success: function(response) {
+                    console.log('Réponse du serveur:', response);
+                    if (response.success) {
+                        console.log('Cours ajouté avec succès, rechargement de la page...');
+                        location.reload();
+                    } else {
+                        console.error('Erreur côté serveur:', response.error || 'Erreur inconnue');
+                        alert('Erreur: ' + (response.error || 'Une erreur est survenue lors de l\'ajout du cours.'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Erreur AJAX:', {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+                    
+                    try {
+                        var errorResponse = JSON.parse(xhr.responseText);
+                        alert('Erreur: ' + (errorResponse.error || 'Une erreur est survenue lors de la communication avec le serveur.'));
+                    } catch (e) {
+                        alert('Erreur de communication avec le serveur. Veuillez vérifier la console pour plus de détails.');
+                    }
+                },
+                complete: function() {
+                    console.log('Requête AJAX terminée');
+                }
             });
         });
     

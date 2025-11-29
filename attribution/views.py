@@ -161,40 +161,139 @@ def get_teacher_info(request):
     except Teacher.DoesNotExist:
         return JsonResponse({'error': 'Enseignant non trouvé'}, status=404)
 
+from django.http import JsonResponse
+
 @require_http_methods(['POST'])
 def add_course_attribution(request):
+    import logging
+    import traceback
+    from django.views.decorators.csrf import csrf_exempt
+    
+    logger = logging.getLogger(__name__)
+    response_data = {'success': False, 'error': None}
+    
     try:
+        # Afficher toutes les données POST reçues
+        logger.info(f"Données POST reçues : {dict(request.POST)}")
+        
         code_ue = request.POST.get('code_ue')
+        logger.info(f"Tentative d'ajout du cours : {code_ue}")
+        
+        # Vérifier les en-têtes de la requête
+        logger.info(f"En-têtes de la requête : {dict(request.headers)}")
+        
         if not code_ue:
-            messages.error(request, 'Le code UE est requis')
-            return redirect('attribution:attribution_list')
+            error_msg = 'Le code UE est requis'
+            logger.error(error_msg)
+            response_data['error'] = error_msg
+            return JsonResponse(response_data, status=400)
         
         # Chercher le cours dans la table Course
         course = Course.objects.filter(code_ue=code_ue).first()
+        logger.info(f"Cours trouvé : {course}")
         
         if not course:
-            messages.error(request, f'Le cours {code_ue} n\'existe pas dans la table des cours')
-            return redirect('attribution:attribution_list')
+            error_msg = f'Le cours {code_ue} n\'existe pas dans la table des cours'
+            logger.error(error_msg)
+            response_data['error'] = error_msg
+            return JsonResponse(response_data, status=404)
+        
+        # Vérifier si le cours existe déjà dans Cours_Attribution
+        existing = Cours_Attribution.objects.filter(code_ue=code_ue).first()
+        if existing:
+            error_msg = f'Le cours {code_ue} existe déjà dans la liste des attributions (ID: {existing.id})'
+            logger.warning(error_msg)
+            response_data['error'] = error_msg
+            return JsonResponse(response_data, status=409)  # 409 Conflict
+            
+        # Vérifier les données du cours source
+        logger.info(f"Détails du cours source - Code: {course.code_ue}, Intitulé: {course.intitule_ue}, Classe: {course.classe}, Semestre: {course.semestre}")
+        
+        # Vérifier les champs obligatoires du modèle Cours_Attribution
+        required_fields = ['code_ue', 'intitule_ue', 'classe', 'semestre']
+        for field in required_fields:
+            if not getattr(course, field, None):
+                error_msg = f'Le champ {field} est manquant ou vide dans le cours source'
+                logger.error(error_msg)
+                messages.error(request, error_msg)
+                return redirect('attribution:attribution_list')
         
         # Créer une nouvelle entrée dans la table Cours_Attribution
-        Cours_Attribution.objects.create(
-            code_ue=course.code_ue,
-            intitule_ue=course.intitule_ue,
-            intitule_ec=course.intitule_ec,
-            credit=course.credit,
-            cmi=course.cmi,
-            td_tp=course.td_tp,
-            classe=course.classe,
-            semestre=course.semestre,
-            departement=course.departement
-        )
-        
-        messages.success(request, f'Le cours {code_ue} a été ajouté avec succès')
-        
+        try:
+            # Préparer les données avec des valeurs par défaut
+            # Si intitule_ec est vide, utiliser 'Non spécifié' comme valeur par défaut
+            intitule_ec = course.intitule_ec if course.intitule_ec else f"EC - {course.intitule_ue}"
+            
+            cours_data = {
+                'code_ue': course.code_ue,
+                'intitule_ue': course.intitule_ue,
+                'intitule_ec': intitule_ec,  # Utilisation de la valeur par défaut si vide
+                'credit': course.credit or 0,
+                'cmi': course.cmi or 0,
+                'td_tp': course.td_tp or 0,
+                'classe': course.classe or 'N/A',
+                'semestre': course.semestre or 'S1',
+                'departement': course.departement or 'N/A'
+            }
+            
+            logger.info(f"Données du cours préparées : {cours_data}")
+            
+            logger.info(f"Données du cours à créer : {cours_data}")
+            
+            # Créer l'instance avec les données préparées
+            cours_attribution = Cours_Attribution(**cours_data)
+            
+            # Valider le modèle avant sauvegarde
+            try:
+                cours_attribution.full_clean()
+                logger.info("Validation du modèle réussie")
+                
+                # Essayer de sauvegarder avec des informations détaillées
+                try:
+                    cours_attribution.save()
+                    logger.info(f"Cours sauvegardé avec succès. ID: {cours_attribution.id}")
+                    
+                    # Succès - renvoyer une réponse JSON
+                    response_data.update({
+                        'success': True,
+                        'message': f'Le cours {code_ue} a été ajouté avec succès',
+                        'course_id': cours_attribution.id
+                    })
+                    return JsonResponse(response_data)
+                    
+                except Exception as save_error:
+                    error_msg = f'Erreur lors de la sauvegarde : {str(save_error)}'
+                    logger.error(error_msg)
+                    logger.error(traceback.format_exc())
+                    response_data['error'] = error_msg
+                    return JsonResponse(response_data, status=500)
+                    
+            except Exception as validation_error:
+                error_msg = f'Erreur de validation du modèle : {str(validation_error)}'
+                logger.error(error_msg)
+                
+                # Ajouter les erreurs de validation détaillées à la réponse
+                if hasattr(validation_error, 'error_dict'):
+                    validation_errors = {}
+                    for field, errors in validation_error.error_dict.items():
+                        validation_errors[field] = [str(e) for e in errors]
+                        logger.error(f"Erreur champ {field}: {errors}")
+                    response_data['validation_errors'] = validation_errors
+                
+                response_data['error'] = error_msg
+                return JsonResponse(response_data, status=400)
+            
+        except Exception as e:
+            error_msg = f'Erreur lors de la création du cours : {str(e)}'
+            logger.error(f"{error_msg} - Détails : {e.__class__.__name__} - {str(e)}")
+            response_data['error'] = error_msg
+            return JsonResponse(response_data, status=500)
+            
     except Exception as e:
-        messages.error(request, f'Erreur lors de l\'ajout du cours : {str(e)}')
-    
-    return redirect('attribution:attribution_list')
+        error_msg = f'Erreur inattendue : {str(e)}'
+        logger.error(f"{error_msg} - Détails : {e.__class__.__name__} - {str(e)}")
+        response_data['error'] = error_msg
+        return JsonResponse(response_data, status=500)
 
 @require_http_methods(['POST'])
 def delete_course(request, course_id):
