@@ -34,6 +34,8 @@
                             <th>Ordre</th>
                             <th>Code</th>
                             <th>Désignation</th>
+                            <th>Type</th>
+                            <th>Section</th>
                             <th>Heure Début</th>
                             <th>Heure Fin</th>
                             <th>Format Court</th>
@@ -47,6 +49,22 @@
                             <td><span class="badge bg-dark">{{ creneau.ordre }}</span></td>
                             <td><strong>{{ creneau.code }}</strong></td>
                             <td>{{ creneau.designation }}</td>
+                            <td>
+                                {% if creneau.type_creneau == 'cours' %}
+                                    <span class="badge bg-primary">📚 Cours</span>
+                                {% elif creneau.type_creneau == 'examen' %}
+                                    <span class="badge bg-danger">📋 Examen</span>
+                                {% elif creneau.type_creneau == 'les_deux' %}
+                                    <span class="badge bg-success">🔄 Cours & Examens</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if creneau.section %}
+                                    <span class="badge bg-info">{{ creneau.section.CodeSection }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td><i class="fas fa-play text-success"></i> {{ creneau.heure_debut|time:"H:i" }}</td>
                             <td><i class="fas fa-stop text-danger"></i> {{ creneau.heure_fin|time:"H:i" }}</td>
                             <td><code>{{ creneau.get_format_court }}</code></td>
@@ -72,7 +90,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center text-muted">
+                            <td colspan="10" class="text-center text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3"></i>
                                 <p>Aucun créneau enregistré.</p>
                             </td>

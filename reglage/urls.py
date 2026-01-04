@@ -23,6 +23,9 @@ urlpatterns = [
     path('mentions/create/', views.MentionCreateView.as_view(), name='mention_create'),
     path('mentions/<path:pk>/update/', views.MentionUpdateView.as_view(), name='mention_update'),
     path('mentions/<path:pk>/delete/', views.MentionDeleteView.as_view(), name='mention_delete'),
+    path('mentions/delete-all/', views.mention_delete_all, name='mention_delete_all'),
+    path('mentions/<path:pk>/generate-classes/', views.mention_generate_classes, name='mention_generate_classes'),
+    path('mentions/generate-all-classes/', views.mention_generate_all_classes, name='mention_generate_all_classes'),
     
     # URLs pour Niveau
     path('niveaux/', views.NiveauListView.as_view(), name='niveau_list'),
@@ -36,6 +39,7 @@ urlpatterns = [
     path('classes/<int:pk>/update/', views.ClasseUpdateView.as_view(), name='classe_update'),
     path('classes/<int:pk>/delete/', views.ClasseDeleteView.as_view(), name='classe_delete'),
     path('classes/import-excel/', views.classe_import_excel, name='classe_import_excel'),
+    path('classes/delete-all/', views.classe_delete_all, name='classe_delete_all'),
     
     # URLs pour Grade
     path('grades/', views.GradeListView.as_view(), name='grade_list'),

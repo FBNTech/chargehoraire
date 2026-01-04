@@ -7,6 +7,8 @@ from django.db.models import Q
 from django.urls import reverse_lazy
 from .forms import AttributionForm, ScheduleEntryForm
 from .views_schedule import get_ues_by_classe
+from teachers.models import Teacher
+from reglage.models import Classe
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -101,12 +103,19 @@ def truncate_ue_title(title):
 # config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
 
 def attribution_list(request):
-    teachers = Teacher.objects.all().order_by('nom_complet')
-    cours_attributions = Cours_Attribution.objects.all().order_by('code_ue')
-    courses = Course.objects.all().order_by('code_ue')
+    from accounts.organisation_utils import filter_queryset_by_organisation
     
-    # Récupérer la liste unique des départements
-    departements = Cours_Attribution.objects.values_list('departement', flat=True).distinct().order_by('departement')
+    teachers = Teacher.objects.all()
+    teachers = filter_queryset_by_organisation(teachers, request.user).order_by('nom_complet')
+    
+    cours_attributions = Cours_Attribution.objects.all()
+    cours_attributions = filter_queryset_by_organisation(cours_attributions, request.user).order_by('code_ue')
+    
+    courses = Course.objects.all()
+    courses = filter_queryset_by_organisation(courses, request.user).order_by('code_ue')
+    
+    # Récupérer la liste unique des départements (filtrée par organisation)
+    departements = filter_queryset_by_organisation(Cours_Attribution.objects, request.user).values_list('departement', flat=True).distinct().order_by('departement')
     
     # Récupérer l'année académique en cours depuis le modèle AnneeAcademique
     annee_courante = AnneeAcademique.objects.filter(est_en_cours=True).first()
@@ -364,7 +373,7 @@ def search_attributions(request):
     annee_academique = request.GET.get('teacher_academic_year')
     type_charge = request.GET.get('type_charge')
 
-    print(f"Débogage recherche - Matricule: {matricule}, Année: {annee_academique}, Type: {type_charge}")
+    print(f"Debogage recherche - Matricule: {matricule}, Annee: {annee_academique}, Type: {type_charge}")
 
     # Requête de jointure entre Teacher, Attribution et Cours_Attribution
     # Rendre la recherche plus flexible
@@ -378,7 +387,7 @@ def search_attributions(request):
     
     attributions = attributions.select_related('matricule', 'code_ue')
 
-    print(f"Nombre d'attributions trouvées : {attributions.count()}")
+    print(f"Nombre d'attributions trouvees : {attributions.count()}")
     for attr in attributions:
         print(f"Attribution: {attr.matricule.nom_complet}, {attr.code_ue.code_ue}, {attr.type_charge}")
 
@@ -617,8 +626,18 @@ def delete_attribution(request, attribution_id):
 
 def liste_attributions_view(request):
     try:
+        from accounts.organisation_utils import get_user_organisation
+        
+        user_org = get_user_organisation(request.user)
+        
+        # Filtrer par organisation
         teachers = Teacher.objects.all().order_by('nom_complet')
         courses = Course.objects.all().order_by('code_ue')
+        
+        if user_org:
+            teachers = teachers.filter(section=user_org.code)
+            courses = courses.filter(section=user_org.code)
+        
         academic_years = Attribution.objects.values_list('annee_academique', flat=True).distinct().order_by('-annee_academique')
 
         context = {
@@ -642,12 +661,17 @@ def liste_attributions_view(request):
 @csrf_exempt
 def create_new_attribution(request):
     try:
+        from accounts.organisation_utils import get_user_organisation
+        
         # Récupérer les données JSON
         data = json.loads(request.body)
         matricule = data.get('teacher_matricule')
         annee_academique = data.get('teacher_academic_year')
         type_charge = data.get('type_charge')
         code_ue = data.get('code_ue')
+        
+        # Récupérer l'organisation de l'utilisateur
+        user_org = get_user_organisation(request.user)
 
         # Vérifier que toutes les données requises sont présentes
         if not all([matricule, annee_academique, type_charge, code_ue]):
@@ -656,21 +680,27 @@ def create_new_attribution(request):
                 'error': 'Tous les champs sont obligatoires'
             }, status=400)
 
-        # Récupérer les objets liés
+        # Récupérer les objets liés - filtrer par organisation si applicable
         try:
-            teacher = Teacher.objects.get(matricule=matricule)
+            teacher_qs = Teacher.objects.all()
+            if user_org:
+                teacher_qs = teacher_qs.filter(section=user_org.code)
+            teacher = teacher_qs.get(matricule=matricule)
         except Teacher.DoesNotExist:
             return JsonResponse({
                 'success': False,
-                'error': f'Enseignant avec matricule {matricule} non trouvé'
+                'error': f'Enseignant avec matricule {matricule} non trouvé dans votre organisation'
             }, status=404)
         
-        # Chercher le cours (prendre le premier si plusieurs avec le même code_ue)
-        course = Course.objects.filter(code_ue=code_ue).first()
+        # Chercher le cours (filtrer par organisation si applicable)
+        course_qs = Course.objects.all()
+        if user_org:
+            course_qs = course_qs.filter(section=user_org.code)
+        course = course_qs.filter(code_ue=code_ue).first()
         if not course:
             return JsonResponse({
                 'success': False,
-                'error': f'Cours avec code {code_ue} non trouvé'
+                'error': f'Cours avec code {code_ue} non trouvé dans votre organisation'
             }, status=404)
 
         # Vérifier si l'attribution existe déjà
@@ -802,8 +832,19 @@ def search_attributions(request):
 def liste_charges(request):
     # Vue pour afficher les attributions de charge avec filtrage
     from django.db.models import Q
+    from accounts.organisation_utils import get_user_organisation, filter_queryset_by_organisation
+    
+    # Vérifier si l'utilisateur appartient à une organisation
+    user_org = get_user_organisation(request.user)
     
     attributions = Attribution.objects.select_related('matricule', 'code_ue')
+    
+    # Filtrer par organisation de l'utilisateur
+    if user_org:
+        # Filtrer les attributions par section de l'enseignant ou du cours
+        attributions = attributions.filter(
+            Q(matricule__section=user_org.code) | Q(code_ue__section=user_org.code)
+        )
     
     # Récupérer les paramètres de filtrage
     teacher_matricule = request.GET.get('teacher_matricule')
@@ -825,15 +866,27 @@ def liste_charges(request):
             Q(code_ue__intitule_ue__icontains=code_ue)
         )
     
-    # Calculer le nombre d'enseignants qui ont une charge (attribution)
-    teachers_with_assignments = Attribution.objects.values('matricule').distinct().count()
+    # Calculer le nombre d'enseignants qui ont une charge (attribution) - filtré par organisation
+    base_attributions = Attribution.objects.all()
+    if user_org:
+        base_attributions = base_attributions.filter(
+            Q(matricule__section=user_org.code) | Q(code_ue__section=user_org.code)
+        )
+    teachers_with_assignments = base_attributions.values('matricule').distinct().count()
     
-    # Récupérer toutes les UEs avec leurs attributions
+    # Récupérer toutes les UEs avec leurs attributions - filtrées par organisation
     cours_ues = Cours_Attribution.objects.all().order_by('code_ue')
+    if user_org:
+        cours_ues = cours_ues.filter(section=user_org.code)
     
-    # Créer un dictionnaire UE -> Enseignants pour affichage rapide
+    # Créer un dictionnaire UE -> Enseignants pour affichage rapide - filtré par organisation
     ue_enseignants = {}
-    for attribution in Attribution.objects.select_related('code_ue', 'matricule').all():
+    all_attributions = Attribution.objects.select_related('code_ue', 'matricule').all()
+    if user_org:
+        all_attributions = all_attributions.filter(
+            Q(matricule__section=user_org.code) | Q(code_ue__section=user_org.code)
+        )
+    for attribution in all_attributions:
         ue_code = attribution.code_ue.code_ue
         if ue_code not in ue_enseignants:
             ue_enseignants[ue_code] = []
@@ -855,10 +908,17 @@ def liste_charges(request):
     from reglage.models import Section as SectionReglage
     annees_modal = list(AnneeAcademique.objects.all().order_by('-date_debut'))
     sections_modal = list(SectionReglage.objects.all().order_by('CodeSection'))
+    if user_org:
+        sections_modal = [s for s in sections_modal if s.CodeSection == user_org.code]
+    
+    # Filtrer les enseignants par organisation
+    teachers = Teacher.objects.all().order_by('nom_complet')
+    if user_org:
+        teachers = teachers.filter(section=user_org.code)
     
     context = {
         'attributions': attributions,
-        'teachers': Teacher.objects.all().order_by('nom_complet'),
+        'teachers': teachers,
         'academic_years': academic_years,
         'annee_courante': annee_courante.code if annee_courante else None,
         'selected_teacher_name': attributions.first().matricule.nom_complet if attributions.exists() else '',
@@ -1060,6 +1120,22 @@ def schedule_builder(request):
 
 def schedule_pdf(request):
     from datetime import datetime, timedelta
+    import locale
+    from accounts.models import Role
+    from accounts.organisation_utils import get_user_organisation
+    from reglage.models import Classe as ClasseModel
+    
+    # Configurer la locale en français pour les noms de mois
+    try:
+        locale.setlocale(locale.LC_TIME, 'fr_FR.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_TIME, 'French_France.1252')
+        except:
+            pass  # Si la locale française n'est pas disponible, continuer avec la locale par défaut
+    
+    # Récupérer le type d'horaire (cours ou examens)
+    type_horaire = request.GET.get('type', 'cours')  # Par défaut: cours
     
     classe = request.GET.get('classe')  # Ex: L1BC ou juste L1
     annee = request.GET.get('annee')
@@ -1068,6 +1144,10 @@ def schedule_pdf(request):
     chef_adjoint_id = request.GET.get('chef_adjoint')
     section_code = request.GET.get('section', '')  # Code de la section
     attribution_id = request.GET.get('attribution_id')
+    
+    # Récupérer l'organisation de l'utilisateur
+    user = request.user
+    user_org = get_user_organisation(user)
     
     # Récupérer la désignation complète de la section depuis la base de données
     section_designation = ""
@@ -1078,6 +1158,10 @@ def schedule_pdf(request):
             section_designation = section_obj.DesignationSection
         except Section.DoesNotExist:
             section_designation = section_code  # Fallback sur le code si non trouvé
+    elif user_org:
+        # Si pas de section_code spécifié, utiliser celle de l'organisation
+        section_code = user_org.code
+        section_designation = user_org.nom
 
     # Extraire le niveau (L1, L2, L3, M1, M2) de la classe
     import re
@@ -1088,8 +1172,24 @@ def schedule_pdf(request):
         if match:
             niveau_demande = match.group(1)
     
+    # Récupérer les classes autorisées dynamiquement depuis la base de données
+    if user_org:
+        # Filtrer les classes par section de l'organisation (via mention -> departement -> section)
+        classes_autorisees = list(ClasseModel.objects.filter(
+            mention__departement__section__CodeSection=user_org.code
+        ).values_list('CodeClasse', flat=True))
+    else:
+        # Admin: toutes les classes
+        classes_autorisees = list(ClasseModel.objects.all().values_list('CodeClasse', flat=True))
+    
     # Récupérer toutes les attributions
     all_attributions = Attribution.objects.select_related('matricule', 'code_ue')
+    
+    # Appliquer le filtre de section si l'utilisateur appartient à une organisation
+    if user_org:
+        if classes_autorisees:
+            all_attributions = all_attributions.filter(code_ue__classe__in=classes_autorisees)
+    
     if attribution_id:
         all_attributions = all_attributions.filter(id=attribution_id)
         if not classe and all_attributions.exists():
@@ -1101,49 +1201,36 @@ def schedule_pdf(request):
     if annee:
         all_attributions = all_attributions.filter(annee_academique=annee)
     
-    # Générer toutes les 5 pages si aucun niveau spécifique n'est demandé
+    # Générer uniquement les pages pour les niveaux qui ont des cours
     if niveau_demande:
         niveaux_a_generer = [niveau_demande]
     else:
-        niveaux_a_generer = ['L1', 'L2', 'L3', 'M1', 'M2']  # Toutes les pages
+        # L'ordre des niveaux sera déterminé après avoir identifié ceux avec des cours
+        niveaux_a_generer = ['L1', 'L2', 'L3', 'M1', 'M2']
 
     # Préparation PDF avec marges réduites pour optimiser l'espace
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=10, leftMargin=10, topMargin=20, bottomMargin=15)
     
-    # Colonnes fixes pour chaque niveau - définies exactement selon les besoins
+    # Colonnes pour chaque niveau - basées sur les classes autorisées (dynamique depuis la BDD)
     colonnes_par_niveau = {
-        'L1': ['L1BC', 'L1CST', 'L1MI', 'L1PHY', 'L1IT', 'L1IG'],
-        'L2': ['L2BC', 'L2CST', 'L2MI', 'L2PHY', 'L2IT', 'L2IG'],
-        'L3': ['L3BC', 'L3CST', 'L3MI', 'L3PHY', 'L3IT', 'L3IG'],
-        'M1': ['M1BC', 'M1CST', 'M1MI', 'M1PHY', 'M1IT', 'M1IG'],
-        'M2': ['M2BC', 'M2CST', 'M2MI', 'M2PHY', 'M2IT', 'M2IG'],
+        'L1': sorted([c for c in classes_autorisees if c.startswith('L1')]),
+        'L2': sorted([c for c in classes_autorisees if c.startswith('L2')]),
+        'L3': sorted([c for c in classes_autorisees if c.startswith('L3')]),
+        'M1': sorted([c for c in classes_autorisees if c.startswith('M1')]),
+        'M2': sorted([c for c in classes_autorisees if c.startswith('M2')]),
     }
 
     def get_col_key_from_classe(classe_val):
-        """Extraire la clé de colonne depuis le champ classe (ex: L1BC, L2MI, etc.)"""
+        """Extraire la clé de colonne depuis le champ classe (ex: L1BC, L2MI, L1PHYTO, etc.)"""
         if not classe_val:
             return None
         
         # Supprimer tous les espaces et convertir en majuscules
         classe_upper = classe_val.upper().strip().replace(' ', '')
         
-        # Méthode 1: Format exact L1BC, L2MI, M1PHY, etc.
-        match = re.match(r'^(L[1-3]|M[1-2])(BC|CST|MI|PHY|IT|IG)', classe_upper)
-        if match:
-            return match.group(0)  # Retourne L1BC, L2MI, etc.
-        
-        # Méthode 2: Extraire niveau + chercher suffixe dans le texte
-        match_niveau = re.match(r'^(L[1-3]|M[1-2])', classe_upper)
-        if match_niveau:
-            niveau = match_niveau.group(1)
-            # Chercher les suffixes courants dans le reste du texte
-            suffixes = ['BC', 'CST', 'MI', 'PHY', 'IT', 'IG']
-            for suffix in suffixes:
-                if suffix in classe_upper:
-                    return f"{niveau}{suffix}"
-        
-        # Méthode 3: Fallback - retourner tel quel si c'est un format valide
+        # Retourner la classe telle quelle si elle correspond au format niveau + mention
+        # Format: L1, L2, L3, M1, M2 suivi de lettres (ex: L1PHYTO, L1BC, M1INFO)
         if re.match(r'^(L[1-3]|M[1-2])[A-Z]+$', classe_upper):
             return classe_upper
         
@@ -1155,9 +1242,18 @@ def schedule_pdf(request):
     # Si aucune semaine ni année n'est spécifiée, afficher TOUTES les entrées (comme la liste)
     print(f"PDF: Paramètres reçus - week_start='{week_start}', annee='{annee}'")
     
+    # Base queryset - filtré par organisation si applicable (via section du cours ou enseignant)
+    base_queryset = ScheduleEntry.objects.select_related('attribution__code_ue', 'attribution__matricule')
+    if user_org:
+        from django.db.models import Q
+        base_queryset = base_queryset.filter(
+            Q(attribution__matricule__section=user_org.code) | 
+            Q(attribution__code_ue__section=user_org.code)
+        )
+    
     if not week_start and not annee:
         print("PDF: Branche 1 - Aucun filtre")
-        all_entries = ScheduleEntry.objects.all()
+        all_entries = base_queryset.all()
         print(f"PDF: Aucun filtre - Affichage de TOUTES les {all_entries.count()} entrées")
     elif week_start and not annee:
         print("PDF: Branche 2 - Filtre par semaine uniquement")
@@ -1167,7 +1263,7 @@ def schedule_pdf(request):
             # Inclure toutes les entrées de la semaine (du lundi au samedi)
             semaine_fin = semaine_date + timedelta(days=5)  # 6 jours de cours
             # CORRECTION: Utiliser date_cours au lieu de semaine_debut
-            all_entries = ScheduleEntry.objects.filter(
+            all_entries = base_queryset.filter(
                 date_cours__gte=semaine_date,
                 date_cours__lte=semaine_fin
             )
@@ -1181,7 +1277,7 @@ def schedule_pdf(request):
             all_entries = ScheduleEntry.objects.none()
     else:
         print("PDF: Branche 3 - Filtre par année")
-        all_entries = ScheduleEntry.objects.filter(
+        all_entries = base_queryset.filter(
             annee_academique=annee if annee else all_attributions.first().annee_academique if all_attributions.exists() else '',
         )
         print(f"PDF: Après filtre année: {all_entries.count()} entrées")
@@ -1210,20 +1306,20 @@ def schedule_pdf(request):
         canvas.restoreState()
 
     # Debug: Afficher le nombre total d'entrées après filtrage
-    print(f"\n=== TOTAL ENTRÉES APRÈS FILTRAGE ===")
+    print(f"\n=== TOTAL ENTREES APRES FILTRAGE ===")
     print(f"Nombre total d'entrées: {all_entries.count()}")
     if all_entries.exists():
-        print("Exemples d'entrées:")
+        print("Exemples d'entrees:")
         for e in all_entries[:5]:
             creneau_info = f"{e.creneau.code}" if e.creneau else "None"
             print(f"  - ID={e.id} | classe={e.attribution.code_ue.classe} | code={e.attribution.code_ue.code_ue} | jour={e.jour} | creneau={creneau_info} | date_cours={e.date_cours}")
     else:
         # Si aucune entrée trouvée, afficher TOUTES les entrées de la base
-        print("\n⚠️ AUCUNE ENTRÉE TROUVÉE AVEC LES FILTRES!")
+        print("\n[ATTENTION] AUCUNE ENTREE TROUVEE AVEC LES FILTRES!")
         all_in_db = ScheduleEntry.objects.all()
-        print(f"Total dans la base de données: {all_in_db.count()}")
+        print(f"Total dans la base de donnees: {all_in_db.count()}")
         if all_in_db.exists():
-            print("Toutes les entrées disponibles:")
+            print("Toutes les entrees disponibles:")
             for e in all_in_db[:10]:
                 creneau_info = f"{e.creneau.code}" if e.creneau else "None"
                 print(f"  - ID={e.id} | classe={e.attribution.code_ue.classe} | code={e.attribution.code_ue.code_ue} | jour={e.jour} | creneau={creneau_info} | date_cours={e.date_cours} | semaine_debut={e.semaine_debut}")
@@ -1261,7 +1357,7 @@ def schedule_pdf(request):
             if semaine_obj:
                 numero_semaine_str = f"S{semaine_obj.numero_semaine}"
             
-            print(f"PDF: Plage automatique détectée du {premiere_entree.date_cours} au {derniere_entree.date_cours}")
+            print(f"PDF: Plage automatique detectee du {premiere_entree.date_cours} au {derniere_entree.date_cours}")
         else:
             # Fallback : utiliser la semaine en cours
             semaine_en_cours = SemaineCours.objects.filter(est_en_cours=True).first()
@@ -1280,7 +1376,7 @@ def schedule_pdf(request):
             date_debut = date_reference - timedelta(days=jours_depuis_lundi)  # Lundi
             date_fin = date_debut + timedelta(days=5)  # Samedi
             
-            print(f"PDF: Date référence {date_reference}, Lundi de la semaine: {date_debut}, Samedi: {date_fin}")
+            print(f"PDF: Date reference {date_reference}, Lundi de la semaine: {date_debut}, Samedi: {date_fin}")
             
             # Récupérer le numéro de semaine depuis SemaineCours
             from reglage.models import SemaineCours
@@ -1311,7 +1407,33 @@ def schedule_pdf(request):
     
     # Récupérer les créneaux depuis la table Creneau si disponible
     from reglage.models import Creneau
-    creneaux_actifs = Creneau.objects.filter(est_actif=True).order_by('ordre', 'heure_debut')
+    
+    # Filtrer les créneaux selon le type d'horaire et la section
+    # IMPORTANT: Exclure le créneau 'TJ' car il ne doit jamais apparaître dans le PDF
+    # TJ est juste un raccourci pour créer des entrées AM et PM
+    if type_horaire == 'cours':
+        # Pour les cours, filtrer par type_creneau
+        creneaux_actifs = Creneau.objects.filter(
+            est_actif=True, 
+            type_creneau__in=['cours', 'les_deux']
+        ).exclude(code='TJ').order_by('ordre', 'heure_debut')
+    elif type_horaire == 'examens':
+        # Pour les examens, filtrer par type_creneau et section
+        if section_code:
+            creneaux_actifs = Creneau.objects.filter(
+                est_actif=True, 
+                type_creneau__in=['examen', 'les_deux'],
+                section__CodeSection=section_code
+            ).exclude(code='TJ').order_by('ordre', 'heure_debut')
+        else:
+            # Si pas de section spécifiée, tous les créneaux d'examens
+            creneaux_actifs = Creneau.objects.filter(
+                est_actif=True, 
+                type_creneau__in=['examen', 'les_deux']
+            ).exclude(code='TJ').order_by('ordre', 'heure_debut')
+    else:
+        # Par défaut, tous les créneaux actifs (sauf TJ)
+        creneaux_actifs = Creneau.objects.filter(est_actif=True).exclude(code='TJ').order_by('ordre', 'heure_debut')
     
     if creneaux_actifs.exists():
         # Utiliser les créneaux de la table Réglage
@@ -1320,20 +1442,29 @@ def schedule_pdf(request):
         # Fallback sur les créneaux par défaut
         slots = [('08h00-12h00', 'AM'), ('13h00-17h00', 'PM')]
     
+    # Vérifier s'il y a des entrées avant de générer le PDF
+    if not all_entries.exists():
+        from django.contrib import messages
+        messages.warning(request, "[ATTENTION] Aucun horaire trouvé avec les critères sélectionnés. Veuillez vérifier vos filtres.")
+        from django.shortcuts import redirect
+        return redirect('attribution:schedule_entry_list')
+    
     # Boucle sur chaque niveau pour créer une page par niveau
     page_count = 0
     for niveau in niveaux_a_generer:
-        # Filtrer les horaires pour ce niveau (gérer les espaces dans les classes)
-        entries_niveau = all_entries.filter(attribution__code_ue__classe__icontains=niveau)
+        # Filtrer les horaires pour ce niveau - utiliser startswith pour être précis
+        entries_niveau = all_entries.filter(attribution__code_ue__classe__istartswith=niveau)
         
         # Debug: afficher le nombre d'horaires trouvés pour ce niveau
         print(f"\n=== Niveau {niveau} ===")
-        print(f"Nombre d'horaires trouvés: {entries_niveau.count()}")
+        print(f"Nombre d'horaires trouves: {entries_niveau.count()}")
         for e in entries_niveau:
             print(f"  - {e.attribution.code_ue.classe} | {e.attribution.code_ue.code_ue} | {e.attribution.matricule.nom_complet} | {e.jour} {e.creneau}")
         
-        # Générer la page même s'il n'y a pas d'horaires (tableau vide avec colonnes)
-        # On ne saute plus les niveaux sans données
+        # Ne générer la page que si des horaires existent pour ce niveau
+        if not entries_niveau.exists():
+            print(f"Niveau {niveau} ignore : aucun cours programme")
+            continue
         
         # Ajouter un saut de page si ce n'est pas la première page
         if page_count > 0:
@@ -1350,11 +1481,35 @@ def schedule_pdf(request):
         else:
             section_title = "SECTION DES SCIENCES & TECHNOLOGIES"
         
+        # Adapter le titre selon le type d'horaire
+        if type_horaire == 'examens':
+            titre_type = "Horaire des Examens"
+        else:
+            titre_type = "Horaire des Enseignements"
+        
         titre = f"<b>{section_title}</b><br/>"\
-                f"Horaires des Cours : semaine du {semaine_info}"
+                f"{titre_type} : semaine du {semaine_info}"
         titre_para = Paragraph(titre, ParagraphStyle('TitleCustom', parent=styles['Normal'], fontSize=8, alignment=1, fontName='Times-Bold', leading=10))
         elements.append(titre_para)
         elements.append(Spacer(1, 8))
+        
+        # Déterminer le semestre selon le niveau
+        semestres_par_niveau = {
+            'L1': 'Semestre 1',
+            'L2': 'Semestre 3',
+            'L3': 'Semestre 5',
+            'M1': 'Semestre 1',
+            'M2': 'Semestre 3'
+        }
+        
+        # Afficher le semestre pour tous les niveaux
+        semestre_display = semestres_par_niveau.get(niveau, 'Semestre 1')
+        semestre_info = f"({semestre_display})"
+        
+        info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontSize=7, alignment=1, fontName='Times-Roman', leading=9)
+        semestre_para = Paragraph(semestre_info, info_style)
+        elements.append(semestre_para)
+        elements.append(Spacer(1, 4))
         
         # Utiliser les colonnes fixes pour ce niveau comme base
         col_keys_predefinies = colonnes_par_niveau.get(niveau, [])
@@ -1386,7 +1541,7 @@ def schedule_pdf(request):
                 by_col[col] = []
         
         # Debug: afficher le nombre d'entrées par colonne
-        print(f"PDF Niveau {niveau}: {len(col_keys)} colonnes détectées: {col_keys}")
+        print(f"PDF Niveau {niveau}: {len(col_keys)} colonnes detectees: {col_keys}")
         for col in col_keys:
             print(f"  Colonne {col}: {len(by_col[col])} entrées")
         
@@ -1439,13 +1594,24 @@ def schedule_pdf(request):
                         if e.jour == jour_label and creneau_match:
                             code = a.code_ue.code_ue or ''
                             title = truncate_ue_title(a.code_ue.intitule_ue or '')
+                            ec = a.code_ue.intitule_ec or ''
                             teacher_name = truncate_teacher_name(a.matricule.nom_complet or '')
                             grade = a.matricule.grade or ''
-                            # Utiliser des espaces normaux pour permettre la troncature
-                            if grade:
-                                txt = f"<b>{code}</b><br/><i>{title}</i><br/>{grade} {teacher_name}"
+                            
+                            # Construire le texte avec EC si présent
+                            if ec:
+                                # Si EC existe, l'afficher après le titre de l'UE
+                                ec_truncated = truncate_ue_title(ec)
+                                if grade:
+                                    txt = f"<b>{code}</b><br/><i>{title}</i><br/><i>{ec_truncated}</i><br/>{grade} {teacher_name}"
+                                else:
+                                    txt = f"<b>{code}</b><br/><i>{title}</i><br/><i>{ec_truncated}</i><br/>{teacher_name}"
                             else:
-                                txt = f"<b>{code}</b><br/>{title}<br/>{teacher_name}"
+                                # Pas d'EC, affichage normal
+                                if grade:
+                                    txt = f"<b>{code}</b><br/><i>{title}</i><br/>{grade} {teacher_name}"
+                                else:
+                                    txt = f"<b>{code}</b><br/>{title}<br/>{teacher_name}"
                             items.append(txt)
                     
                     # Créer le contenu de la cellule - utiliser espace si vide
@@ -1675,7 +1841,7 @@ def save_schedule_entries(request):
                 'errors': errors
             })
         
-        return JsonResponse({'success': True, 'saved': saved, 'message': f'✅ {saved} horaire(s) créé(s) avec succès'})
+        return JsonResponse({'success': True, 'saved': saved, 'message': f'[OK] {saved} horaire(s) cree(s) avec succes'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
@@ -1830,7 +1996,7 @@ def generate_pdf(request):
                 
                 return img_buffer
             except Exception as e:
-                print(f"Erreur lors de la création de l'image arrondie: {e}")
+                print(f"Erreur lors de la creation de l'image arrondie: {e}")
                 return None
         
         # Préparer la photo de l'enseignant
@@ -2060,6 +2226,9 @@ class ScheduleEntryListView(ListView):
     paginate_by = 50
     
     def get_queryset(self):
+        from accounts.organisation_utils import get_user_organisation
+        from django.db.models import Q
+        
         # Récupérer le queryset de base avec les jointures nécessaires
         queryset = ScheduleEntry.objects.select_related(
             'attribution__matricule',
@@ -2067,11 +2236,45 @@ class ScheduleEntryListView(ListView):
             'creneau'
         ).order_by('-date_cours', 'jour')
         
+        # Filtrer par organisation de l'utilisateur (via section du cours)
+        user_org = get_user_organisation(self.request.user)
+        if user_org:
+            queryset = queryset.filter(
+                Q(attribution__matricule__section=user_org.code) | 
+                Q(attribution__code_ue__section=user_org.code)
+            )
+        
+        # Pour le superuser, filtrer par chef de section sélectionné
+        elif self.request.user.is_superuser:
+            chef_section_id = self.request.GET.get('chef_section')
+            chef_adjoint_id = self.request.GET.get('chef_adjoint')
+            
+            if chef_section_id:
+                try:
+                    chef_section = Teacher.objects.get(id=chef_section_id)
+                    queryset = queryset.filter(
+                        Q(attribution__matricule__section=chef_section.section) | 
+                        Q(attribution__code_ue__section=chef_section.section)
+                    )
+                except Teacher.DoesNotExist:
+                    pass
+            
+            elif chef_adjoint_id:
+                try:
+                    chef_adjoint = Teacher.objects.get(id=chef_adjoint_id)
+                    queryset = queryset.filter(
+                        Q(attribution__matricule__section=chef_adjoint.section) | 
+                        Q(attribution__code_ue__section=chef_adjoint.section)
+                    )
+                except Teacher.DoesNotExist:
+                    pass
+        
         # Récupérer les paramètres GET
         annee = self.request.GET.get('annee')
         jour = self.request.GET.get('jour')
         creneau = self.request.GET.get('creneau')
         classe = self.request.GET.get('classe')
+        type_horaire = self.request.GET.get('type_horaire', '')  # Vide par défaut = tous les types
         
         # Appliquer les filtres
         if annee:
@@ -2086,29 +2289,165 @@ class ScheduleEntryListView(ListView):
             
         if classe:
             queryset = queryset.filter(attribution__code_ue__classe__icontains=classe)
+        elif self.request.user.is_superuser:
+            # Pour le superuser, filtrer automatiquement par section si un chef est sélectionné
+            chef_section_id = self.request.GET.get('chef_section')
+            chef_adjoint_id = self.request.GET.get('chef_adjoint')
             
-        return queryset
+            if chef_section_id:
+                try:
+                    chef_section = Teacher.objects.get(id=chef_section_id)
+                    # Récupérer les classes de cette section
+                    classes_section = Classe.objects.filter(
+                        mention__departement__section__CodeSection=chef_section.section
+                    ).values_list('CodeClasse', flat=True)
+                    
+                    if classes_section:
+                        # Filtrer par les classes de cette section
+                        class_filter = Q()
+                        for classe_code in classes_section:
+                            class_filter |= Q(attribution__code_ue__classe__icontains=classe_code)
+                        queryset = queryset.filter(class_filter)
+                except Teacher.DoesNotExist:
+                    pass
+            
+            elif chef_adjoint_id:
+                try:
+                    chef_adjoint = Teacher.objects.get(id=chef_adjoint_id)
+                    # Récupérer les classes de cette section
+                    classes_section = Classe.objects.filter(
+                        mention__departement__section__CodeSection=chef_adjoint.section
+                    ).values_list('CodeClasse', flat=True)
+                    
+                    if classes_section:
+                        # Filtrer par les classes de cette section
+                        class_filter = Q()
+                        for classe_code in classes_section:
+                            class_filter |= Q(attribution__code_ue__classe__icontains=classe_code)
+                        queryset = queryset.filter(class_filter)
+                except Teacher.DoesNotExist:
+                    pass
         
+        # Filtrer par type d'horaire (cours vs examens) - utiliser le champ type_horaire du modèle
+        if type_horaire:
+            queryset = queryset.filter(type_horaire=type_horaire)
+            
         return queryset
     
     def get_context_data(self, **kwargs):
-        from reglage.models import AnneeAcademique, Salle, Creneau, Classe, SemaineCours
+        from reglage.models import AnneeAcademique, Salle, Creneau, Classe, SemaineCours, Section
+        from accounts.organisation_utils import get_user_organisation
+        from django.db.models import Q
         
         context = super().get_context_data(**kwargs)
+        user_org = get_user_organisation(self.request.user)
         
         # Données depuis les modèles de réglage (PRIORITÉ)
         context['annees_reglage'] = AnneeAcademique.objects.all().order_by('-code')
         context['annee_courante'] = AnneeAcademique.objects.filter(est_en_cours=True).first()
         context['salles_disponibles'] = Salle.objects.filter(est_disponible=True).order_by('code')
-        context['creneaux_actifs'] = Creneau.objects.filter(est_actif=True).order_by('ordre', 'heure_debut')
-        context['classes_reglage'] = Classe.objects.all().order_by('CodeClasse')
+        
+        # Filtrer les créneaux selon le type d'horaire sélectionné
+        type_horaire = self.request.GET.get('type_horaire', 'cours')
+        if type_horaire == 'cours':
+            context['creneaux_actifs'] = Creneau.objects.filter(
+                est_actif=True, 
+                type_creneau__in=['cours', 'les_deux']
+            ).order_by('ordre', 'heure_debut')
+        elif type_horaire == 'examen':
+            # Pour les examens, filtrer par section de l'utilisateur ou toutes les sections
+            if user_org:
+                context['creneaux_actifs'] = Creneau.objects.filter(
+                    est_actif=True, 
+                    type_creneau__in=['examen', 'les_deux'],
+                    section__CodeSection=user_org.code
+                ).order_by('ordre', 'heure_debut')
+            else:
+                # Superuser voit tous les créneaux d'examens
+                context['creneaux_actifs'] = Creneau.objects.filter(
+                    est_actif=True, 
+                    type_creneau__in=['examen', 'les_deux']
+                ).order_by('ordre', 'heure_debut')
+        else:
+            context['creneaux_actifs'] = Creneau.objects.filter(est_actif=True).order_by('ordre', 'heure_debut')
+        
+        # Filtrer les classes par section de l'organisation ou par chef de section sélectionné
+        if user_org:
+            context['classes_reglage'] = Classe.objects.filter(
+                mention__departement__section__CodeSection=user_org.code
+            ).order_by('CodeClasse')
+        elif self.request.user.is_superuser:
+            # Pour le superuser, filtrer par chef de section sélectionné
+            chef_section_id = self.request.GET.get('chef_section')
+            chef_adjoint_id = self.request.GET.get('chef_adjoint')
+            
+            if chef_section_id:
+                try:
+                    chef_section = Teacher.objects.get(id=chef_section_id)
+                    # Debug: afficher la section du chef
+                    print(f"DEBUG: Chef section = {chef_section.nom_complet}, Section = '{chef_section.section}'")
+                    
+                    # Vérifier si la section existe dans la table Section
+                    from reglage.models import Section
+                    try:
+                        section_obj = Section.objects.get(CodeSection=chef_section.section)
+                        print(f"DEBUG: Section trouvée = {section_obj.DesignationSection}")
+                    except Section.DoesNotExist:
+                        print(f"DEBUG: ERREUR - Section '{chef_section.section}' n'existe pas dans la table Section!")
+                    
+                    # Filtrer les classes par section
+                    classes_filtrees = Classe.objects.filter(
+                        mention__departement__section__CodeSection=chef_section.section
+                    ).order_by('CodeClasse')
+                    
+                    # Debug: afficher les classes trouvées
+                    print(f"DEBUG: Nombre de classes trouvées pour section '{chef_section.section}' = {classes_filtrees.count()}")
+                    if classes_filtrees.count() > 0:
+                        for c in classes_filtrees[:5]:  # Afficher les 5 premières
+                            print(f"  - {c.CodeClasse} (Section: {c.mention.departement.section.CodeSection})")
+                    else:
+                        print(f"DEBUG: AUCUNE classe trouvée pour la section '{chef_section.section}'")
+                        # Afficher toutes les sections disponibles
+                        sections_disponibles = Section.objects.all().values_list('CodeSection', flat=True)
+                        print(f"DEBUG: Sections disponibles dans la BD = {list(sections_disponibles)}")
+                    
+                    context['classes_reglage'] = classes_filtrees
+                    context['selected_section'] = chef_section.section
+                except Teacher.DoesNotExist:
+                    print(f"DEBUG: Chef de section avec ID {chef_section_id} non trouvé")
+                    context['classes_reglage'] = Classe.objects.all().order_by('CodeClasse')
+            
+            elif chef_adjoint_id:
+                try:
+                    chef_adjoint = Teacher.objects.get(id=chef_adjoint_id)
+                    context['classes_reglage'] = Classe.objects.filter(
+                        mention__departement__section__CodeSection=chef_adjoint.section
+                    ).order_by('CodeClasse')
+                except Teacher.DoesNotExist:
+                    context['classes_reglage'] = Classe.objects.all().order_by('CodeClasse')
+            
+            else:
+                context['classes_reglage'] = Classe.objects.all().order_by('CodeClasse')
+        else:
+            context['classes_reglage'] = Classe.objects.all().order_by('CodeClasse')
+        
         context['semaines_cours'] = SemaineCours.objects.all().order_by('numero_semaine')
         context['semaine_courante'] = SemaineCours.objects.filter(est_en_cours=True).first()
         
-        # Liste des enseignants pour les signataires du PDF (filtrés par fonction)
-        context['teachers'] = Teacher.objects.all().order_by('nom_complet')
-        context['chefs_section'] = Teacher.objects.filter(fonction='CS').order_by('nom_complet')
-        context['chefs_adjoint'] = Teacher.objects.filter(fonction='CSAE').order_by('nom_complet')
+        # Sections disponibles pour les créneaux d'examens
+        if user_org:
+            context['sections'] = [user_org]
+        else:
+            # Superuser voit toutes les sections
+            context['sections'] = Section.objects.all().order_by('DesignationSection')
+        
+        # Liste des enseignants filtrés par organisation
+        teachers = Teacher.objects.all().order_by('nom_complet')
+        if user_org:
+            teachers = teachers.filter(section=user_org.code)
+        context['teachers'] = teachers
+        context['chefs_section'] = teachers.filter(fonction='CS').order_by('nom_complet')
+        context['chefs_adjoint'] = teachers.filter(fonction='CSAE').order_by('nom_complet')
         
         # Années académiques (fallback depuis les horaires existants si réglage vide)
         annees_existantes = ScheduleEntry.objects.values_list(
@@ -2121,8 +2460,12 @@ class ScheduleEntryListView(ListView):
         else:
             context['annees'] = list(annees_existantes)
         
-        # Cours options pour l'ajout rapide
+        # Cours options pour l'ajout rapide - filtrés par organisation
         attributions = Attribution.objects.select_related('matricule', 'code_ue').order_by('code_ue__classe', 'code_ue__code_ue')
+        if user_org:
+            attributions = attributions.filter(
+                Q(matricule__section=user_org.code) | Q(code_ue__section=user_org.code)
+            )
         context['cours_options'] = [
             {
                 'attribution_id': a.id,
@@ -2153,13 +2496,26 @@ class ScheduleEntryCreateView(CreateView):
     
     def get_context_data(self, **kwargs):
         from reglage.models import AnneeAcademique, Classe
+        from accounts.organisation_utils import get_user_organisation
+        
         context = super().get_context_data(**kwargs)
         context['annee_courante'] = AnneeAcademique.objects.filter(est_en_cours=True).first()
-        # Ajouter la liste des classes ordonnées par code
-        context['classes'] = Classe.objects.all().order_by('CodeClasse')
+        
+        # Filtrer les classes par section de l'organisation
+        user_org = get_user_organisation(self.request.user)
+        if user_org:
+            context['classes'] = Classe.objects.filter(
+                mention__departement__section__CodeSection=user_org.code
+            ).order_by('CodeClasse')
+        else:
+            context['classes'] = Classe.objects.all().order_by('CodeClasse')
         return context
     
     def form_valid(self, form):
+        print("\n" + "="*60)
+        print("FORM_VALID APPELE - Le formulaire est valide")
+        print("="*60)
+        
         from datetime import timedelta
         from reglage.models import AnneeAcademique, SemaineCours
         from .validators import ScheduleConflictValidator
@@ -2212,6 +2568,64 @@ class ScheduleEntryCreateView(CreateView):
         if 'creneau' in form.cleaned_data and form.cleaned_data['creneau']:
             form.instance.creneau = form.cleaned_data['creneau']
         
+        # Déduire automatiquement le type_horaire depuis le type_creneau du créneau sélectionné
+        if form.instance.creneau:
+            creneau_obj = form.instance.creneau
+            # Si type_creneau est 'les_deux', on utilise 'cours' par défaut
+            if creneau_obj.type_creneau == 'examen':
+                form.instance.type_horaire = 'examen'
+            else:
+                # Pour 'cours' ou 'les_deux', on utilise 'cours'
+                form.instance.type_horaire = 'cours'
+        else:
+            # Par défaut si pas de créneau
+            form.instance.type_horaire = 'cours'
+        
+        # Détecter si la case "Toute la journée" est cochée
+        toute_la_journee = form.cleaned_data.get('toute_la_journee', False)
+        creneau_toute_journee = False
+        creneaux_a_creer = [form.instance.creneau]  # Par défaut, un seul créneau
+        
+        print(f"\n{'='*60}")
+        print(f"DETECTION TOUTE LA JOURNEE")
+        print(f"{'='*60}")
+        print(f"Case 'Toute la journee' cochee: {toute_la_journee}")
+        print(f"Creneau selectionne: {form.instance.creneau}")
+        
+        if toute_la_journee:
+            print(f"[OK] TOUTE LA JOURNEE DETECTEE !")
+            creneau_toute_journee = True
+            # Récupérer les créneaux matin et après-midi
+            from reglage.models import Creneau
+            creneau_matin = Creneau.objects.filter(code='AM').first()
+            creneau_apres_midi = Creneau.objects.filter(code='PM').first()
+            
+            print(f"Creneau AM trouve: {creneau_matin}")
+            print(f"Creneau PM trouve: {creneau_apres_midi}")
+            
+            if creneau_matin and creneau_apres_midi:
+                creneaux_a_creer = [creneau_matin, creneau_apres_midi]
+                print(f"[OK] Les 2 creneaux AM et PM seront crees:")
+                print(f"  1. Creneau AM: {creneau_matin.code} - {creneau_matin.designation} ({creneau_matin.heure_debut}-{creneau_matin.heure_fin})")
+                print(f"  2. Creneau PM: {creneau_apres_midi.code} - {creneau_apres_midi.designation} ({creneau_apres_midi.heure_debut}-{creneau_apres_midi.heure_fin})")
+            else:
+                print(f"[ERREUR] Les creneaux AM ou PM n'existent pas !")
+                messages.warning(self.request, "Les creneaux AM et PM n'existent pas. Veuillez les creer d'abord.")
+                # Si AM/PM n'existent pas, utiliser le créneau sélectionné
+                if form.instance.creneau:
+                    creneaux_a_creer = [form.instance.creneau]
+                else:
+                    form.add_error(None, "Veuillez selectionner un creneau ou creer les creneaux AM et PM.")
+                    return self.form_invalid(form)
+        else:
+            print(f"[INFO] Creneau normal - Une seule entree sera creee")
+            if not form.instance.creneau:
+                form.add_error('creneau', "Veuillez selectionner un creneau ou cocher 'Toute la journee'.")
+                return self.form_invalid(form)
+        
+        print(f"Nombre de creneaux a creer: {len(creneaux_a_creer)}")
+        print(f"{'='*60}\n")
+        
         # Liste pour stocker toutes les entrées créées (pour les messages de confirmation)
         created_entries = []
         
@@ -2222,8 +2636,6 @@ class ScheduleEntryCreateView(CreateView):
             current_date = date_debut
             entry_count = 0
             while current_date <= date_fin:
-                entry_count += 1
-                print(f"  -> Création entrée #{entry_count} pour {current_date} ({current_date.strftime('%A')})")
                 # Mapper les jours en français
                 jours_fr = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
                 
@@ -2234,36 +2646,42 @@ class ScheduleEntryCreateView(CreateView):
                     date_fin__gte=current_date
                 ).first()
                 numero_semaine = semaine_obj.numero_semaine if semaine_obj else None
-                print(f"     Semaine trouvée: S{numero_semaine} pour {current_date}")
                 
-                # Créer une copie du formulaire pour chaque date
-                entry = ScheduleEntry(
-                    attribution=form.instance.attribution,
-                    annee_academique=form.instance.annee_academique,
-                    semaine_debut=current_date,
-                    date_cours=current_date,  # Utiliser la date du jour comme date de cours
-                    numero_semaine=numero_semaine,  # Numéro de semaine correspondant à la date
-                    jour=jours_fr[current_date.weekday()],  # Jour en français
-                    creneau=form.instance.creneau,
-                    salle=form.instance.salle,
-                    salle_link=form.instance.salle_link,
-                    remarques=form.instance.remarques
-                )
-                
-                # Valider l'entrée pour cette date
-                validation_result = self._validate_entry(entry)
-                if not validation_result['valid']:
-                    if force_conflicts:
-                        for error in validation_result['errors']:
-                            messages.warning(self.request, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
-                    else:
-                        for error in validation_result['errors']:
-                            form.add_error(None, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
-                        return self.form_invalid(form)
-                
-                # Sauvegarder l'entrée
-                entry.save()
-                created_entries.append(entry)
+                # Créer une entrée pour chaque créneau (1 ou 2 selon si c'est "Toute la journée")
+                for creneau in creneaux_a_creer:
+                    entry_count += 1
+                    print(f"  -> Création entrée #{entry_count} pour {current_date} ({current_date.strftime('%A')})")
+                    print(f"     Semaine trouvée: S{numero_semaine} pour {current_date}")
+                    
+                    # Créer une copie du formulaire pour chaque date et créneau
+                    entry = ScheduleEntry(
+                        attribution=form.instance.attribution,
+                        type_horaire=form.instance.type_horaire,  # Type: cours ou examen
+                        annee_academique=form.instance.annee_academique,
+                        semaine_debut=current_date,
+                        date_cours=current_date,  # Utiliser la date du jour comme date de cours
+                        numero_semaine=numero_semaine,  # Numéro de semaine correspondant à la date
+                        jour=jours_fr[current_date.weekday()],  # Jour en français
+                        creneau=creneau,  # Utiliser le créneau de la boucle (AM ou PM si TJ)
+                        salle=form.instance.salle,
+                        salle_link=form.instance.salle_link,
+                        remarques=form.instance.remarques
+                    )
+                    
+                    # Valider l'entrée pour cette date et ce créneau
+                    validation_result = self._validate_entry(entry)
+                    if not validation_result['valid']:
+                        if force_conflicts:
+                            for error in validation_result['errors']:
+                                messages.warning(self.request, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
+                        else:
+                            for error in validation_result['errors']:
+                                form.add_error(None, f"Le {current_date.strftime('%d/%m/%Y')} - {error}")
+                            return self.form_invalid(form)
+                    
+                    # Sauvegarder l'entrée
+                    entry.save()
+                    created_entries.append(entry)
                 
                 # Passer au jour suivant
                 current_date += timedelta(days=1)
@@ -2271,28 +2689,19 @@ class ScheduleEntryCreateView(CreateView):
             # Message de succès avec le nombre d'entrées créées
             messages.success(
                 self.request, 
-                f"✅ {len(created_entries)} entrées d'horaire créées avec succès dans la plage du "
+                f"[OK] {len(created_entries)} entrees d'horaire creees avec succes dans la plage du "
                 f"{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}."
             )
             # Définir self.object pour get_success_url (utiliser la dernière entrée créée)
             self.object = created_entries[-1] if created_entries else None
             return redirect(self.success_url)
         
-        # Si pas de plage de dates, créer une seule entrée
+        # Si pas de plage de dates, créer une ou plusieurs entrées selon le créneau
         else:
             print(f"CRÉATION D'UNE SEULE ENTRÉE pour {date_debut}")
-            # Valider l'entrée unique
-            validation_result = self._validate_entry(form.instance)
-            if not validation_result['valid']:
-                if force_conflicts:
-                    for error in validation_result['errors']:
-                        messages.warning(self.request, error)
-                else:
-                    for error in validation_result['errors']:
-                        form.add_error(None, error)
-                    return self.form_invalid(form)
             
             # Sauvegarder le numéro de semaine depuis SemaineCours
+            numero_semaine = None
             if form.instance.semaine_debut:
                 try:
                     # Chercher la semaine qui contient cette date
@@ -2301,12 +2710,62 @@ class ScheduleEntryCreateView(CreateView):
                         date_fin__gte=form.instance.semaine_debut
                     ).first()
                     if semaine_obj:
-                        form.instance.numero_semaine = semaine_obj.numero_semaine
+                        numero_semaine = semaine_obj.numero_semaine
                 except SemaineCours.DoesNotExist:
                     pass
             
-            messages.success(self.request, "✅ Horaire créé avec succès. Aucun conflit détecté.")
-            return super().form_valid(form)
+            # Créer une entrée pour chaque créneau (1 ou 2 selon si c'est "Toute la journée")
+            for idx, creneau in enumerate(creneaux_a_creer):
+                print(f"\n=== Création entrée {idx+1}/{len(creneaux_a_creer)} ===")
+                print(f"Créneau: {creneau.code} - {creneau.designation}")
+                
+                # Créer une nouvelle entrée pour ce créneau
+                entry = ScheduleEntry(
+                    attribution=form.instance.attribution,
+                    type_horaire=form.instance.type_horaire,  # Type: cours ou examen
+                    annee_academique=form.instance.annee_academique,
+                    semaine_debut=form.instance.semaine_debut,
+                    date_cours=form.instance.semaine_debut,
+                    numero_semaine=numero_semaine,
+                    jour=form.instance.jour,
+                    creneau=creneau,  # Utiliser le créneau de la boucle (AM ou PM si TJ)
+                    salle=form.instance.salle,
+                    salle_link=form.instance.salle_link,
+                    remarques=form.instance.remarques
+                )
+                
+                # Valider l'entrée
+                validation_result = self._validate_entry(entry)
+                if not validation_result['valid']:
+                    print(f"[WARN] Validation echouee pour {creneau.code}: {validation_result['errors']}")
+                    if force_conflicts:
+                        for error in validation_result['errors']:
+                            messages.warning(self.request, f"[{creneau.code}] {error}")
+                        # Continuer même si validation échoue avec force_conflicts
+                        entry.save()
+                        created_entries.append(entry)
+                        print(f"[OK] Entree {creneau.code} sauvegardee malgre les conflits (force_conflicts=True)")
+                    else:
+                        for error in validation_result['errors']:
+                            form.add_error(None, f"[{creneau.code}] {error}")
+                        # Ne pas arrêter la boucle, continuer avec le prochain créneau
+                        print(f"[ERREUR] Entree {creneau.code} non creee (validation echouee)")
+                        continue
+                else:
+                    # Sauvegarder l'entrée
+                    entry.save()
+                    created_entries.append(entry)
+                    print(f"[OK] Entree {creneau.code} creee avec succes")
+            
+            # Message de succès
+            if creneau_toute_journee:
+                messages.success(self.request, f"{len(created_entries)} horaires crees avec succes (Matin + Apres-midi). Aucun conflit detecte.")
+            else:
+                messages.success(self.request, "Horaire cree avec succes. Aucun conflit detecte.")
+            
+            # Définir self.object pour get_success_url
+            self.object = created_entries[-1] if created_entries else None
+            return redirect(self.success_url)
     
     def _validate_entry(self, entry):
         """Valide une entrée d'horaire et retourne le résultat de la validation."""
@@ -2335,6 +2794,14 @@ class ScheduleEntryCreateView(CreateView):
         return validation_result
     
     def form_invalid(self, form):
+        print("\n" + "="*60)
+        print("FORM_INVALID APPELE - Le formulaire contient des erreurs")
+        print("="*60)
+        print("Erreurs du formulaire:")
+        for field, errors in form.errors.items():
+            print(f"  - {field}: {errors}")
+        print("="*60 + "\n")
+        
         messages.error(self.request, "Erreur lors de la création de l'horaire. Vérifiez les données.")
         return super().form_invalid(form)
 
@@ -2348,10 +2815,19 @@ class ScheduleEntryUpdateView(UpdateView):
     
     def get_context_data(self, **kwargs):
         from reglage.models import AnneeAcademique, Classe
+        from accounts.organisation_utils import get_user_organisation
+        
         context = super().get_context_data(**kwargs)
         context['annee_courante'] = AnneeAcademique.objects.filter(est_en_cours=True).first()
-        # Ajouter la liste des classes ordonnées par code
-        context['classes'] = Classe.objects.all().order_by('CodeClasse')
+        
+        # Filtrer les classes par section de l'organisation
+        user_org = get_user_organisation(self.request.user)
+        if user_org:
+            context['classes'] = Classe.objects.filter(
+                mention__departement__section__CodeSection=user_org.code
+            ).order_by('CodeClasse')
+        else:
+            context['classes'] = Classe.objects.all().order_by('CodeClasse')
         return context
     
     def form_valid(self, form):
@@ -2404,7 +2880,7 @@ class ScheduleEntryUpdateView(UpdateView):
         for warning in validation_result['warnings']:
             messages.warning(self.request, warning)
         
-        messages.success(self.request, "✅ Horaire modifié avec succès. Aucun conflit détecté.")
+        messages.success(self.request, "[OK] Horaire modifie avec succes. Aucun conflit detecte.")
         return super().form_valid(form)
     
     def form_invalid(self, form):
@@ -2505,6 +2981,45 @@ def schedule_entry_delete(request, pk):
         return JsonResponse({
             'success': False,
             'message': f'Erreur: {str(e)}'
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(['POST'])
+def schedule_entry_bulk_delete(request):
+    """Suppression en masse d'entrées d'horaire"""
+    import json
+    
+    try:
+        # Récupérer les données JSON
+        data = json.loads(request.body)
+        entry_ids = data.get('entry_ids', [])
+        
+        if not entry_ids:
+            return JsonResponse({
+                'success': False,
+                'error': 'Aucun horaire sélectionné'
+            }, status=400)
+        
+        # Utiliser une transaction atomique pour garantir la cohérence
+        with transaction.atomic():
+            # Supprimer les entrées sélectionnées
+            deleted_count = ScheduleEntry.objects.filter(id__in=entry_ids).delete()[0]
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{deleted_count} horaire(s) supprimé(s) avec succès',
+            'deleted_count': deleted_count
+        })
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Données JSON invalides'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Erreur: {str(e)}'
         }, status=500)
 
 

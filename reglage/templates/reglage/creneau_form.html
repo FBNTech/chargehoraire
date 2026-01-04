@@ -39,6 +39,26 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Type de créneau <span class="text-danger">*</span></label>
+                                {{ form.type_creneau }}
+                                <div class="form-text">Définit si ce créneau apparaît dans les horaires de cours, d'examens, ou les deux</div>
+                                {% if form.type_creneau.errors %}
+                                    <div class="text-danger">{{ form.type_creneau.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Code Section</label>
+                                {{ form.section }}
+                                <div class="form-text">Code de section pour les créneaux d'examens (ex: STI, SEG, STM - laisser vide pour les cours généraux)</div>
+                                {% if form.section.errors %}
+                                    <div class="text-danger">{{ form.section.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Heure Début <span class="text-danger">*</span></label>
                                 {{ form.heure_debut }}
                                 <div class="form-text">Format: HH:MM (ex: 08:00)</div>
@@ -81,13 +101,28 @@
 
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle"></i>
-                            <strong>Exemple :</strong> Pour un créneau du matin de 8h à 12h, utilisez :
+                            <strong>Exemples :</strong>
                             <ul class="mb-0">
-                                <li><strong>Code :</strong> AM</li>
-                                <li><strong>Désignation :</strong> Matinée</li>
-                                <li><strong>Heure Début :</strong> 08:00</li>
-                                <li><strong>Heure Fin :</strong> 12:00</li>
-                                <li><strong>Ordre :</strong> 1</li>
+                                <li><strong>Pour un créneau de cours général :</strong>
+                                    <ul>
+                                        <li><strong>Code :</strong> AM</li>
+                                        <li><strong>Désignation :</strong> Matinée</li>
+                                        <li><strong>Type :</strong> Cours</li>
+                                        <li><strong>Section :</strong> (vide)</li>
+                                        <li><strong>Heures :</strong> 08:00 - 12:00</li>
+                                        <li><strong>Ordre :</strong> 1</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Pour un créneau d'examen STI :</strong>
+                                    <ul>
+                                        <li><strong>Code :</strong> EXAM_STI</li>
+                                        <li><strong>Désignation :</strong> Examen STI</li>
+                                        <li><strong>Type :</strong> Examen</li>
+                                        <li><strong>Code Section :</strong> STI</li>
+                                        <li><strong>Heures :</strong> 09:00 - 12:00</li>
+                                        <li><strong>Ordre :</strong> 10</li>
+                                    </ul>
+                                </li>
                             </ul>
                         </div>
 

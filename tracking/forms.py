@@ -83,6 +83,17 @@ class TeachingProgressForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
+        # Filtrer les enseignants par organisation si l'utilisateur appartient à une organisation
+        if user:
+            from accounts.organisation_utils import get_user_organisation
+            user_organisation = get_user_organisation(user)
+            if user_organisation:
+                # Filtrer les enseignants par section de l'organisation
+                teachers_queryset = Teacher.objects.filter(
+                    section=user_organisation.code
+                ).order_by('nom_complet')
+                self.fields['teacher'].queryset = teachers_queryset
+        
         # Charger les semaines depuis le module réglage
         # Afficher toutes les semaines enregistrées, triées par année académique et numéro de semaine
         weeks_queryset = SemaineCours.objects.all().order_by('-annee_academique', 'numero_semaine')

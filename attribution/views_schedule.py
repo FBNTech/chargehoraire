@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Value, F, OuterRef, Subquery
+from django.db.models import Value, F, OuterRef, Subquery, Q
 from django.db.models.functions import Replace, Concat
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -13,8 +13,10 @@ def get_ues_by_classe(request):
         # Journalisation de la requête entrante
         print(f"Requête reçue: {request.GET}")
         
-        # Récupération du paramètre classe
+        # Récupération des paramètres
         classe = request.GET.get('classe')
+        semestre = request.GET.get('semestre')  # Nouveau paramètre pour le filtre par semestre
+        
         if not classe:
             print("Erreur: Paramètre 'classe' manquant")
             return JsonResponse({'error': 'Paramètre classe manquant', 'details': 'Le paramètre classe est requis'}, status=400)
@@ -22,6 +24,7 @@ def get_ues_by_classe(request):
         # Nettoyer le code de la classe en supprimant les espaces
         classe_nettoyee = classe.replace(' ', '')
         print(f"Classe nettoyée: '{classe}' -> '{classe_nettoyee}'")
+        print(f"Semestre sélectionné: {semestre or 'Non spécifié'}")
         
         # Vérifier s'il y a des cours pour cette classe
         cours_count = Course.objects.annotate(
@@ -45,15 +48,22 @@ def get_ues_by_classe(request):
                 'details': str(e)
             }, status=500)
     
+        # Préparer le filtre de base pour la classe
+        base_filter = Q(classe_sans_espace=classe_nettoyee)
+        
+        # Ajouter le filtre par semestre si spécifié
+        if semestre:
+            base_filter &= Q(semestre=semestre)
+        
         # Récupérer les UE pour la classe spécifiée, en ignorant les espaces dans le champ classe
         try:
             ues = Course.objects.annotate(
                 classe_sans_espace=Replace('classe', Value(' '), Value(''))
             ).filter(
-                classe_sans_espace=classe_nettoyee
+                base_filter
             ).annotate(
                 enseignant=Subquery(enseignants_subquery)
-            ).order_by('code_ue')
+            ).order_by('code_ue', 'semestre')
             print(f"Requête UE exécutée avec succès, {len(ues)} résultats")
         except Exception as e:
             print(f"Erreur lors de l'exécution de la requête UE: {str(e)}")

@@ -30,17 +30,207 @@ def home(request):
     """
     Vue pour la page d'accueil du tableau de bord
     Affiche un aperçu des informations importantes
+    Filtré par organisation si l'utilisateur appartient à une organisation
     """
+    from accounts.models import Organisation, UserProfile
+    from accounts.organisation_utils import get_user_organisation
+    from reglage.models import Section, Departement, Mention, Classe
+    
+    # Récupérer l'organisation de l'utilisateur connecté
+    user_organisation = get_user_organisation(request.user)
+    is_org_user = user_organisation is not None
+    
     context = {
         'current_year': timezone.now().year,
         'active_year': AnneeAcademique.objects.filter(est_en_cours=True).first(),
         'current_week': SemaineCours.objects.filter(est_en_cours=True).first(),
+        'is_org_user': is_org_user,
+        'user_organisation': user_organisation,
     }
+    
+    if is_org_user and user_organisation:
+        # Statistiques spécifiques à l'organisation
+        
+        # Nombre de départements de l'organisation
+        org_departements = Departement.objects.filter(section__CodeSection=user_organisation.code)
+        context['org_departements_count'] = org_departements.count()
+        
+        # Nombre de mentions de l'organisation (via départements)
+        org_mentions = Mention.objects.filter(departement__section__CodeSection=user_organisation.code)
+        context['org_mentions_count'] = org_mentions.count()
+        
+        # Nombre de classes de l'organisation (via mentions -> départements)
+        org_classes = Classe.objects.filter(mention__departement__section__CodeSection=user_organisation.code)
+        context['org_classes_count'] = org_classes.count()
+        
+        # Nombre d'enseignants de l'organisation
+        org_teachers = Teacher.objects.filter(section=user_organisation.code)
+        context['org_teachers_count'] = org_teachers.count()
+        
+        # Nombre de cours de l'organisation
+        org_courses = Course.objects.filter(section=user_organisation.code)
+        context['org_courses_count'] = org_courses.count()
+        
+        # Nombre d'utilisateurs de l'organisation
+        org_users = UserProfile.objects.filter(organisation=user_organisation)
+        context['org_users_count'] = org_users.count()
+        
+        # Heures par semestre IMPAIR (S1, S3, S5, S7, S9, S11)
+        # Heures allouées (CMI + TD/TP) pour les semestres impairs
+        courses_impair = Course.objects.filter(
+            section=user_organisation.code,
+            semestre__in=['S1', 'S3', 'S5', 'S7', 'S9', 'S11']
+        )
+        heures_allouees_impair = courses_impair.aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('cmi') + F('td_tp'),
+                    output_field=FloatField()
+                )
+            )
+        )['total'] or 0
+        
+        # Heures réalisées pour les semestres impairs
+        heures_realisees_impair = TeachingProgress.objects.filter(
+            course__section=user_organisation.code,
+            course__semestre__in=['S1', 'S3', 'S5', 'S7', 'S9', 'S11']
+        ).aggregate(total=Sum('hours_done'))['total'] or 0
+        
+        # Taux de réalisation semestres impairs
+        taux_realisation_impair = 0
+        if heures_allouees_impair > 0:
+            taux_realisation_impair = round((float(heures_realisees_impair) / float(heures_allouees_impair)) * 100, 1)
+        
+        context['heures_allouees_impair'] = heures_allouees_impair
+        context['heures_realisees_impair'] = heures_realisees_impair
+        context['taux_realisation_impair'] = taux_realisation_impair
+        
+        # Heures par semestre PAIR (S2, S4, S6, S8, S10, S12)
+        courses_pair = Course.objects.filter(
+            section=user_organisation.code,
+            semestre__in=['S2', 'S4', 'S6', 'S8', 'S10', 'S12']
+        )
+        heures_allouees_pair = courses_pair.aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('cmi') + F('td_tp'),
+                    output_field=FloatField()
+                )
+            )
+        )['total'] or 0
+        
+        # Heures réalisées pour les semestres pairs
+        heures_realisees_pair = TeachingProgress.objects.filter(
+            course__section=user_organisation.code,
+            course__semestre__in=['S2', 'S4', 'S6', 'S8', 'S10', 'S12']
+        ).aggregate(total=Sum('hours_done'))['total'] or 0
+        
+        # Taux de réalisation semestres pairs
+        taux_realisation_pair = 0
+        if heures_allouees_pair > 0:
+            taux_realisation_pair = round((float(heures_realisees_pair) / float(heures_allouees_pair)) * 100, 1)
+        
+        context['heures_allouees_pair'] = heures_allouees_pair
+        context['heures_realisees_pair'] = heures_realisees_pair
+        context['taux_realisation_pair'] = taux_realisation_pair
+    else:
+        # Admin global / Superuser : statistiques globales puis par organisation
+        
+        # ==================== STATISTIQUES GLOBALES ====================
+        # Totaux globaux
+        context['global_departements_count'] = Departement.objects.count()
+        context['global_mentions_count'] = Mention.objects.count()
+        context['global_classes_count'] = Classe.objects.count()
+        context['global_teachers_count'] = Teacher.objects.count()
+        context['global_courses_count'] = Course.objects.count()
+        context['global_users_count'] = UserProfile.objects.count()
+        
+        # Heures globales - Semestres Impairs
+        global_courses_impair = Course.objects.filter(semestre__in=['S1', 'S3', 'S5', 'S7', 'S9', 'S11'])
+        global_heures_allouees_impair = global_courses_impair.aggregate(
+            total=Sum(ExpressionWrapper(F('cmi') + F('td_tp'), output_field=FloatField()))
+        )['total'] or 0
+        global_heures_realisees_impair = TeachingProgress.objects.filter(
+            course__semestre__in=['S1', 'S3', 'S5', 'S7', 'S9', 'S11']
+        ).aggregate(total=Sum('hours_done'))['total'] or 0
+        global_taux_impair = round((float(global_heures_realisees_impair) / float(global_heures_allouees_impair)) * 100, 1) if global_heures_allouees_impair > 0 else 0
+        
+        context['global_heures_allouees_impair'] = global_heures_allouees_impair
+        context['global_heures_realisees_impair'] = global_heures_realisees_impair
+        context['global_taux_impair'] = global_taux_impair
+        
+        # Heures globales - Semestres Pairs
+        global_courses_pair = Course.objects.filter(semestre__in=['S2', 'S4', 'S6', 'S8', 'S10', 'S12'])
+        global_heures_allouees_pair = global_courses_pair.aggregate(
+            total=Sum(ExpressionWrapper(F('cmi') + F('td_tp'), output_field=FloatField()))
+        )['total'] or 0
+        global_heures_realisees_pair = TeachingProgress.objects.filter(
+            course__semestre__in=['S2', 'S4', 'S6', 'S8', 'S10', 'S12']
+        ).aggregate(total=Sum('hours_done'))['total'] or 0
+        global_taux_pair = round((float(global_heures_realisees_pair) / float(global_heures_allouees_pair)) * 100, 1) if global_heures_allouees_pair > 0 else 0
+        
+        context['global_heures_allouees_pair'] = global_heures_allouees_pair
+        context['global_heures_realisees_pair'] = global_heures_realisees_pair
+        context['global_taux_pair'] = global_taux_pair
+        
+        # ==================== STATISTIQUES PAR ORGANISATION ====================
+        organisations = Organisation.objects.filter(est_active=True).order_by('nom')
+        organisations_stats = []
+        
+        for org in organisations:
+            org_stats = {
+                'organisation': org,
+                'departements_count': Departement.objects.filter(section__CodeSection=org.code).count(),
+                'mentions_count': Mention.objects.filter(departement__section__CodeSection=org.code).count(),
+                'classes_count': Classe.objects.filter(mention__departement__section__CodeSection=org.code).count(),
+                'teachers_count': Teacher.objects.filter(section=org.code).count(),
+                'courses_count': Course.objects.filter(section=org.code).count(),
+                'users_count': UserProfile.objects.filter(organisation=org).count(),
+            }
+            
+            # Heures semestres impairs pour cette organisation
+            org_courses_impair = Course.objects.filter(section=org.code, semestre__in=['S1', 'S3', 'S5', 'S7', 'S9', 'S11'])
+            org_heures_allouees_impair = org_courses_impair.aggregate(
+                total=Sum(ExpressionWrapper(F('cmi') + F('td_tp'), output_field=FloatField()))
+            )['total'] or 0
+            org_heures_realisees_impair = TeachingProgress.objects.filter(
+                course__section=org.code, course__semestre__in=['S1', 'S3', 'S5', 'S7', 'S9', 'S11']
+            ).aggregate(total=Sum('hours_done'))['total'] or 0
+            org_taux_impair = round((float(org_heures_realisees_impair) / float(org_heures_allouees_impair)) * 100, 1) if org_heures_allouees_impair > 0 else 0
+            
+            org_stats['heures_allouees_impair'] = org_heures_allouees_impair
+            org_stats['heures_realisees_impair'] = org_heures_realisees_impair
+            org_stats['taux_impair'] = org_taux_impair
+            
+            # Heures semestres pairs pour cette organisation
+            org_courses_pair = Course.objects.filter(section=org.code, semestre__in=['S2', 'S4', 'S6', 'S8', 'S10', 'S12'])
+            org_heures_allouees_pair = org_courses_pair.aggregate(
+                total=Sum(ExpressionWrapper(F('cmi') + F('td_tp'), output_field=FloatField()))
+            )['total'] or 0
+            org_heures_realisees_pair = TeachingProgress.objects.filter(
+                course__section=org.code, course__semestre__in=['S2', 'S4', 'S6', 'S8', 'S10', 'S12']
+            ).aggregate(total=Sum('hours_done'))['total'] or 0
+            org_taux_pair = round((float(org_heures_realisees_pair) / float(org_heures_allouees_pair)) * 100, 1) if org_heures_allouees_pair > 0 else 0
+            
+            org_stats['heures_allouees_pair'] = org_heures_allouees_pair
+            org_stats['heures_realisees_pair'] = org_heures_realisees_pair
+            org_stats['taux_pair'] = org_taux_pair
+            
+            organisations_stats.append(org_stats)
+        
+        context['organisations'] = organisations
+        context['organisations_stats'] = organisations_stats
+        context['total_organisations'] = organisations.count()
     
     # Statistiques rapides (si l'utilisateur a les permissions)
     if request.user.has_perm('attribution.view_scheduleentry'):
         from attribution.models import ScheduleEntry
-        context['total_cours'] = ScheduleEntry.objects.count()
+        if is_org_user and user_organisation:
+            context['total_cours'] = ScheduleEntry.objects.filter(
+                course__section=user_organisation.code
+            ).count()
+        else:
+            context['total_cours'] = ScheduleEntry.objects.count()
         
     return render(request, 'home.html', context)
 
@@ -50,19 +240,45 @@ class DashboardView(TemplateView):
     template_name = 'tracking/dashboard.html'
     
     def get_context_data(self, **kwargs):
+        from accounts.organisation_utils import get_user_organisation
+        from reglage.models import Section, Departement, Mention, Classe
+        
         context = super().get_context_data(**kwargs)
+        
+        # Récupérer l'organisation de l'utilisateur connecté
+        user_organisation = get_user_organisation(self.request.user)
+        is_org_user = user_organisation is not None
         
         # Année académique actuelle
         current_year = timezone.now().year
         academic_year = f"{current_year-1}-{current_year}" if timezone.now().month < 9 else f"{current_year}-{current_year+1}"
         
+        # Filtrer par organisation si l'utilisateur appartient à une organisation
+        teaching_progress_queryset = TeachingProgress.objects.all()
+        attribution_queryset = Attribution.objects.select_related('code_ue').filter(code_ue__isnull=False)
+        course_queryset = Course.objects.all()
+        teacher_queryset = Teacher.objects.all()
+        
+        if user_organisation:
+            # Filtrer par enseignants de l'organisation
+            teaching_progress_queryset = teaching_progress_queryset.filter(
+                teacher__section=user_organisation.code
+            )
+            attribution_queryset = attribution_queryset.filter(
+                matricule__section=user_organisation.code
+            )
+            course_queryset = course_queryset.filter(
+                attributions__matricule__section=user_organisation.code
+            ).distinct()
+            teacher_queryset = teacher_queryset.filter(
+                section=user_organisation.code
+            )
+        
         # Heures effectuées (total de tous les enregistrements)
-        total_hours_done = TeachingProgress.objects.aggregate(total=Sum('hours_done'))['total'] or 0
+        total_hours_done = teaching_progress_queryset.aggregate(total=Sum('hours_done'))['total'] or 0
         
         # Heures allouées (basé sur les charges des enseignants)
-        total_hours_allocated = Attribution.objects.select_related('code_ue').filter(
-            code_ue__isnull=False
-        ).aggregate(
+        total_hours_allocated = attribution_queryset.aggregate(
             total=Sum(
                 ExpressionWrapper(
                     F('code_ue__cmi') + F('code_ue__td_tp'),
@@ -82,12 +298,12 @@ class DashboardView(TemplateView):
             'total_hours_done': total_hours_done,
             'total_hours_allocated': total_hours_allocated,
             'global_progress_percentage': round(global_progress_percentage, 1),
-            'total_courses': Course.objects.count(),
-            'total_teachers': Teacher.objects.count(),
+            'total_courses': course_queryset.count(),
+            'total_teachers': teacher_queryset.count(),
         }
         
         # Progression des cours depuis TeachingProgress avec jointure Course
-        course_progress = TeachingProgress.objects.filter(
+        course_progress = teaching_progress_queryset.filter(
             week__annee_academique=academic_year
         ).select_related('course').values(
             'course__code_ue',
@@ -124,12 +340,28 @@ class DashboardView(TemplateView):
         # Progression des enseignants par type de charge
         teacher_progress = []
         
-        # Récupérer toutes les combinaisons uniques enseignant-type_charge
+        # Récupérer les combinaisons uniques enseignant-type_charge filtrées par organisation
+        teaching_progress_teachers = TeachingProgress.objects.filter(
+            week__annee_academique=academic_year
+        )
+        
+        if user_organisation:
+            teaching_progress_teachers = teaching_progress_teachers.filter(
+                teacher__section=user_organisation.code
+            )
+        
         teacher_charge_combinations = Attribution.objects.filter(
-            matricule__matricule__in=TeachingProgress.objects.filter(
-                week__annee_academique=academic_year
-            ).values_list('teacher__matricule', flat=True).distinct()
-        ).values('matricule__matricule', 'matricule__nom_complet', 'type_charge').distinct()
+            matricule__matricule__in=teaching_progress_teachers.values_list('teacher__matricule', flat=True).distinct()
+        )
+        
+        if user_organisation:
+            teacher_charge_combinations = teacher_charge_combinations.filter(
+                matricule__section=user_organisation.code
+            )
+        
+        teacher_charge_combinations = teacher_charge_combinations.values(
+            'matricule__matricule', 'matricule__nom_complet', 'type_charge'
+        ).distinct()
         
         for combination in teacher_charge_combinations:
             teacher_matricule = combination['matricule__matricule']
@@ -185,7 +417,14 @@ class DashboardView(TemplateView):
         context['teacher_progress'] = teacher_progress
         
         # Progression des classes
-        class_progress = Course.objects.values(
+        class_progress_queryset = Course.objects.all()
+        
+        if user_organisation:
+            class_progress_queryset = class_progress_queryset.filter(
+                section=user_organisation.code
+            )
+        
+        class_progress = class_progress_queryset.values(
             'classe', 'semestre'
         ).annotate(
             nombre_ue=Count('id'),
@@ -221,8 +460,11 @@ class DashboardView(TemplateView):
         # Formulaire de filtre
         context['filter_form'] = ProgressFilterForm(self.request.GET or None)
         
-        # Récupérer les enseignants avec la fonction CSAE
-        context['csae_teachers'] = Teacher.objects.filter(fonction='CSAE').order_by('nom_complet')
+        # Récupérer les enseignants avec la fonction CSAE (filtrés par organisation)
+        csae_teachers = Teacher.objects.filter(fonction='CSAE')
+        if user_organisation:
+            csae_teachers = csae_teachers.filter(section=user_organisation.code)
+        context['csae_teachers'] = csae_teachers.order_by('nom_complet')
         
         # Récupérer les semaines disponibles pour le filtre du PDF
         context['semaines_disponibles'] = SemaineCours.objects.filter(
@@ -237,6 +479,46 @@ class TeachingProgressListView(ListView):
     template_name = 'tracking/progress_list.html'
     context_object_name = 'progress_entries'
     paginate_by = 20
+    
+    def get_queryset(self):
+        from accounts.organisation_utils import get_user_organisation
+        
+        queryset = super().get_queryset()
+        
+        # Filtrer par organisation si l'utilisateur appartient à une organisation
+        user_organisation = get_user_organisation(self.request.user)
+        if user_organisation:
+            # Filtrer par enseignants de l'organisation
+            queryset = queryset.filter(teacher__section=user_organisation.code)
+        
+        # Filtrer selon les paramètres de requête
+        filter_form = ProgressFilterForm(self.request.GET or None)
+        
+        if filter_form.is_valid():
+            filters = {}
+            
+            if teacher_id := filter_form.cleaned_data.get('teacher'):
+                filters['teacher'] = teacher_id
+            
+            if course_id := filter_form.cleaned_data.get('course'):
+                filters['course'] = course_id
+            
+            if academic_year := filter_form.cleaned_data.get('academic_year'):
+                filters['week__annee_academique'] = academic_year
+            
+            if week_start := filter_form.cleaned_data.get('week_start'):
+                filters['week__numero_semaine__gte'] = week_start
+            
+            if week_end := filter_form.cleaned_data.get('week_end'):
+                filters['week__numero_semaine__lte'] = week_end
+            
+            if status := filter_form.cleaned_data.get('status'):
+                filters['status'] = status
+            
+            if filters:
+                queryset = queryset.filter(**filters)
+        
+        return queryset.select_related('teacher', 'course', 'week').order_by('-week__annee_academique', '-week__numero_semaine')
 
 class TeachingProgressPrintView(ListView):
     """Vue d'impression des enregistrements de suivi des enseignements"""
@@ -245,7 +527,15 @@ class TeachingProgressPrintView(ListView):
     context_object_name = 'progress_entries'
     
     def get_queryset(self):
+        from accounts.organisation_utils import get_user_organisation
+        
         queryset = super().get_queryset()
+        
+        # Filtrer par organisation si l'utilisateur appartient à une organisation
+        user_organisation = get_user_organisation(self.request.user)
+        if user_organisation:
+            # Filtrer par enseignants de l'organisation
+            queryset = queryset.filter(teacher__section=user_organisation.code)
         
         # Filtrer selon les paramètres de requête
         filter_form = ProgressFilterForm(self.request.GET or None)
@@ -450,8 +740,18 @@ class TeacherProgressView(DetailView):
     context_object_name = 'teacher'
     
     def get_context_data(self, **kwargs):
+        from accounts.organisation_utils import get_user_organisation
+        
         context = super().get_context_data(**kwargs)
         teacher = self.get_object()
+        
+        # Vérifier si l'utilisateur a le droit de voir cet enseignant
+        user_organisation = get_user_organisation(self.request.user)
+        if user_organisation:
+            # Vérifier que l'enseignant appartient à la même organisation
+            if teacher.section != user_organisation.code:
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("Vous n'avez pas l'autorisation de voir cet enseignant.")
         
         # Année académique actuelle ou sélectionnée
         academic_year = self.request.GET.get('academic_year', '')
@@ -505,8 +805,23 @@ class CourseProgressView(DetailView):
     context_object_name = 'course'
     
     def get_context_data(self, **kwargs):
+        from accounts.organisation_utils import get_user_organisation
+        
         context = super().get_context_data(**kwargs)
         course = self.get_object()
+        
+        # Vérifier si l'utilisateur a le droit de voir ce cours
+        user_organisation = get_user_organisation(self.request.user)
+        if user_organisation:
+            # Vérifier que le cours appartient à la même organisation
+            # Vérifier si au moins une attribution de ce cours est liée à un enseignant de l'organisation
+            has_org_attribution = course.attributions.filter(
+                matricule__section=user_organisation.code
+            ).exists()
+            
+            if not has_org_attribution:
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("Vous n'avez pas l'autorisation de voir ce cours.")
         
         # Année académique actuelle ou sélectionnée
         academic_year = self.request.GET.get('academic_year', '')
@@ -514,20 +829,34 @@ class CourseProgressView(DetailView):
             current_year = timezone.now().year
             academic_year = f"{current_year-1}-{current_year}" if timezone.now().month < 9 else f"{current_year}-{current_year+1}"
         
-        # Récupérer les stats pour ce cours
-        stats = ProgressStats.objects.filter(
+        # Filtrer les stats par organisation si nécessaire
+        stats_queryset = ProgressStats.objects.filter(
             course=course,
             academic_year=academic_year
-        ).select_related('teacher')
+        )
+        
+        if user_organisation:
+            stats_queryset = stats_queryset.filter(
+                teacher__section=user_organisation.code
+            )
+        
+        stats = stats_queryset.select_related('teacher')
         
         context['stats'] = stats
         context['academic_year'] = academic_year
         
         # Progression hebdomadaire
-        weekly_progress = TeachingProgress.objects.filter(
+        weekly_progress_queryset = TeachingProgress.objects.filter(
             course=course,
             week__annee_academique=academic_year
-        ).order_by('week__numero_semaine').values('week__numero_semaine').annotate(
+        )
+        
+        if user_organisation:
+            weekly_progress_queryset = weekly_progress_queryset.filter(
+                teacher__section=user_organisation.code
+            )
+        
+        weekly_progress = weekly_progress_queryset.order_by('week__numero_semaine').values('week__numero_semaine').annotate(
             total_hours=Sum('hours_done')
         )
         
@@ -750,8 +1079,12 @@ def dashboard_pdf_view(request):
     elif type_semestre == 'pair':
         course_filter['semestre__in'] = ['S2', 'S4', 'S6', 'S8']
     
-    # Récupérer tous les cours
-    all_courses = Course.objects.filter(**course_filter).values(
+    # Récupérer tous les cours (filtrés par organisation)
+    course_queryset = Course.objects.filter(**course_filter)
+    if user_org:
+        course_queryset = course_queryset.filter(section=user_org.code)
+    
+    all_courses = course_queryset.values(
         'code_ue',
         'intitule_ue',
         'intitule_ec',
@@ -781,9 +1114,11 @@ def dashboard_pdf_view(request):
         progress_filter['course__semestre__in'] = ['S2', 'S4', 'S6', 'S8']
     
     progress_by_course = {}
-    progress_data = TeachingProgress.objects.filter(
-        **progress_filter
-    ).values('course_id').annotate(
+    progress_queryset = TeachingProgress.objects.filter(**progress_filter)
+    if user_org:
+        progress_queryset = progress_queryset.filter(teacher__section=user_org.code)
+    
+    progress_data = progress_queryset.values('course_id').annotate(
         total_hours=Sum('hours_done')
     )
     
@@ -908,11 +1243,21 @@ def dashboard_pdf_view(request):
     elif type_semestre == 'pair':
         teacher_progress_filter['course__semestre__in'] = ['S2', 'S4', 'S6', 'S8']
     
+    # Filtrer par organisation si spécifiée
+    teaching_progress_teachers = TeachingProgress.objects.filter(**teacher_progress_filter)
+    if user_org:
+        teaching_progress_teachers = teaching_progress_teachers.filter(teacher__section=user_org.code)
+    
     teacher_charge_combinations = Attribution.objects.filter(
-        matricule__matricule__in=TeachingProgress.objects.filter(
-            **teacher_progress_filter
-        ).values_list('teacher__matricule', flat=True).distinct()
-    ).values('matricule__matricule', 'matricule__nom_complet', 'type_charge').distinct()
+        matricule__matricule__in=teaching_progress_teachers.values_list('teacher__matricule', flat=True).distinct()
+    )
+    
+    if user_org:
+        teacher_charge_combinations = teacher_charge_combinations.filter(matricule__section=user_org.code)
+    
+    teacher_charge_combinations = teacher_charge_combinations.values(
+        'matricule__matricule', 'matricule__nom_complet', 'type_charge'
+    ).distinct()
     
     for combination in teacher_charge_combinations:
         teacher_matricule = combination['matricule__matricule']
@@ -1022,6 +1367,8 @@ def dashboard_pdf_view(request):
 @user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/')
 def action_history_view(request):
     """Vue pour afficher l'historique des actions (réservé aux administrateurs)"""
+    from accounts.models import Organisation
+    
     # Enregistrer la consultation de l'historique
     ActionLog.log_action(
         user=request.user,
@@ -1032,12 +1379,13 @@ def action_history_view(request):
     )
     
     # Récupérer tous les logs
-    logs = ActionLog.objects.all().select_related('user')
+    logs = ActionLog.objects.all().select_related('user', 'organisation')
     
     # Filtres
     action_type = request.GET.get('action_type')
     username = request.GET.get('username')
     model_name = request.GET.get('model_name')
+    organisation_id = request.GET.get('organisation')
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     search = request.GET.get('search')
@@ -1050,6 +1398,9 @@ def action_history_view(request):
     
     if model_name:
         logs = logs.filter(model_name__icontains=model_name)
+    
+    if organisation_id:
+        logs = logs.filter(organisation_id=organisation_id)
     
     if date_from:
         try:
@@ -1068,13 +1419,32 @@ def action_history_view(request):
     if search:
         logs = logs.filter(description__icontains=search)
     
-    # Statistiques
+    # Gérer la suppression sélective
+    if request.method == 'POST' and 'delete_selected' in request.POST:
+        selected_ids = request.POST.getlist('selected_actions')
+        if selected_ids:
+            deleted_count = ActionLog.objects.filter(id__in=selected_ids).delete()[0]
+            return redirect('tracking:action_history')
+    
+    # Statistiques des types d'action - créer une liste complète avec tous les types
+    actions_by_type_dict = {action['action_type']: action['count'] for action in logs.values('action_type').annotate(count=Count('id'))}
+    
+    # Créer une liste complète avec tous les types d'action, triée par nombre d'actions
+    all_actions_by_type = []
+    for type_code, type_label in ActionLog.ACTION_TYPES:
+        count = actions_by_type_dict.get(type_code, 0)
+        all_actions_by_type.append({
+            'type_code': type_code,
+            'type_label': type_label,
+            'count': count
+        })
+    
+    # Trier par nombre d'actions (décroissant) pour que les plus pertinents apparaissent en premier
+    all_actions_by_type.sort(key=lambda x: x['count'], reverse=True)
+    
     stats = {
-        'total_actions': logs.count(),
-        'actions_today': logs.filter(timestamp__date=timezone.now().date()).count(),
-        'actions_this_week': logs.filter(timestamp__gte=timezone.now() - timedelta(days=7)).count(),
-        'unique_users': logs.values('username').distinct().count(),
-        'actions_by_type': logs.values('action_type').annotate(count=Count('id')).order_by('-count')
+        'actions_by_type': logs.values('action_type').annotate(count=Count('id')).order_by('-count'),
+        'all_actions_by_type': all_actions_by_type,
     }
     
     # Pagination
@@ -1085,26 +1455,51 @@ def action_history_view(request):
     # Liste des types d'actions pour le filtre
     action_types = ActionLog.ACTION_TYPES
     
-    # Liste des utilisateurs uniques
-    unique_users = ActionLog.objects.values_list('username', flat=True).distinct().order_by('username')
+    # Liste de tous les utilisateurs regroupés par organisation
+    from django.contrib.auth.models import User
+    from accounts.models import UserProfile, Organisation
+    
+    # Récupérer tous les utilisateurs avec leur organisation via UserProfile
+    all_users = []
+    users = User.objects.all().select_related('profile__organisation')
+    
+    for user in users:
+        organisation_name = None
+        if hasattr(user, 'profile') and user.profile.organisation:
+            organisation_name = user.profile.organisation.nom
+        
+        all_users.append({
+            'username': user.username,
+            'organisation__nom': organisation_name
+        })
+    
+    # Trier par organisation puis par username
+    all_users.sort(key=lambda x: (x['organisation__nom'] or '', x['username']))
     
     # Liste des modèles uniques
     unique_models = ActionLog.objects.exclude(model_name__isnull=True).values_list('model_name', flat=True).distinct().order_by('model_name')
+    
+    # Liste des organisations
+    organisations = Organisation.objects.filter(est_active=True).order_by('nom')
+    
+    filters = {
+        'action_type': action_type,
+        'username': username,
+        'model_name': model_name,
+        'organisation': organisation_id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'search': search,
+    }
     
     context = {
         'page_obj': page_obj,
         'stats': stats,
         'action_types': action_types,
-        'unique_users': unique_users,
+        'unique_users': all_users,
         'unique_models': unique_models,
-        'filters': {
-            'action_type': action_type,
-            'username': username,
-            'model_name': model_name,
-            'date_from': date_from,
-            'date_to': date_to,
-            'search': search,
-        }
+        'organisations': organisations,
+        'filters': filters,
     }
     
     return render(request, 'tracking/action_history.html', context)

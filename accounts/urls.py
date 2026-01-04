@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from . import views
+from . import views, admin_organisation, views_organisation_users
 
 app_name = 'accounts'
 
@@ -40,5 +40,17 @@ urlpatterns = [
     path('users/create-from-teacher/', views.create_teacher_user, name='create_teacher_user'),
     path('users/<int:pk>/roles/', views.update_user_roles, name='user_roles'),
     path('users/<int:pk>/toggle-active/', views.activate_deactivate_user, name='toggle_user_active'),
+    
+    # Gestion des organisations (admin seulement)
+    path('organisations/', admin_organisation.organisation_list, name='organisation_list'),
+    path('organisations/create/', admin_organisation.organisation_create, name='organisation_create'),
+    path('organisations/<int:pk>/', admin_organisation.organisation_detail, name='organisation_detail'),
+    path('organisations/<int:pk>/edit/', admin_organisation.organisation_edit, name='organisation_edit'),
+    path('organisations/<int:pk>/delete/', admin_organisation.organisation_delete, name='organisation_delete'),
+    
+    # Gestion des utilisateurs par organisation
+    path('organisations/<int:org_id>/users/', views_organisation_users.organisation_users_list, name='organisation_users_list'),
+    path('organisations/<int:org_id>/users/create/', views_organisation_users.organisation_user_create, name='organisation_user_create'),
+    
     path('users/<int:pk>/delete/', views.delete_user, name='user_delete'),
 ]

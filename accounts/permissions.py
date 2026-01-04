@@ -272,17 +272,25 @@ def check_department_belongs_to_section(department, section):
     return True
 
 def can_edit_courses_teachers(user):
-    """Vérifie si l'utilisateur peut modifier des cours ou des enseignants (Administrateur, Gestionnaire)."""
+    """Vérifie si l'utilisateur peut modifier des cours ou des enseignants (Administrateur, Gestionnaire, Org User)."""
     if not user.is_authenticated:
         return False
+    
+    # Utilisateur d'organisation peut éditer
+    if user.profile.organisation is not None:
+        return True
     
     return (user.is_staff or 
             user.profile.is_admin or 
             user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())
 
 def can_delete_all(user):
-    """Vérifie si l'utilisateur peut utiliser le bouton 'Supprimer tout' (Administrateur uniquement)."""
+    """Vérifie si l'utilisateur peut utiliser le bouton 'Supprimer tout' (Administrateur uniquement, pas org user)."""
     if not user.is_authenticated:
+        return False
+    
+    # Les utilisateurs d'organisation ne peuvent jamais supprimer tout
+    if user.profile.organisation is not None and not user.is_superuser:
         return False
     
     # Seul l'administrateur peut supprimer tout

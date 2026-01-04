@@ -9,6 +9,7 @@ from reglage.models import Semestre, SemaineCours
 
 class AcademicWeek(models.Model):
     """Modèle pour définir les semaines académiques"""
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='academic_weeks', verbose_name='Organisation', null=True, blank=True)
     codesemaine = models.CharField(max_length=20, verbose_name="Code semaine", default="S-001")
     semestre = models.ForeignKey(Semestre, on_delete=models.CASCADE, related_name='semaines', verbose_name="Semestre", null=True, blank=True)
     start_date = models.DateField(verbose_name="Date de début")
@@ -30,6 +31,7 @@ class AcademicWeek(models.Model):
 
 class TeachingProgress(models.Model):
     """Modèle pour enregistrer les heures d'enseignement effectuées par semaine"""
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='teaching_progress', verbose_name='Organisation', null=True, blank=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='progress_records', verbose_name="UE")
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='progress_records', verbose_name="Enseignant")
     week = models.ForeignKey(SemaineCours, on_delete=models.CASCADE, related_name='progress_records', verbose_name="Semaine")
@@ -131,18 +133,28 @@ class ActionLog(models.Model):
         ('create', 'Création'),
         ('update', 'Modification'),
         ('delete', 'Suppression'),
-        ('view', 'Consultation'),
         ('login', 'Connexion'),
         ('logout', 'Déconnexion'),
         ('export', 'Exportation'),
         ('import', 'Importation'),
         ('print', 'Impression'),
+        ('dashboard_view', 'Vue tableau de bord'),
+        ('progress_create', 'Création suivi'),
+        ('progress_update', 'Modification suivi'),
+        ('progress_delete', 'Suppression suivi'),
+        ('schedule_create', 'Création planning'),
+        ('schedule_update', 'Modification planning'),
+        ('schedule_delete', 'Suppression planning'),
+        ('attribution_create', 'Création attribution'),
+        ('attribution_update', 'Modification attribution'),
+        ('attribution_delete', 'Suppression attribution'),
         ('other', 'Autre'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Utilisateur")
     username = models.CharField(max_length=150, verbose_name="Nom d'utilisateur")  # Garde le nom si l'utilisateur est supprimé
-    action_type = models.CharField(max_length=20, choices=ACTION_TYPES, verbose_name="Type d'action")
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Organisation")
+    action_type = models.CharField(max_length=30, choices=ACTION_TYPES, verbose_name="Type d'action")
     model_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Modèle concerné")
     object_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="ID de l'objet")
     object_repr = models.TextField(blank=True, null=True, verbose_name="Représentation de l'objet")
@@ -159,6 +171,8 @@ class ActionLog(models.Model):
             models.Index(fields=['-timestamp', 'user']),
             models.Index(fields=['action_type']),
             models.Index(fields=['model_name']),
+            models.Index(fields=['organisation']),
+            models.Index(fields=['-timestamp', 'organisation']),
         ]
     
     def __str__(self):
@@ -169,6 +183,7 @@ class ActionLog(models.Model):
         """Méthode helper pour créer un log d'action"""
         ip_address = None
         user_agent = None
+        organisation = None
         
         if request:
             # Récupérer l'IP
@@ -180,10 +195,16 @@ class ActionLog(models.Model):
             
             # Récupérer le user agent
             user_agent = request.META.get('HTTP_USER_AGENT', '')[:500]  # Limiter la taille
+            
+            # Récupérer l'organisation de l'utilisateur
+            if user and user.is_authenticated:
+                from accounts.organisation_utils import get_user_organisation
+                organisation = get_user_organisation(user)
         
         return cls.objects.create(
             user=user if user and user.is_authenticated else None,
             username=user.username if user and user.is_authenticated else 'Anonyme',
+            organisation=organisation,
             action_type=action_type,
             model_name=model_name,
             object_id=str(object_id) if object_id else None,

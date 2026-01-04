@@ -1,0 +1,96 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Test des Actions{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-vial"></i> Test des Actions</h2>
+            <p class="text-muted">Page pour tester l'enregistrement des différentes actions</p>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Générer des actions de test</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="action_type" class="form-label">Type d'action</label>
+                            <select name="action_type" id="action_type" class="form-select">
+                                <option value="create">Création</option>
+                                <option value="update">Modification</option>
+                                <option value="delete">Suppression</option>
+                                <option value="export">Export</option>
+                                <option value="print">Impression</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Générer l'action
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Actions récentes</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_actions %}
+                        <div class="list-group">
+                            {% for action in recent_actions %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ action.get_action_type_display }}</strong>
+                                    <small class="text-muted">{{ action.timestamp|date:"H:i:s" }}</small>
+                                </div>
+                                <small class="text-muted">{{ action.description }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucune action enregistrée</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Instructions de test</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li>Sélectionnez un type d'action dans le formulaire</li>
+                        <li>Cliquez sur "Générer l'action"</li>
+                        <li>Vérifiez que l'action apparaît dans la liste des actions récentes</li>
+                        <li>Allez sur la page <a href="{% url 'tracking:action_history' %}">Historique des Actions</a> pour voir toutes les actions</li>
+                    </ol>
+                    <p class="text-muted">
+                        Les actions sont également enregistrées automatiquement lorsque vous naviguez sur le site :
+                    </p>
+                    <ul>
+                        <li>Accès au tableau de bord</li>
+                        <li>Consultation des pages de suivi</li>
+                        <li>Exports PDF</li>
+                        <li>Impressions</li>
+                        <li>Créations/modifications via les formulaires</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

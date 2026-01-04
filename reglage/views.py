@@ -3,11 +3,31 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.http import HttpResponse
-from .models import (Section, Departement, Mention, Niveau, Classe, Grade, 
-                     CategorieEnseignant, Semestre, Fonction, AnneeAcademique, Salle, Creneau, SemaineCours)
-from .forms import SemaineCoursForm
+from django.db.models import Q
+from .models import (
+    Section, Departement, Mention, Niveau, Classe, Grade, CategorieEnseignant, 
+    Semestre, Fonction, AnneeAcademique, Salle, Creneau, SemaineCours
+)
+from .forms import CreneauForm, SemaineCoursForm
 import openpyxl
 from django.db import transaction
+from accounts.organisation_utils import get_user_organisation, is_org_user
+
+
+class OrganisationFilterMixin:
+    """Mixin pour filtrer les données par organisation de l'utilisateur"""
+    
+    def get_user_organisation(self):
+        return get_user_organisation(self.request.user)
+    
+    def is_org_user(self):
+        return is_org_user(self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_org_user'] = self.is_org_user()
+        context['user_organisation'] = self.get_user_organisation()
+        return context
 
 
 class SafeDeleteView(DeleteView):
@@ -42,10 +62,18 @@ def gestion_entites(request):
     return render(request, 'reglage/gestion_entites.html')
 
 # Vues pour Section
-class SectionListView(ListView):
+class SectionListView(OrganisationFilterMixin, ListView):
     model = Section
     template_name = 'reglage/section_list.html'
     context_object_name = 'sections'
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = self.get_user_organisation()
+        if org:
+            # Filtrer pour ne montrer que la section de l'organisation
+            return queryset.filter(CodeSection=org.code)
+        return queryset
 
 class SectionCreateView(CreateView):
     model = Section
@@ -65,10 +93,18 @@ class SectionDeleteView(SafeDeleteView):
     success_url = reverse_lazy('reglage:section_list')
 
 # Vues pour Departement
-class DepartementListView(ListView):
+class DepartementListView(OrganisationFilterMixin, ListView):
     model = Departement
     template_name = 'reglage/departement_list.html'
     context_object_name = 'departements'
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        org = self.get_user_organisation()
+        if org:
+            # Filtrer par la section de l'organisation
+            return queryset.filter(section__CodeSection=org.code)
+        return queryset
 
 class DepartementCreateView(CreateView):
     model = Departement
@@ -88,22 +124,50 @@ class DepartementDeleteView(SafeDeleteView):
     success_url = reverse_lazy('reglage:departement_list')
 
 # Vues pour Mention
-class MentionListView(ListView):
+class MentionListView(OrganisationFilterMixin, ListView):
     model = Mention
     template_name = 'reglage/mention_list.html'
     context_object_name = 'mentions'
+    
+    def get_queryset(self):
+        queryset = Mention.objects.all()
+        # Filtrer par organisation (via departement -> section)
+        user_org = self.get_user_organisation()
+        if user_org:
+            queryset = queryset.filter(departement__section__CodeSection=user_org.code)
+        return queryset.order_by('CodeMention')
 
-class MentionCreateView(CreateView):
+class MentionCreateView(OrganisationFilterMixin, CreateView):
     model = Mention
     template_name = 'reglage/mention_form.html'
-    fields = ['CodeMention', 'DesignationMention']
+    fields = ['CodeMention', 'DesignationMention', 'departement']
     success_url = reverse_lazy('reglage:mention_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Filtrer les départements par organisation
+        user_org = self.get_user_organisation()
+        if user_org:
+            context['departements'] = Departement.objects.filter(section__CodeSection=user_org.code).order_by('CodeDept')
+        else:
+            context['departements'] = Departement.objects.all().order_by('CodeDept')
+        return context
 
-class MentionUpdateView(UpdateView):
+class MentionUpdateView(OrganisationFilterMixin, UpdateView):
     model = Mention
     template_name = 'reglage/mention_form.html'
-    fields = ['CodeMention', 'DesignationMention']
+    fields = ['CodeMention', 'DesignationMention', 'departement']
     success_url = reverse_lazy('reglage:mention_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Filtrer les départements par organisation
+        user_org = self.get_user_organisation()
+        if user_org:
+            context['departements'] = Departement.objects.filter(section__CodeSection=user_org.code).order_by('CodeDept')
+        else:
+            context['departements'] = Departement.objects.all().order_by('CodeDept')
+        return context
 
 class MentionDeleteView(SafeDeleteView):
     model = Mention
@@ -134,22 +198,50 @@ class NiveauDeleteView(SafeDeleteView):
     success_url = reverse_lazy('reglage:niveau_list')
 
 # Vues pour Classe
-class ClasseListView(ListView):
+class ClasseListView(OrganisationFilterMixin, ListView):
     model = Classe
     template_name = 'reglage/classe_list.html'
     context_object_name = 'classes'
+    
+    def get_queryset(self):
+        queryset = Classe.objects.all()
+        # Filtrer par organisation (via mention -> departement -> section)
+        user_org = self.get_user_organisation()
+        if user_org:
+            queryset = queryset.filter(mention__departement__section__CodeSection=user_org.code)
+        return queryset.order_by('CodeClasse')
 
-class ClasseCreateView(CreateView):
+class ClasseCreateView(OrganisationFilterMixin, CreateView):
     model = Classe
     template_name = 'reglage/classe_form.html'
     fields = ['niveau', 'mention']
     success_url = reverse_lazy('reglage:classe_list')
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Filtrer les mentions par organisation
+        user_org = self.get_user_organisation()
+        if user_org:
+            form.fields['mention'].queryset = Mention.objects.filter(
+                departement__section__CodeSection=user_org.code
+            ).order_by('CodeMention')
+        return form
 
-class ClasseUpdateView(UpdateView):
+class ClasseUpdateView(OrganisationFilterMixin, UpdateView):
     model = Classe
     template_name = 'reglage/classe_form.html'
     fields = ['niveau', 'mention']
     success_url = reverse_lazy('reglage:classe_list')
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Filtrer les mentions par organisation
+        user_org = self.get_user_organisation()
+        if user_org:
+            form.fields['mention'].queryset = Mention.objects.filter(
+                departement__section__CodeSection=user_org.code
+            ).order_by('CodeMention')
+        return form
 
 class ClasseDeleteView(SafeDeleteView):
     model = Classe
@@ -483,11 +575,40 @@ class CreneauListView(ListView):
     model = Creneau
     template_name = 'reglage/creneau_list.html'
     context_object_name = 'creneaux'
+    
+    def get_queryset(self):
+        """Filtrer les créneaux selon l'organisation de l'utilisateur"""
+        queryset = super().get_queryset()
+        
+        # Si l'utilisateur est un superuser, afficher tous les créneaux
+        if self.request.user.is_superuser:
+            return queryset
+        
+        # Pour les utilisateurs d'organisations, filtrer par section de l'organisation
+        if hasattr(self.request.user, 'profile') and self.request.user.profile.organisation:
+            # Le code de l'organisation correspond au CodeSection
+            org_code = self.request.user.profile.organisation.code
+            
+            # Récupérer la section correspondant à l'organisation
+            from reglage.models import Section
+            try:
+                section_org = Section.objects.get(CodeSection=org_code)
+                
+                # Afficher les créneaux sans section (généraux) + créneaux de l'organisation
+                queryset = queryset.filter(
+                    Q(section__isnull=True) |  # Créneaux généraux (toutes les sections)
+                    Q(section=section_org)  # Créneaux spécifiques à l'organisation
+                )
+            except Section.DoesNotExist:
+                # Si la section n'existe pas, afficher uniquement les créneaux généraux
+                queryset = queryset.filter(section__isnull=True)
+        
+        return queryset
 
 class CreneauCreateView(CreateView):
     model = Creneau
     template_name = 'reglage/creneau_form.html'
-    fields = ['code', 'designation', 'heure_debut', 'heure_fin', 'est_actif', 'ordre']
+    form_class = CreneauForm
     success_url = reverse_lazy('reglage:creneau_list')
     
     def form_valid(self, form):
@@ -497,7 +618,7 @@ class CreneauCreateView(CreateView):
 class CreneauUpdateView(UpdateView):
     model = Creneau
     template_name = 'reglage/creneau_form.html'
-    fields = ['code', 'designation', 'heure_debut', 'heure_fin', 'est_actif', 'ordre']
+    form_class = CreneauForm
     success_url = reverse_lazy('reglage:creneau_list')
     
     def form_valid(self, form):
@@ -563,3 +684,124 @@ class SemaineCoursDeleteView(SafeDeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(request, "Semaine de cours supprimée avec succès.")
         return super().delete(request, *args, **kwargs)
+
+
+# Vues de suppression en masse (superuser uniquement)
+from django.contrib.admin.views.decorators import staff_member_required
+from django.views.decorators.http import require_POST
+
+@require_POST
+def mention_delete_all(request):
+    """Supprimer toutes les mentions - accessible uniquement au superuser"""
+    if not request.user.is_superuser:
+        messages.error(request, "Vous n'avez pas la permission d'effectuer cette action.")
+        return redirect('reglage:mention_list')
+    
+    try:
+        with transaction.atomic():
+            count = Mention.objects.count()
+            Mention.objects.all().delete()
+            messages.success(request, f"{count} mention(s) supprimée(s) avec succès.")
+    except Exception as e:
+        messages.error(request, f"Erreur lors de la suppression : {str(e)}")
+    
+    return redirect('reglage:mention_list')
+
+
+@require_POST
+def classe_delete_all(request):
+    """Supprimer toutes les classes - accessible uniquement au superuser"""
+    if not request.user.is_superuser:
+        messages.error(request, "Vous n'avez pas la permission d'effectuer cette action.")
+        return redirect('reglage:classe_list')
+    
+    try:
+        with transaction.atomic():
+            count = Classe.objects.count()
+            Classe.objects.all().delete()
+            messages.success(request, f"{count} classe(s) supprimée(s) avec succès.")
+    except Exception as e:
+        messages.error(request, f"Erreur lors de la suppression : {str(e)}")
+    
+    return redirect('reglage:classe_list')
+
+
+def mention_generate_classes(request, pk):
+    """Générer automatiquement les classes pour tous les niveaux à partir d'une mention"""
+    mention = get_object_or_404(Mention, pk=pk)
+    niveaux = Niveau.objects.all()
+    
+    if not niveaux.exists():
+        messages.warning(request, "Aucun niveau n'est défini. Veuillez d'abord créer des niveaux.")
+        return redirect('reglage:mention_list')
+    
+    created_count = 0
+    existing_count = 0
+    
+    try:
+        with transaction.atomic():
+            for niveau in niveaux:
+                # Vérifier si la classe existe déjà
+                if not Classe.objects.filter(niveau=niveau, mention=mention).exists():
+                    Classe.objects.create(niveau=niveau, mention=mention)
+                    created_count += 1
+                else:
+                    existing_count += 1
+        
+        if created_count > 0:
+            messages.success(request, f"{created_count} classe(s) créée(s) pour la mention {mention.CodeMention}.")
+        if existing_count > 0:
+            messages.info(request, f"{existing_count} classe(s) existai(en)t déjà.")
+        if created_count == 0 and existing_count > 0:
+            messages.info(request, f"Toutes les classes existent déjà pour la mention {mention.CodeMention}.")
+            
+    except Exception as e:
+        messages.error(request, f"Erreur lors de la génération des classes : {str(e)}")
+    
+    return redirect('reglage:classe_list')
+
+
+def mention_generate_all_classes(request):
+    """Générer automatiquement les classes pour toutes les mentions et tous les niveaux"""
+    # Filtrer les mentions par organisation de l'utilisateur
+    user_org = get_user_organisation(request.user)
+    if user_org:
+        mentions = Mention.objects.filter(departement__section__CodeSection=user_org.code)
+    else:
+        mentions = Mention.objects.all()
+    
+    niveaux = Niveau.objects.all()
+    
+    if not mentions.exists():
+        messages.warning(request, "Aucune mention n'est définie. Veuillez d'abord créer des mentions.")
+        return redirect('reglage:mention_list')
+    
+    if not niveaux.exists():
+        messages.warning(request, "Aucun niveau n'est défini. Veuillez d'abord créer des niveaux.")
+        return redirect('reglage:mention_list')
+    
+    created_count = 0
+    existing_count = 0
+    
+    try:
+        with transaction.atomic():
+            for mention in mentions:
+                for niveau in niveaux:
+                    # Vérifier si la classe existe déjà
+                    if not Classe.objects.filter(niveau=niveau, mention=mention).exists():
+                        Classe.objects.create(niveau=niveau, mention=mention)
+                        created_count += 1
+                    else:
+                        existing_count += 1
+        
+        if created_count > 0:
+            messages.success(request, f"{created_count} classe(s) créée(s) pour toutes les mentions.")
+        if existing_count > 0:
+            messages.info(request, f"{existing_count} classe(s) existai(en)t déjà et ont été ignorées.")
+        if created_count == 0 and existing_count > 0:
+            messages.info(request, "Toutes les classes existent déjà pour toutes les mentions.")
+            
+    except Exception as e:
+        messages.error(request, f"Erreur lors de la génération des classes : {str(e)}")
+    
+    return redirect('reglage:classe_list')

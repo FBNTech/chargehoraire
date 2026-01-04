@@ -25,6 +25,20 @@
         <div class="card-body py-2">
             <form method="get" class="row g-2" id="filterForm">
                 <div class="col-md-2">
+                    <label class="form-label small mb-1">Type d'horaire</label>
+                    <select name="type_horaire" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="" {% if not request.GET.type_horaire %}selected{% endif %}>
+                            📋 Tous les types
+                        </option>
+                        <option value="cours" {% if request.GET.type_horaire == 'cours' %}selected{% endif %}>
+                            📚 Cours
+                        </option>
+                        <option value="examen" {% if request.GET.type_horaire == 'examen' %}selected{% endif %}>
+                            📋 Examens
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label small mb-1">Année académique</label>
                     <select name="annee" class="form-select form-select-sm">
                         <option value="">Toutes</option>
@@ -88,17 +102,46 @@
                     <label class="form-label small mb-1">Classe</label>
                     {% if classes_reglage %}
                         <select name="classe" class="form-select form-select-sm">
-                            <option value="">Toutes</option>
-                            {% for classe in classes_reglage %}
-                                <option value="{{ classe.CodeClasse }}" {% if request.GET.classe == classe.CodeClasse %}selected{% endif %}>
-                                    {{ classe.CodeClasse }}
-                                </option>
+                            <option value="">Toutes les classes</option>
+                            {% regroup classes_reglage by niveau.CodeNiveau as classes_par_niveau %}
+                            {% for niveau_group in classes_par_niveau %}
+                                <optgroup label="📚 {{ niveau_group.grouper }}">
+                                    {% for classe in niveau_group.list %}
+                                        <option value="{{ classe.CodeClasse }}" {% if request.GET.classe == classe.CodeClasse %}selected{% endif %}>
+                                            {{ classe.CodeClasse }} - {{ classe.mention.DesignationMention }}
+                                        </option>
+                                    {% endfor %}
+                                </optgroup>
                             {% endfor %}
                         </select>
                     {% else %}
                         <input type="text" name="classe" class="form-control form-control-sm" value="{{ request.GET.classe }}" placeholder="Ex: L1BC">
                     {% endif %}
                 </div>
+                {% if request.user.is_superuser %}
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Chef de section</label>
+                    <select name="chef_section" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Tous</option>
+                        {% for chef in chefs_section %}
+                            <option value="{{ chef.id }}" {% if request.GET.chef_section == chef.id|stringformat:"s" %}selected{% endif %}>
+                                {{ chef.nom_complet }} ({{ chef.section }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Chef adjoint</label>
+                    <select name="chef_adjoint" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Tous</option>
+                        {% for chef in chefs_adjoint %}
+                            <option value="{{ chef.id }}" {% if request.GET.chef_adjoint == chef.id|stringformat:"s" %}selected{% endif %}>
+                                {{ chef.nom_complet }} ({{ chef.section }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-secondary btn-sm w-100">
                         <i class="fas fa-search"></i> Filtrer
@@ -146,18 +189,25 @@
 
     <!-- Tableau des horaires -->
     <div class="card">
-        <div class="card-header bg-dark text-white">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-table"></i> Liste des horaires enregistrés</h5>
+            <button type="button" id="deleteSelectedBtn" class="btn btn-danger btn-sm" style="display: none;" onclick="deleteSelectedEntries()">
+                <i class="fas fa-trash"></i> Supprimer la sélection (<span id="selectedCount">0</span>)
+            </button>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input" title="Tout sélectionner">
+                            </th>
                             <th>Semaine</th>
                             <th>Date</th>
                             <th>Jour</th>
                             <th>Créneau</th>
+                            <th>Type</th>
                             <th>Code UE</th>
                             <th>Intitulé UE</th>
                             <th>Classe</th>
@@ -170,10 +220,22 @@
                     <tbody>
                         {% for entry in entries %}
                         <tr>
+                            <td data-label="Sélection">
+                                <input type="checkbox" class="form-check-input entry-checkbox" value="{{ entry.id }}" data-entry-id="{{ entry.id }}">
+                            </td>
                             <td data-label="Semaine"><span class="badge bg-success">S{{ entry.numero_semaine|default:"?" }}</span></td>
                             <td data-label="Date">{{ entry.date_cours|date:"d/m/Y"|default:"—" }}</td>
                             <td data-label="Jour"><span class="badge bg-primary">{{ entry.get_jour_display|title }}</span></td>
-                            <td data-label="Créneau"><span class="badge bg-secondary">{{ entry.get_creneau_display_complet }}</span></td>
+                            <td data-label="Créneau">
+                                <span class="badge bg-secondary">{{ entry.creneau.code }} - {{ entry.get_creneau_display_complet }}</span>
+                            </td>
+                            <td data-label="Type">
+                                {% if entry.type_horaire == 'examen' %}
+                                    <span class="badge bg-danger">📋 Examen</span>
+                                {% else %}
+                                    <span class="badge bg-info">📚 Cours</span>
+                                {% endif %}
+                            </td>
                             <td data-label="Code UE"><strong>{{ entry.attribution.code_ue.code_ue }}</strong></td>
                             <td data-label="Intitulé UE">{{ entry.attribution.code_ue.intitule_ue }}</td>
                             <td data-label="Classe"><span class="badge bg-info">{{ entry.attribution.code_ue.classe }}</span></td>
@@ -195,7 +257,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="11" class="text-center text-muted">
+                            <td colspan="13" class="text-center text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
                                 <p>Aucun horaire trouvé. Cliquez sur "Ajouter un horaire" pour commencer.</p>
                             </td>
@@ -249,6 +311,16 @@
             </div>
             <div class="modal-body">
                 <form id="pdfGenerateForm">
+                    <div class="mb-3">
+                        <label class="form-label">Type d'horaire <span class="text-danger">*</span></label>
+                        <select id="pdfTypeHoraire" class="form-select" required>
+                            <option value="">-- Sélectionner le type --</option>
+                            <option value="cours">Horaire des Cours</option>
+                            <option value="examens">Horaire des Examens</option>
+                        </select>
+                        <div class="form-text">Choisissez le type d'horaire à générer</div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Semaine de cours <span class="text-danger">*</span></label>
                         <select id="pdfSemaine" class="form-select" required>
@@ -339,11 +411,16 @@ function deleteEntry(entryId) {
 
 // Fonction pour générer le PDF avec les paramètres sélectionnés
 function generatePDF() {
+    const typeHoraire = document.getElementById('pdfTypeHoraire').value;
     const semaine = document.getElementById('pdfSemaine').value;
     const chefSection = document.getElementById('pdfChefSection').value;
     const chefAdjoint = document.getElementById('pdfChefAdjoint').value;
     
     // Validation
+    if (!typeHoraire) {
+        alert('Veuillez sélectionner le type d\'horaire');
+        return;
+    }
     if (!semaine) {
         alert('Veuillez sélectionner une semaine de cours');
         return;
@@ -364,7 +441,8 @@ function generatePDF() {
     
     // Construire l'URL avec les paramètres
     const url = '{% url "attribution:schedule_pdf" %}' + 
-                '?semaine=' + encodeURIComponent(semaine) +
+                '?type=' + encodeURIComponent(typeHoraire) +
+                '&semaine=' + encodeURIComponent(semaine) +
                 '&chef_section=' + encodeURIComponent(chefSection) +
                 '&chef_adjoint=' + encodeURIComponent(chefAdjoint) +
                 '&section=' + encodeURIComponent(section);
@@ -418,5 +496,103 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Gestion de la sélection multiple et suppression en masse
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const entryCheckboxes = document.querySelectorAll('.entry-checkbox');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    // Fonction pour mettre à jour le compteur et l'affichage du bouton
+    function updateSelectionUI() {
+        const checkedBoxes = document.querySelectorAll('.entry-checkbox:checked');
+        const count = checkedBoxes.length;
+        
+        selectedCountSpan.textContent = count;
+        
+        if (count > 0) {
+            deleteSelectedBtn.style.display = 'block';
+        } else {
+            deleteSelectedBtn.style.display = 'none';
+        }
+        
+        // Mettre à jour l'état de la case "Tout sélectionner"
+        if (count === entryCheckboxes.length && count > 0) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (count > 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    }
+    
+    // Gérer le clic sur "Tout sélectionner"
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            entryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateSelectionUI();
+        });
+    }
+    
+    // Gérer le clic sur chaque case à cocher
+    entryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionUI);
+    });
+    
+    // Initialiser l'UI
+    updateSelectionUI();
+});
+
+// Fonction pour supprimer les entrées sélectionnées
+function deleteSelectedEntries() {
+    const checkedBoxes = document.querySelectorAll('.entry-checkbox:checked');
+    
+    if (checkedBoxes.length === 0) {
+        alert('Veuillez sélectionner au moins un horaire à supprimer.');
+        return;
+    }
+    
+    const count = checkedBoxes.length;
+    const confirmation = confirm(`Êtes-vous sûr de vouloir supprimer ${count} horaire(s) sélectionné(s) ?\n\nCette action est irréversible.`);
+    
+    if (!confirmation) {
+        return;
+    }
+    
+    // Récupérer les IDs des entrées sélectionnées
+    const entryIds = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    // Envoyer la requête de suppression en masse
+    fetch('{% url "attribution:schedule_entry_bulk_delete" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            entry_ids: entryIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Recharger la page pour afficher les changements
+            location.reload();
+        } else {
+            alert('Erreur lors de la suppression : ' + (data.error || 'Erreur inconnue'));
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de la suppression des horaires.');
+    });
+}
 </script>
 {% endblock %}

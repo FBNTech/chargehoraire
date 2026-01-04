@@ -6,7 +6,19 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Liste des Mentions</h2>
-        <a href="{% url 'reglage:mention_create' %}" class="btn btn-primary">Ajouter une Mention</a>
+        <div>
+            <a href="{% url 'reglage:mention_create' %}" class="btn btn-primary me-2">
+                <i class="fas fa-plus"></i> Ajouter une Mention
+            </a>
+            <a href="{% url 'reglage:mention_generate_all_classes' %}" class="btn btn-success me-2">
+                <i class="fas fa-magic"></i> Générer toutes les classes
+            </a>
+            {% if user.is_superuser %}
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllMentionsModal">
+                <i class="fas fa-trash-alt"></i> Supprimer tout
+            </button>
+            {% endif %}
+        </div>
     </div>
 
     <div class="card">
@@ -16,6 +28,7 @@
                     <tr>
                         <th>Code Mention</th>
                         <th>Désignation</th>
+                        <th>Département</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -24,14 +37,24 @@
                     <tr>
                         <td>{{ mention.CodeMention }}</td>
                         <td>{{ mention.DesignationMention }}</td>
+                        <td>{{ mention.departement|default:"-" }}</td>
                         <td>
-                            <a href="{% url 'reglage:mention_update' mention.pk %}" class="btn btn-sm btn-warning">Modifier</a>
-                            <a href="{% url 'reglage:mention_delete' mention.pk %}" class="btn btn-sm btn-danger">Supprimer</a>
+                            <a href="{% url 'reglage:mention_generate_classes' mention.pk %}" class="btn btn-sm btn-success" title="Générer les classes pour tous les niveaux">
+                                <i class="fas fa-magic"></i>
+                            </a>
+                            <a href="{% url 'reglage:mention_update' mention.pk %}" class="btn btn-sm btn-warning" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if not is_org_user %}
+                            <a href="{% url 'reglage:mention_delete' mention.pk %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center">Aucune mention trouvée.</td>
+                        <td colspan="4" class="text-center">Aucune mention trouvée.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -40,4 +63,36 @@
     </div>
     <a href="{% url 'reglage:gestion_entites' %}" class="btn btn-secondary mt-3">Retour à la gestion</a>
 </div>
+
+{% if user.is_superuser %}
+<!-- Modal Supprimer tout -->
+<div class="modal fade" id="deleteAllMentionsModal" tabindex="-1" aria-labelledby="deleteAllMentionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAllMentionsModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-bold">Êtes-vous sûr de vouloir supprimer TOUTES les mentions ?</p>
+                <p>Cette action est irréversible et supprimera {{ mentions|length }} mention(s).</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <form method="post" action="{% url 'reglage:mention_delete_all' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Supprimer tout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

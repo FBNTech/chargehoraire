@@ -62,10 +62,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'tracking.middleware_user.CurrentUserMiddleware',  # Middleware pour stocker l'utilisateur courant
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.LoginRequiredMiddleware',  # Middleware de protection des pages
     'accounts.role_middleware.RoleBasedAccessMiddleware',  # Middleware de contrôle d'accès basé sur les rôles
+    'reglage.middleware.SemaineCoursMiddleware',  # Mise à jour automatique du statut des semaines
+    'tracking.middleware.ActionLoggingMiddleware',  # Middleware pour enregistrer les actions
 ]
 
 ROOT_URLCONF = 'config.urls'

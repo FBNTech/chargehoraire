@@ -7,9 +7,9 @@ from teachers.models import Teacher
 
 class UserRegistrationForm(UserCreationForm):
     """Formulaire d'inscription des utilisateurs"""
-    email = forms.EmailField(required=True, label=_('Email'))
-    first_name = forms.CharField(required=True, label=_('Prénom'))
-    last_name = forms.CharField(required=True, label=_('Nom'))
+    email = forms.EmailField(required=False, label=_('Email'))
+    first_name = forms.CharField(required=False, label=_('Prénom'))
+    last_name = forms.CharField(required=False, label=_('Nom'))
     
     class Meta:
         model = User
@@ -17,9 +17,9 @@ class UserRegistrationForm(UserCreationForm):
     
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.email = self.cleaned_data['email']
-        user.first_name = self.cleaned_data['first_name']
-        user.last_name = self.cleaned_data['last_name']
+        user.email = self.cleaned_data.get('email') or f"{user.username}@example.com"
+        user.first_name = self.cleaned_data.get('first_name') or ''
+        user.last_name = self.cleaned_data.get('last_name') or ''
         
         if commit:
             user.save()
@@ -29,8 +29,9 @@ class UserProfileForm(forms.ModelForm):
     """Formulaire pour le profil utilisateur"""
     class Meta:
         model = UserProfile
-        fields = ('phone_number', 'address', 'profile_picture', 'section')
+        fields = ('organisation', 'phone_number', 'address', 'profile_picture', 'section')
         labels = {
+            'organisation': _('Organisation'),
             'phone_number': _('Numéro de téléphone'),
             'address': _('Adresse'),
             'profile_picture': _('Photo de profil'),
@@ -148,6 +149,7 @@ class TeacherUserCreationForm(UserCreationForm):
             profile.matricule_enseignant = teacher.matricule
             profile.departement = teacher.departement
             profile.grade = teacher.grade
+            profile.section = teacher.section if hasattr(teacher, 'section') else None
             profile.save()
             
         return user

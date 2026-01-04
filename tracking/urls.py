@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_test
 
 app_name = 'tracking'
 
@@ -36,4 +37,7 @@ urlpatterns = [
     
     # Historique des actions (admin seulement)
     path('action-history/', views.action_history_view, name='action_history'),
+    
+    # Test des actions
+    path('test-actions/', views_test.test_actions, name='test_actions'),
 ]

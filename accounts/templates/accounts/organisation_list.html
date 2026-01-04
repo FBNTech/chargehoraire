@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestion des organisations - ACH{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-building me-2"></i>Gestion des organisations
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{% url 'accounts:organisation_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nouvelle organisation
+            </a>
+        </div>
+    </div>
+
+    {% if organisations %}
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-building fa-2x text-primary mb-2"></i>
+                    <h3 class="mb-0">{{ organisations.count }}</h3>
+                    <p class="text-muted mb-0">Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h3 class="mb-0">{{ organisations|length }}</h3>
+                    <p class="text-muted mb-0">Actives</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Liste des organisations</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-building me-1"></i>Nom</th>
+                            <th><i class="fas fa-code me-1"></i>Code</th>
+                            <th><i class="fas fa-align-left me-1"></i>Description</th>
+                            <th><i class="fas fa-users me-1"></i>Utilisateurs</th>
+                            <th><i class="fas fa-book me-1"></i>Cours</th>
+                            <th><i class="fas fa-chalkboard-teacher me-1"></i>Enseignants</th>
+                            <th><i class="fas fa-toggle-on me-1"></i>Statut</th>
+                            <th><i class="fas fa-calendar me-1"></i>Créée le</th>
+                            <th class="text-end"><i class="fas fa-cog me-1"></i>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for org in organisations %}
+                        <tr>
+                            <td><strong>{{ org.nom }}</strong></td>
+                            <td><code>{{ org.code }}</code></td>
+                            <td>
+                                {% if org.description %}
+                                    {{ org.description|truncatewords:10 }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ org.users.count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ org.courses.count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ org.teachers.count }}</span>
+                            </td>
+                            <td>
+                                {% if org.est_active %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle me-1"></i>Active
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-times-circle me-1"></i>Inactive
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ org.date_creation|date:"d/m/Y" }}</td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'accounts:organisation_detail' org.pk %}" 
+                                       class="btn btn-outline-info" 
+                                       title="Afficher"
+                                       data-bs-toggle="tooltip">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'accounts:organisation_edit' org.pk %}" 
+                                       class="btn btn-outline-primary" 
+                                       title="Modifier"
+                                       data-bs-toggle="tooltip">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'accounts:organisation_delete' org.pk %}" 
+                                       class="btn btn-outline-danger" 
+                                       title="Supprimer"
+                                       data-bs-toggle="tooltip">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card shadow">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-building fa-4x text-muted mb-3"></i>
+            <h4>Aucune organisation</h4>
+            <p class="text-muted">Vous n'avez pas encore créé d'organisation.</p>
+            <a href="{% url 'accounts:organisation_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Créer la première organisation
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialiser les tooltips
+        $('[data-bs-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %}

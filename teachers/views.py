@@ -26,7 +26,13 @@ class TeacherListView(ListView):
     context_object_name = 'teachers'
     
     def get_queryset(self):
+        from accounts.organisation_utils import filter_queryset_by_organisation
+        
         queryset = Teacher.objects.all()
+        
+        # Filtrer par organisation de l'utilisateur (via section)
+        queryset = filter_queryset_by_organisation(queryset, self.request.user, field_name='section')
+        
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
@@ -40,14 +46,17 @@ class TeacherListView(ListView):
         return queryset
     
     def get_context_data(self, **kwargs):
+        from accounts.organisation_utils import filter_queryset_by_organisation
+        
         context = super().get_context_data(**kwargs)
         
-        # Statistiques générales
-        context['total_teachers'] = Teacher.objects.count()
+        # Statistiques générales (filtrées par organisation)
+        filtered_teachers = filter_queryset_by_organisation(Teacher.objects, self.request.user, field_name='section')
+        context['total_teachers'] = filtered_teachers.count()
         
-        # Statistiques par grade
-        grades = Teacher.objects.values_list('grade', flat=True).distinct()
-        context['stats_by_grade'] = {grade: Teacher.objects.filter(grade=grade).count() for grade in grades}
+        # Statistiques par grade (filtrées)
+        grades = filtered_teachers.values_list('grade', flat=True).distinct()
+        context['stats_by_grade'] = {grade: filtered_teachers.filter(grade=grade).count() for grade in grades}
         
         return context
 
@@ -58,13 +67,21 @@ class TeacherCreateView(UserPassesTestMixin, CreateView):
     success_url = reverse_lazy('teachers:list')
 
     def form_valid(self, form):
+        from accounts.organisation_utils import get_user_organisation
+        
+        # Assigner automatiquement la section de l'organisation de l'utilisateur
+        user_org = get_user_organisation(self.request.user)
+        if user_org:
+            form.instance.section = user_org.code
         messages.success(self.request, 'Enseignant ajouté avec succès!')
         return super().form_valid(form)
 
     def test_func(self):
+        from accounts.organisation_utils import is_org_user
         user = self.request.user
         return user.is_authenticated and (
             user.is_staff or
+            is_org_user(user) or
             user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
         )
 
@@ -79,11 +96,19 @@ class TeacherUpdateView(UserPassesTestMixin, UpdateView):
         return super().form_valid(form)
 
     def test_func(self):
+        from accounts.organisation_utils import get_user_organisation, is_org_user
         user = self.request.user
-        return user.is_authenticated and (
-            user.is_staff or
-            user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
-        )
+        if not user.is_authenticated:
+            return False
+        # Admin global peut tout modifier
+        if user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists():
+            return True
+        # Utilisateur d'organisation ne peut modifier que ses enseignants
+        user_org = get_user_organisation(user)
+        if user_org and is_org_user(user):
+            teacher = self.get_object()
+            return teacher.section == user_org.code
+        return False
 
 class TeacherDeleteView(UserPassesTestMixin, DeleteView):
     model = Teacher
@@ -128,17 +153,27 @@ class TeacherDeleteView(UserPassesTestMixin, DeleteView):
             return redirect('teachers:list')
 
     def test_func(self):
+        from accounts.organisation_utils import get_user_organisation, is_org_user
         user = self.request.user
-        return user.is_authenticated and (
-            user.is_staff or
-            user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
-        )
+        if not user.is_authenticated:
+            return False
+        # Admin global peut tout supprimer
+        if user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists():
+            return True
+        # Utilisateur d'organisation ne peut supprimer que ses enseignants
+        user_org = get_user_organisation(user)
+        if user_org and is_org_user(user):
+            teacher = self.get_object()
+            return teacher.section == user_org.code
+        return False
 
 @csrf_exempt
 def import_excel(request):
-    # Restreindre l'import aux administrateurs/gestionnaires
+    # Restreindre l'import aux administrateurs/gestionnaires et utilisateurs d'organisation
+    from accounts.organisation_utils import get_user_organisation, is_org_user
     user = request.user
-    if not (user.is_authenticated and (user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
+    user_org = get_user_organisation(user)
+    if not (user.is_authenticated and (user.is_staff or is_org_user(user) or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
         return JsonResponse({'error': 'Permission refusée'}, status=403)
 
     if request.method == 'POST':
@@ -217,6 +252,10 @@ def import_excel(request):
                         'categorie': str(row['categorie']).strip(),
                         'departement': str(row['departement']).strip()
                     }
+                    
+                    # Assigner automatiquement la section de l'organisation
+                    if user_org:
+                        teacher_data['section'] = user_org.code
 
                     Teacher.objects.update_or_create(
                         matricule=teacher_data['matricule'],

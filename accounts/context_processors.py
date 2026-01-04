@@ -9,9 +9,27 @@ from .permissions import (
 def user_roles(request):
     """Ajoute les rôles de l'utilisateur au contexte de tous les templates."""
     if request.user.is_authenticated:
+        # Récupérer la désignation complète de la section
+        user_section_designation = None
+        if request.user.profile.section:
+            try:
+                from reglage.models import Section
+                section_obj = Section.objects.get(CodeSection=request.user.profile.section)
+                user_section_designation = section_obj.DesignationSection
+            except:
+                user_section_designation = request.user.profile.section
+        
+        # Vérifier si l'utilisateur appartient à une organisation
+        user_organisation = request.user.profile.organisation
+        is_org_user = user_organisation is not None and not request.user.is_superuser
+        
         return {
+            # Organisation de l'utilisateur
+            'user_organisation': user_organisation,
+            'is_org_user': is_org_user,
+            
             # Rôles généraux
-            'is_admin': check_admin_permission(request.user),
+            'is_admin': check_admin_permission(request.user) and not is_org_user,
             'is_administrative_role': check_administrative_role_permission(request.user),
             'is_gestionnaire': request.user.profile.roles.filter(name='gestionnaire').exists(),
             'is_section_role': check_section_role_permission(request.user),
@@ -36,8 +54,14 @@ def user_roles(request):
             
             # Informations supplémentaires sur l'utilisateur
             'user_department': request.user.profile.departement,
+            'user_section': request.user.profile.section,
+            'user_section_designation': user_section_designation,
         }
     return {
+        # Organisation de l'utilisateur
+        'user_organisation': None,
+        'is_org_user': False,
+        
         # Rôles généraux
         'is_admin': False,
         'is_administrative_role': False,
@@ -63,4 +87,6 @@ def user_roles(request):
         
         # Informations supplémentaires sur l'utilisateur
         'user_department': None,
+        'user_section': None,
+        'user_section_designation': None,
     }

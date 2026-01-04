@@ -4,6 +4,23 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 
+class Organisation(models.Model):
+    """Modèle pour l'isolation des données par organisation/compte"""
+    nom = models.CharField(_('Nom de l\'organisation'), max_length=200, unique=True)
+    code = models.CharField(_('Code'), max_length=50, unique=True, help_text="Code unique de l'organisation")
+    description = models.TextField(_('Description'), blank=True, null=True)
+    est_active = models.BooleanField(_('Active'), default=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Organisation')
+        verbose_name_plural = _('Organisations')
+        ordering = ['nom']
+    
+    def __str__(self):
+        return self.nom
+
 class Role(models.Model):
     """Modèle pour les rôles utilisateurs"""
     ADMIN = 'admin'                # Accès complet
@@ -30,6 +47,7 @@ class Role(models.Model):
 class UserProfile(models.Model):
     """Extension du modèle utilisateur Django standard"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    organisation = models.ForeignKey(Organisation, on_delete=models.CASCADE, related_name='users', verbose_name=_('Organisation'), null=True, blank=True)
     phone_number = models.CharField(_('Numéro de téléphone'), max_length=20, blank=True, null=True)
     address = models.TextField(_('Adresse'), blank=True, null=True)
     profile_picture = models.ImageField(_('Photo de profil'), upload_to='profile_pictures/', blank=True, null=True)

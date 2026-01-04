@@ -63,11 +63,19 @@ class ScheduleEntryForm(forms.ModelForm):
     
     # Champ pour la sélection du créneau
     creneau_select = forms.ModelChoiceField(
-        queryset=Creneau.objects.filter(est_actif=True).order_by('heure_debut'),
+        queryset=Creneau.objects.filter(est_actif=True).exclude(code='TJ').order_by('heure_debut'),
         required=False,
         widget=forms.Select(attrs={'class': 'form-select'}),
         label='Créneau horaire',
         help_text='Sélectionner un créneau horaire. Laissez vide pour un cours ponctuel'
+    )
+    
+    # Case à cocher pour créer les créneaux AM et PM automatiquement
+    toute_la_journee = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Toute la journée (AM + PM)',
+        help_text='Cocher pour créer automatiquement les créneaux matin (AM) et après-midi (PM)'
     )
     
     # Champ pour la sélection de la salle
@@ -91,7 +99,10 @@ class ScheduleEntryForm(forms.ModelForm):
             'attribution', 'annee_academique', 'semaine_debut',
             'date_fin', 'date_cours', 'creneau', 'salle', 'salle_link', 'remarques'
         ]
+        # Note: toute_la_journee n'est pas dans fields car ce n'est pas un champ du modèle
+        # C'est un champ personnalisé du formulaire uniquement
         # semaine_debut est inclus mais sera caché et rempli via clean() depuis date_debut_select
+        # type_horaire sera déduit automatiquement du créneau sélectionné
         
         widgets = {
             'attribution': forms.Select(attrs={'class': 'form-select'}),

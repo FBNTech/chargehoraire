@@ -1,0 +1,45 @@
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{Connexion au syst\350me}{section.1}% 2
+\BOOKMARK [2][-]{subsection.1.2}{Navigation}{section.1}% 3
+\BOOKMARK [1][-]{section.2}{Gestion des Attributions}{}% 4
+\BOOKMARK [2][-]{subsection.2.1}{Acc\351der aux attributions}{section.2}% 5
+\BOOKMARK [2][-]{subsection.2.2}{Cr\351er une nouvelle attribution}{section.2}% 6
+\BOOKMARK [3][-]{subsubsection.2.2.1}{\311tape 1 : Ouvrir le formulaire}{subsection.2.2}% 7
+\BOOKMARK [3][-]{subsubsection.2.2.2}{\311tape 2 : Remplir le formulaire}{subsection.2.2}% 8
+\BOOKMARK [3][-]{subsubsection.2.2.3}{\311tape 3 : Enregistrer}{subsection.2.2}% 9
+\BOOKMARK [2][-]{subsection.2.3}{Consulter les attributions}{section.2}% 10
+\BOOKMARK [3][-]{subsubsection.2.3.1}{Vue par liste}{subsection.2.3}% 11
+\BOOKMARK [3][-]{subsubsection.2.3.2}{Vue par charges}{subsection.2.3}% 12
+\BOOKMARK [2][-]{subsection.2.4}{Modifier une attribution}{section.2}% 13
+\BOOKMARK [2][-]{subsection.2.5}{Supprimer une attribution}{section.2}% 14
+\BOOKMARK [1][-]{section.3}{Cr\351ation des Horaires}{}% 15
+\BOOKMARK [2][-]{subsection.3.1}{Acc\351der au g\351n\351rateur d'horaires}{section.3}% 16
+\BOOKMARK [2][-]{subsection.3.2}{Cr\351er un horaire}{section.3}% 17
+\BOOKMARK [3][-]{subsubsection.3.2.1}{\311tape 1 : S\351lectionner les param\350tres}{subsection.3.2}% 18
+\BOOKMARK [3][-]{subsubsection.3.2.2}{\311tape 2 : Ajouter des cr\351neaux horaires}{subsection.3.2}% 19
+\BOOKMARK [3][-]{subsubsection.3.2.3}{\311tape 3 : Visualiser l'horaire}{subsection.3.2}% 20
+\BOOKMARK [3][-]{subsubsection.3.2.4}{\311tape 4 : G\351n\351rer le PDF}{subsection.3.2}% 21
+\BOOKMARK [2][-]{subsection.3.3}{Modifier un cr\351neau}{section.3}% 22
+\BOOKMARK [2][-]{subsection.3.4}{Supprimer un cr\351neau}{section.3}% 23
+\BOOKMARK [1][-]{section.4}{Suivi des Enseignements}{}% 24
+\BOOKMARK [2][-]{subsection.4.1}{Acc\351der au tableau de bord de suivi}{section.4}% 25
+\BOOKMARK [2][-]{subsection.4.2}{Consulter le tableau de bord}{section.4}% 26
+\BOOKMARK [3][-]{subsubsection.4.2.1}{Statistiques globales}{subsection.4.2}% 27
+\BOOKMARK [3][-]{subsubsection.4.2.2}{Tableau de suivi des cours}{subsection.4.2}% 28
+\BOOKMARK [3][-]{subsubsection.4.2.3}{Tableau de suivi des enseignants}{subsection.4.2}% 29
+\BOOKMARK [2][-]{subsection.4.3}{Ajouter une progression}{section.4}% 30
+\BOOKMARK [3][-]{subsubsection.4.3.1}{\311tape 1 : Acc\351der \340 la gestion}{subsection.4.3}% 31
+\BOOKMARK [3][-]{subsubsection.4.3.2}{\311tape 2 : Cr\351er une nouvelle progression}{subsection.4.3}% 32
+\BOOKMARK [3][-]{subsubsection.4.3.3}{\311tape 3 : Enregistrer}{subsection.4.3}% 33
+\BOOKMARK [2][-]{subsection.4.4}{Modifier une progression}{section.4}% 34
+\BOOKMARK [2][-]{subsection.4.5}{Imprimer le rapport de suivi}{section.4}% 35
+\BOOKMARK [2][-]{subsection.4.6}{Filtrer les donn\351es}{section.4}% 36
+\BOOKMARK [1][-]{section.5}{Conseils et bonnes pratiques}{}% 37
+\BOOKMARK [2][-]{subsection.5.1}{Pour les attributions}{section.5}% 38
+\BOOKMARK [2][-]{subsection.5.2}{Pour les horaires}{section.5}% 39
+\BOOKMARK [2][-]{subsection.5.3}{Pour le suivi}{section.5}% 40
+\BOOKMARK [1][-]{section.6}{R\351solution de probl\350mes}{}% 41
+\BOOKMARK [2][-]{subsection.6.1}{Erreur lors de l'attribution}{section.6}% 42
+\BOOKMARK [2][-]{subsection.6.2}{Conflit d'horaires}{section.6}% 43
+\BOOKMARK [2][-]{subsection.6.3}{Progression non visible}{section.6}% 44
+\BOOKMARK [1][-]{section.7}{Contact et support}{}% 45

@@ -202,9 +202,11 @@
                                             <a href="{% url 'teachers:update' teacher.pk %}" class="btn btn-sm btn-primary me-2">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            {% if not is_org_user %}
                                             <a href="{% url 'teachers:delete' teacher.pk %}" class="btn btn-sm btn-danger">
                                                 <i class="fas fa-trash"></i>
                                             </a>
+                                            {% endif %}
                                         </div>
                                         {% else %}
                                         <span class="text-muted"><i class="fas fa-eye"></i> Lecture seule</span>

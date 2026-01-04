@@ -3,6 +3,7 @@ from django.db import models
 # Create your models here.
 
 class Course(models.Model):
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='courses', verbose_name='Organisation', null=True, blank=True)
     CLASSE_CHOICES = [
         ('L1', 'L1'),
         ('L2', 'L2'),

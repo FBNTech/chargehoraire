@@ -19,6 +19,7 @@
     <!-- Custom CSS -->    
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+    {% block extra_css %}{% endblock %}
     <style>
         body {
             display: flex;
@@ -236,7 +237,14 @@
 
     <!-- Header avec menu utilisateur -->
     <header class="header">
-        <div></div> <!-- Div vide pour maintenir l'alignement avec flexbox -->
+        <div class="header-left">
+            {% if user.is_authenticated and user_section_designation %}
+                <span class="text-muted">
+                    <i class="fas fa-building me-2"></i>
+                    <strong>{{ user_section_designation }}</strong>
+                </span>
+            {% endif %}
+        </div>
         
         <div class="user-menu dropdown">
             {% if user.is_authenticated %}
@@ -314,44 +322,44 @@
                     <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
                 </a>
                 
-                <!-- Attribution - accessible à l'administration, gestionnaire, chefs de section et département -->
-                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <!-- Attribution - accessible à l'administration, gestionnaire, chefs de section, département et utilisateurs d'organisation -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role or is_org_user %}
                 <a class="nav-link" href="{% url 'attribution:attribution_list' %}" title="Attributions" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-tasks"></i></div>
                 </a>
                 {% endif %}
                 
-                <!-- Liste des charges - accessible à l'administration, gestionnaire, chefs de section et département -->
-                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <!-- Liste des charges - accessible à l'administration, gestionnaire, chefs de section, département et utilisateurs d'organisation -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role or is_org_user %}
                 <a class="nav-link" href="{% url 'attribution:liste_charges' %}" title="Liste des charges" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
                 </a>
                 {% endif %}
 
-                <!-- Générateur d'horaires - accessible à l'administration, gestionnaire, chefs de section et département -->
-                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <!-- Générateur d'horaires - accessible à l'administration, gestionnaire, chefs de section, département et utilisateurs d'organisation -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role or is_org_user %}
                 <a class="nav-link" href="{% url 'attribution:schedule_builder' %}" title="Horaires" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
                 </a>
                 {% endif %}
 
                 
-                <!-- Suivi des enseignements - accessible à l'administration, gestionnaire, chefs de section et département -->
-                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role %}
+                <!-- Suivi des enseignements - accessible à l'administration, gestionnaire, chefs de section, département et utilisateurs d'organisation -->
+                {% if is_admin or is_gestionnaire or is_administrative_role or is_section_role or is_department_role or is_org_user %}
                 <a class="nav-link" href="{% url 'tracking:dashboard' %}" title="Suivi" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 </a>
                 {% endif %}
                 
-                <!-- Historique des actions - accessible uniquement aux administrateurs -->
-                {% if is_admin %}
+                <!-- Historique des actions - accessible uniquement aux administrateurs globaux (pas aux utilisateurs d'organisation) -->
+                {% if is_admin and not is_org_user %}
                 <a class="nav-link" href="{% url 'tracking:action_history' %}" title="Historique des Actions" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-history"></i></div>
                 </a>
                 {% endif %}
                                 
-                <!-- Réglage - accessible uniquement aux administrateurs -->
-                {% if can_access_reglage %}
+                <!-- Réglage - accessible aux administrateurs et aux utilisateurs d'organisation -->
+                {% if is_admin or is_org_user %}
                 <a class="nav-link" href="{% url 'reglage:gestion_entites' %}" title="Réglages" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
                 </a>

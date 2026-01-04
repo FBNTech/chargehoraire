@@ -18,6 +18,7 @@ class Departement(models.Model):
 class Mention(models.Model):
     CodeMention = models.CharField(max_length=20, primary_key=True)
     DesignationMention = models.CharField(max_length=100)
+    departement = models.ForeignKey(Departement, on_delete=models.CASCADE, related_name='mentions', null=True, blank=True)
 
     def __str__(self):
         return self.DesignationMention
@@ -129,8 +130,18 @@ class Salle(models.Model):
 
 class Creneau(models.Model):
     """Gestion des créneaux horaires"""
+    TYPE_CHOICES = [
+        ('cours', 'Cours'),
+        ('examen', 'Examen'),
+        ('les_deux', 'Cours et Examens'),
+    ]
+    
     code = models.CharField(max_length=10, unique=True, help_text="Ex: AM, PM, S1, S2")
     designation = models.CharField(max_length=100, help_text="Ex: Matinée, Après-midi")
+    type_creneau = models.CharField(max_length=10, choices=TYPE_CHOICES, default='les_deux', 
+                                   help_text="Type d'horaire où ce créneau apparaît")
+    section = models.ForeignKey('Section', on_delete=models.CASCADE, null=True, blank=True,
+                               help_text="Section pour les créneaux d'examens (laisser vide pour les cours généraux)")
     heure_debut = models.TimeField(help_text="Heure de début (ex: 08:00)")
     heure_fin = models.TimeField(help_text="Heure de fin (ex: 12:00)")
     est_actif = models.BooleanField(default=True, help_text="Créneau actif pour planification")
@@ -203,6 +214,33 @@ class SemaineCours(models.Model):
         if self.est_en_cours:
             SemaineCours.objects.filter(est_en_cours=True).update(est_en_cours=False)
         super().save(*args, **kwargs)
+    
+    @classmethod
+    def update_statut_automatique(cls):
+        """
+        Met à jour automatiquement le statut 'en cours' des semaines
+        en fonction de la date actuelle.
+        La semaine en cours est celle où date_debut <= aujourd'hui <= date_fin
+        """
+        from datetime import date
+        aujourd_hui = date.today()
+        
+        # Désactiver toutes les semaines
+        cls.objects.filter(est_en_cours=True).update(est_en_cours=False)
+        
+        # Trouver et activer la semaine en cours
+        semaine_actuelle = cls.objects.filter(
+            date_debut__lte=aujourd_hui,
+            date_fin__gte=aujourd_hui
+        ).first()
+        
+        if semaine_actuelle:
+            semaine_actuelle.est_en_cours = True
+            # Utiliser update pour éviter de déclencher save() et la boucle infinie
+            cls.objects.filter(pk=semaine_actuelle.pk).update(est_en_cours=True)
+            return semaine_actuelle
+        
+        return None
     
     def __str__(self):
         statut = " (En cours)" if self.est_en_cours else ""

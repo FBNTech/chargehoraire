@@ -1,0 +1,1031 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ organisation.nom }} - ACH{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+    
+    @keyframes glow {
+        0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.4); }
+        50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.8); }
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .page-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        min-height: 100vh;
+        padding: 2rem 0 4rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .page-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,138.7C960,139,1056,117,1152,112C1248,107,1344,117,1392,122.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
+        background-size: cover;
+        opacity: 0.3;
+    }
+    
+    /* En-tête principal ultra-visible */
+    .hero-header {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 50%, #feca57 100%);
+        border-radius: 30px;
+        padding: 3rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 30px 60px rgba(255, 107, 107, 0.5);
+        animation: glow 3s ease-in-out infinite;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .hero-header::before {
+        content: '';
+        position: absolute;
+        top: -100px;
+        right: -100px;
+        width: 400px;
+        height: 400px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+    }
+    
+    .hero-header::after {
+        content: '';
+        position: absolute;
+        bottom: -100px;
+        left: -100px;
+        width: 300px;
+        height: 300px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        animation: float 8s ease-in-out infinite reverse;
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+    
+    .org-name {
+        font-size: 3.5rem;
+        font-weight: 900;
+        color: white;
+        margin-bottom: 1.5rem;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .org-badge {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(255,255,255,0.3);
+        backdrop-filter: blur(15px);
+        padding: 0.8rem 1.5rem;
+        border-radius: 50px;
+        color: white;
+        font-weight: 700;
+        margin-right: 1rem;
+        margin-bottom: 0.75rem;
+        border: 2px solid rgba(255,255,255,0.4);
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+    }
+    
+    .org-badge:hover {
+        transform: scale(1.1);
+        background: rgba(255,255,255,0.4);
+    }
+    
+    .org-badge i {
+        margin-right: 0.75rem;
+        font-size: 1.2rem;
+    }
+    
+    .status-active {
+        background: linear-gradient(135deg, #00d2d3, #54a0ff);
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .status-inactive {
+        background: linear-gradient(135deg, #5f27cd, #341f97);
+    }
+    
+    .header-actions .btn {
+        padding: 1rem 2rem;
+        border-radius: 20px;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .btn-glass {
+        background: rgba(255,255,255,0.3);
+        border: 3px solid rgba(255,255,255,0.5);
+        color: white;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .btn-glass:hover {
+        background: white;
+        color: #ff6b6b;
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    
+    .btn-white {
+        background: white;
+        color: #ff6b6b;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .btn-white:hover {
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 20px 50px rgba(255, 107, 107, 0.4);
+        background: #feca57;
+    }
+    
+    /* Cartes statistiques ultra-colorées et animées */
+    .color-card {
+        border-radius: 25px;
+        padding: 2.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        height: 100%;
+        min-height: 220px;
+        animation: slideIn 0.6s ease-out;
+        border: 3px solid rgba(255,255,255,0.3);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    
+    .color-card::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 150px;
+        height: 150px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        animation: float 10s ease-in-out infinite;
+    }
+    
+    .color-card::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        left: -30px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        animation: float 8s ease-in-out infinite reverse;
+    }
+    
+    .color-card:hover {
+        transform: translateY(-15px) scale(1.05) rotate(2deg);
+        box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .color-card.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); }
+    .color-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 50%, #00d2d3 100%); }
+    .color-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 50%, #54a0ff 100%); }
+    .color-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #ff6b6b 100%); }
+    .color-card.red { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 50%, #feca57 100%); }
+    .color-card.teal { background: linear-gradient(135deg, #00cdac 0%, #02aab0 50%, #00d2d3 100%); }
+    .color-card.pink { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fad0c4 100%); color: #333; }
+    .color-card.yellow { background: linear-gradient(135deg, #f6d365 0%, #fda085 50%, #feca57 100%); }
+    
+    .color-card-icon {
+        width: 80px;
+        height: 80px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+        animation: float 4s ease-in-out infinite;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .color-card-value {
+        font-size: 3.5rem;
+        font-weight: 900;
+        line-height: 1;
+        margin-bottom: 0.75rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        animation: pulse 3s ease-in-out infinite;
+    }
+    
+    .color-card-label {
+        font-size: 1.2rem;
+        opacity: 0.95;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+    
+    /* Sections ultra-visibles */
+    .section-card {
+        background: white;
+        border-radius: 30px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        margin-bottom: 2.5rem;
+        animation: slideIn 0.8s ease-out;
+        border: 3px solid rgba(255,255,255,0.5);
+    }
+    
+    .section-header {
+        padding: 2rem 2.5rem;
+        display: flex;
+        align-items: center;
+        border-bottom: 3px solid rgba(255,255,255,0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .section-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.3));
+        animation: float 15s ease-in-out infinite;
+    }
+    
+    .section-header.purple { background: linear-gradient(135deg, #667eea, #764ba2, #f093fb); }
+    .section-header.green { background: linear-gradient(135deg, #11998e, #38ef7d, #00d2d3); }
+    .section-header.blue { background: linear-gradient(135deg, #4facfe, #00f2fe, #54a0ff); }
+    .section-header.orange { background: linear-gradient(135deg, #f093fb, #f5576c, #ff6b6b); }
+    
+    .section-header i {
+        font-size: 2rem;
+        margin-right: 1.5rem;
+        color: white;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .section-header h4 {
+        margin: 0;
+        font-weight: 800;
+        color: white;
+        font-size: 1.5rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .section-body {
+        padding: 2.5rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    }
+    
+    /* Boîtes d'information ultra-colorées */
+    .info-box {
+        background: white;
+        border-radius: 25px;
+        padding: 2.5rem;
+        box-shadow: 0 15px 50px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        border: 3px solid;
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+        animation: slideIn 1s ease-out;
+    }
+    
+    .info-box::before {
+        content: '';
+        position: absolute;
+        top: -20px;
+        right: -20px;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        opacity: 0.1;
+    }
+    
+    .info-box:hover {
+        transform: translateX(10px) scale(1.02);
+        box-shadow: 0 25px 70px rgba(0,0,0,0.2);
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .info-box.purple { 
+        border-color: #667eea; 
+        background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
+    }
+    .info-box.purple::before { background: #667eea; }
+    
+    .info-box.green { 
+        border-color: #11998e; 
+        background: linear-gradient(135deg, #ffffff 0%, #e6fffa 100%);
+    }
+    .info-box.green::before { background: #11998e; }
+    
+    .info-box.blue { 
+        border-color: #4facfe; 
+        background: linear-gradient(135deg, #ffffff 0%, #e6f7ff 100%);
+    }
+    .info-box.blue::before { background: #4facfe; }
+    
+    .info-box.orange { 
+        border-color: #f093fb; 
+        background: linear-gradient(135deg, #ffffff 0%, #fff0f6 100%);
+    }
+    .info-box.orange::before { background: #f093fb; }
+    
+    .info-box-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-box-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1.5rem;
+        font-size: 1.5rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: float 5s ease-in-out infinite;
+    }
+    
+    .info-box-icon.purple { background: linear-gradient(135deg, #667eea, #764ba2, #f093fb); }
+    .info-box-icon.green { background: linear-gradient(135deg, #11998e, #38ef7d, #00d2d3); }
+    .info-box-icon.blue { background: linear-gradient(135deg, #4facfe, #00f2fe, #54a0ff); }
+    .info-box-icon.orange { background: linear-gradient(135deg, #f093fb, #f5576c, #ff6b6b); }
+    
+    .info-box-title {
+        font-size: 0.9rem;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 700;
+    }
+    
+    .info-box-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #2d3748;
+    }
+    
+    /* Boutons d'action ultra-visibles */
+    .action-card {
+        display: block;
+        padding: 1.75rem 2rem;
+        border-radius: 20px;
+        text-decoration: none;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        border: 3px solid rgba(255,255,255,0.3);
+        animation: slideIn 1.2s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .action-card::before {
+        content: '';
+        position: absolute;
+        top: -30px;
+        right: -30px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        transition: all 0.4s ease;
+    }
+    
+    .action-card:hover::before {
+        width: 200px;
+        height: 200px;
+        top: -100px;
+        right: -100px;
+    }
+    
+    .action-card:last-child {
+        margin-bottom: 0;
+    }
+    
+    .action-card i {
+        width: 55px;
+        height: 55px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1.5rem;
+        font-size: 1.5rem;
+        z-index: 1;
+        position: relative;
+    }
+    
+    .action-card-text {
+        flex: 1;
+        z-index: 1;
+        position: relative;
+    }
+    
+    .action-card-title {
+        font-weight: 800;
+        font-size: 1.2rem;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .action-card-desc {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .action-card.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        color: white;
+    }
+    
+    .action-card.primary:hover {
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 25px 50px rgba(102, 126, 234, 0.5);
+        color: white;
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .action-card.primary i {
+        background: rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .action-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 50%, #00d2d3 100%);
+        color: white;
+    }
+    
+    .action-card.success:hover {
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 25px 50px rgba(17, 153, 142, 0.5);
+        color: white;
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .action-card.success i {
+        background: rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .action-card.warning {
+        background: linear-gradient(135deg, #f6d365 0%, #fda085 50%, #feca57 100%);
+        color: white;
+    }
+    
+    .action-card.warning:hover {
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 25px 50px rgba(253, 160, 133, 0.5);
+        color: white;
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .action-card.warning i {
+        background: rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .action-card.danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 50%, #feca57 100%);
+        color: white;
+        border: 3px solid rgba(255,255,255,0.4);
+    }
+    
+    .action-card.danger:hover {
+        transform: translateY(-8px) scale(1.05);
+        box-shadow: 0 25px 50px rgba(255, 107, 107, 0.5);
+        color: white;
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .action-card.danger i {
+        background: rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    /* Grille de mini-stats ultra-colorées */
+    .mini-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+    
+    .mini-stat {
+        background: white;
+        border-radius: 20px;
+        padding: 1.75rem;
+        text-align: center;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 3px solid;
+        position: relative;
+        overflow: hidden;
+        animation: slideIn 1.4s ease-out;
+    }
+    
+    .mini-stat::before {
+        content: '';
+        position: absolute;
+        top: -20px;
+        right: -20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        opacity: 0.1;
+    }
+    
+    .mini-stat:hover {
+        transform: scale(1.1) rotate(3deg);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .mini-stat:nth-child(1) { 
+        border-color: #667eea; 
+        background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
+    }
+    .mini-stat:nth-child(1)::before { background: #667eea; }
+    
+    .mini-stat:nth-child(2) { 
+        border-color: #11998e; 
+        background: linear-gradient(135deg, #ffffff 0%, #e6fffa 100%);
+    }
+    .mini-stat:nth-child(2)::before { background: #11998e; }
+    
+    .mini-stat:nth-child(3) { 
+        border-color: #4facfe; 
+        background: linear-gradient(135deg, #ffffff 0%, #e6f7ff 100%);
+    }
+    .mini-stat:nth-child(3)::before { background: #4facfe; }
+    
+    .mini-stat:nth-child(4) { 
+        border-color: #f093fb; 
+        background: linear-gradient(135deg, #ffffff 0%, #fff0f6 100%);
+    }
+    .mini-stat:nth-child(4)::before { background: #f093fb; }
+    
+    .mini-stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: float 6s ease-in-out infinite;
+    }
+    
+    .mini-stat-icon.purple { background: linear-gradient(135deg, #667eea, #764ba2, #f093fb); }
+    .mini-stat-icon.green { background: linear-gradient(135deg, #11998e, #38ef7d, #00d2d3); }
+    .mini-stat-icon.blue { background: linear-gradient(135deg, #4facfe, #00f2fe, #54a0ff); }
+    .mini-stat-icon.orange { background: linear-gradient(135deg, #f093fb, #f5576c, #ff6b6b); }
+    
+    .mini-stat-value {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #2d3748;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .mini-stat-label {
+        font-size: 0.9rem;
+        color: #718096;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Timeline ultra-visible */
+    .date-timeline {
+        position: relative;
+        padding-left: 3rem;
+    }
+    
+    .date-timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: linear-gradient(180deg, #667eea, #764ba2, #f093fb);
+        border-radius: 5px;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    .date-item {
+        position: relative;
+        padding: 1.5rem 0;
+        background: white;
+        border-radius: 20px;
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+        border: 2px solid #e2e8f0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        animation: slideIn 1.6s ease-out;
+    }
+    
+    .date-item:hover {
+        transform: translateX(10px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        border-color: #667eea;
+    }
+    
+    .date-item::before {
+        content: '';
+        position: absolute;
+        left: -2.3rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        background: white;
+        border: 4px solid #667eea;
+        border-radius: 50%;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .date-label {
+        font-size: 0.9rem;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 700;
+    }
+    
+    .date-value {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #2d3748;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+    <div class="container">
+        
+        <!-- En-tête Hero Ultra-Visible -->
+        <div class="hero-header">
+            <div class="hero-content">
+                <div class="row align-items-center">
+                    <div class="col-lg-8 mb-3 mb-lg-0">
+                        <h1 class="org-name">
+                            <i class="fas fa-building me-3"></i>{{ organisation.nom }}
+                        </h1>
+                        <div class="d-flex flex-wrap">
+                            <span class="org-badge">
+                                <i class="fas fa-fingerprint"></i>{{ organisation.code }}
+                            </span>
+                            {% if organisation.est_active %}
+                            <span class="org-badge status-active">
+                                <i class="fas fa-check-circle"></i>Organisation Active
+                            </span>
+                            {% else %}
+                            <span class="org-badge status-inactive">
+                                <i class="fas fa-pause-circle"></i>Organisation Inactive
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="header-actions d-flex gap-2 justify-content-lg-end">
+                            <a href="{% url 'accounts:organisation_list' %}" class="btn btn-glass">
+                                <i class="fas fa-arrow-left me-2"></i>Retour
+                            </a>
+                            <a href="{% url 'accounts:organisation_edit' organisation.pk %}" class="btn btn-white">
+                                <i class="fas fa-edit me-2"></i>Modifier
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cartes statistiques ultra-colorées avec données exactes -->
+        <div class="row mb-5">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card purple">
+                    <div class="color-card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="color-card-value">{{ users_count }}</div>
+                    <div class="color-card-label">Utilisateurs</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card green">
+                    <div class="color-card-icon">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="color-card-value">{{ courses_count }}</div>
+                    <div class="color-card-label">Cours</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card blue">
+                    <div class="color-card-icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="color-card-value">{{ teachers_count }}</div>
+                    <div class="color-card-label">Enseignants</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card orange">
+                    <div class="color-card-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="color-card-value">{{ schedules_count }}</div>
+                    <div class="color-card-label">Horaires</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cartes additionnelles avec données exactes -->
+        <div class="row mb-5">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card red">
+                    <div class="color-card-icon">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div class="color-card-value">{{ students_count }}</div>
+                    <div class="color-card-label">Étudiants</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card teal">
+                    <div class="color-card-icon">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <div class="color-card-value">{{ departments_count }}</div>
+                    <div class="color-card-label">Départements</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card pink">
+                    <div class="color-card-icon">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <div class="color-card-value">{{ mentions_count }}</div>
+                    <div class="color-card-label">Mentions</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="color-card yellow">
+                    <div class="color-card-icon">
+                        <i class="fas fa-door-open"></i>
+                    </div>
+                    <div class="color-card-value">{{ classes_count }}</div>
+                    <div class="color-card-label">Classes</div>
+                </div>
+            </div>
+        </div>
+        
+                
+        <div class="row">
+            <!-- Colonne principale -->
+            <div class="col-lg-8">
+                
+                <!-- Informations de l'organisation -->
+                <div class="section-card">
+                    <div class="section-header purple">
+                        <i class="fas fa-info-circle"></i>
+                        <h4>Informations de l'Organisation</h4>
+                    </div>
+                    <div class="section-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="info-box purple">
+                                    <div class="info-box-header">
+                                        <div class="info-box-icon purple">
+                                            <i class="fas fa-building"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-box-title">Nom</div>
+                                            <div class="info-box-value">{{ organisation.nom }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="info-box blue">
+                                    <div class="info-box-header">
+                                        <div class="info-box-icon blue">
+                                            <i class="fas fa-fingerprint"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-box-title">Code Unique</div>
+                                            <div class="info-box-value">{{ organisation.code }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="info-box green">
+                                    <div class="info-box-header">
+                                        <div class="info-box-icon green">
+                                            <i class="fas fa-align-left"></i>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <div class="info-box-title">Description</div>
+                                            <div class="info-box-value">
+                                                {% if organisation.description %}
+                                                    {{ organisation.description }}
+                                                {% else %}
+                                                    <span style="color: #a0aec0; font-style: italic;">Aucune description fournie</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="info-box {% if organisation.est_active %}green{% else %}orange{% endif %}">
+                                    <div class="info-box-header">
+                                        <div class="info-box-icon {% if organisation.est_active %}green{% else %}orange{% endif %}">
+                                            <i class="fas fa-{% if organisation.est_active %}check{% else %}pause{% endif %}-circle"></i>
+                                        </div>
+                                        <div>
+                                            <div class="info-box-title">Statut</div>
+                                            <div class="info-box-value">
+                                                {% if organisation.est_active %}
+                                                    <span style="color: #11998e; font-weight: 800;">✓ ACTIVE</span>
+                                                {% else %}
+                                                    <span style="color: #f093fb; font-weight: 800;">⏸ INACTIVE</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Timeline des dates -->
+                <div class="section-card">
+                    <div class="section-header blue">
+                        <i class="fas fa-history"></i>
+                        <h4>Historique</h4>
+                    </div>
+                    <div class="section-body">
+                        <div class="date-timeline">
+                            <div class="date-item">
+                                <div class="date-label">Date de création</div>
+                                <div class="date-value">
+                                    <i class="fas fa-calendar-plus text-primary me-2"></i>
+                                    {{ organisation.date_creation|date:"d F Y à H:i" }}
+                                </div>
+                            </div>
+                            <div class="date-item">
+                                <div class="date-label">Dernière modification</div>
+                                <div class="date-value">
+                                    <i class="fas fa-sync-alt text-info me-2"></i>
+                                    {{ organisation.date_modification|date:"d F Y à H:i" }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                
+                <!-- Actions rapides -->
+                <div class="section-card">
+                    <div class="section-header green">
+                        <i class="fas fa-bolt"></i>
+                        <h4>Actions Rapides</h4>
+                    </div>
+                    <div class="section-body">
+                        <a href="{% url 'accounts:organisation_user_create' organisation.pk %}" class="action-card primary">
+                            <i class="fas fa-user-plus"></i>
+                            <div class="action-card-text">
+                                <div class="action-card-title">Créer un utilisateur</div>
+                                <div class="action-card-desc">Ajouter un nouveau membre</div>
+                            </div>
+                        </a>
+                        
+                        <a href="{% url 'accounts:organisation_users_list' organisation.pk %}" class="action-card success">
+                            <i class="fas fa-users"></i>
+                            <div class="action-card-text">
+                                <div class="action-card-title">Voir les utilisateurs</div>
+                                <div class="action-card-desc">Liste des membres</div>
+                            </div>
+                        </a>
+                        
+                        <a href="{% url 'accounts:organisation_edit' organisation.pk %}" class="action-card warning">
+                            <i class="fas fa-edit"></i>
+                            <div class="action-card-text">
+                                <div class="action-card-title">Modifier</div>
+                                <div class="action-card-desc">Éditer l'organisation</div>
+                            </div>
+                        </a>
+                        
+                        <a href="{% url 'accounts:organisation_delete' organisation.pk %}" class="action-card danger">
+                            <i class="fas fa-trash-alt"></i>
+                            <div class="action-card-text">
+                                <div class="action-card-title">Supprimer</div>
+                                <div class="action-card-desc">Retirer l'organisation</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Résumé en grille -->
+                <div class="section-card">
+                    <div class="section-header orange">
+                        <i class="fas fa-chart-pie"></i>
+                        <h4>Résumé</h4>
+                    </div>
+                    <div class="section-body">
+                        <div class="mini-stat-grid">
+                            <div class="mini-stat">
+                                <div class="mini-stat-icon purple">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="mini-stat-value">{{ organisation.userprofile_set.count }}</div>
+                                <div class="mini-stat-label">Utilisateurs</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="mini-stat-icon green">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <div class="mini-stat-value">{{ organisation.course_set.count }}</div>
+                                <div class="mini-stat-label">Cours</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="mini-stat-icon blue">
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                </div>
+                                <div class="mini-stat-value">{{ organisation.teacher_set.count }}</div>
+                                <div class="mini-stat-label">Enseignants</div>
+                            </div>
+                            <div class="mini-stat">
+                                <div class="mini-stat-icon orange">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                                <div class="mini-stat-value">{{ organisation.schedule_set.count }}</div>
+                                <div class="mini-stat-label">Horaires</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
 
+{% comment %} Création d'un filtre personnalisé pour accéder aux valeurs du dictionnaire dans le template {% endcomment %}
+{% load my_filters %}
+
 {% block title %}Liste des Cours{% endblock %}
 
 {% block content %}
@@ -110,7 +113,13 @@
                             <td data-label="Intitulé EC">{{ course.intitule_ec }}</td>
                             <td data-label="Classe">{{ course.classe }}</td>
                             <td data-label="Semestre">{{ course.semestre }}</td>
-                            <td data-label="Département">{{ course.departement }}</td>
+                            <td data-label="Département">
+                                {% if course.departement in departement_dict %}
+                                    {{ departement_dict|get_item:course.departement }}
+                                {% else %}
+                                    {{ course.departement }}
+                                {% endif %}
+                            </td>
                             <td data-label="Crédit">{{ course.credit }}</td>
                             <td data-label="CMI">{{ course.cmi }}</td>
                             <td data-label="TD+TP">{{ course.td_tp }}</td>
@@ -120,9 +129,11 @@
                                     <a href="{% url 'courses:update' course.id %}" class="btn btn-sm btn-primary me-2">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    {% if not is_org_user %}
                                     <a href="{% url 'courses:delete' course.id %}" class="btn btn-sm btn-danger">
                                         <i class="fas fa-trash"></i>
                                     </a>
+                                    {% endif %}
                                 </div>
                                 {% else %}
                                 <span class="text-muted"><i class="fas fa-eye"></i> Lecture seule</span>

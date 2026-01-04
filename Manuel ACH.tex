@@ -1,0 +1,337 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Manuel d'utilisation ACH}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{Attribution des Charges Horaires}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+    pdftitle={Manuel d'utilisation ACH},
+}
+
+\title{
+    \Huge \textbf{ACH} \\
+    \Large Attribution des Charges Horaires \\
+    \vspace{0.5cm}
+    \large Manuel d'Utilisation
+}
+\author{BAT}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+ACH (Attribution des Charges Horaires) est un système de gestion permettant d'attribuer les cours aux enseignants, de créer des horaires et de suivre la progression des enseignements.
+
+\subsection{Connexion au système}
+
+\begin{enumerate}
+    \item Accédez à l'URL du système
+    \item Entrez votre nom d'utilisateur et mot de passe
+    \item Cliquez sur \textbf{Connexion}
+\end{enumerate}
+
+Après connexion, vous arrivez sur la page d'accueil affichant l'année académique en cours.
+
+\subsection{Navigation}
+
+Le menu latéral gauche (sidebar) contient les icônes principales. Passez la souris sur chaque icône pour voir sa description.
+
+\section{Gestion des Attributions}
+
+Une attribution consiste à assigner un enseignant à un ou plusieurs cours avec un volume horaire défini.
+
+\subsection{Accéder aux attributions}
+
+\begin{enumerate}
+    \item Cliquez sur l'icône \textbf{Attributions} (icône de tâches) dans la sidebar
+    \item Vous accédez dans une page dans laquelle il y a un formulaire, un tableau de bord des cours à attribuer et la liste des cours à attribuer. 
+\end{enumerate}
+
+\subsection{Créer une nouvelle attribution}
+
+\subsubsection{Étapes à suivre pour faire une attribution}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=Champs du formulaire]
+\begin{itemize}[leftmargin=*]
+	 \item \textbf{Migrer les UE ou Vider les UE} : Avant de commencer les attributions il faut s'assurer que toutes les UE sont migrer vers les UE à attribuer, en cas de doute, vider les ue et faite une nouvelle migration
+    \item \textbf{Enseignant} : Sélectionnez l'enseignant dans la liste déroulante, son grade et son matricule s'affichent afin de savoir combien d'heures lui allouées 
+    \item \textbf{Type de charges} : Sélectionnez dans la liste déroulante le type de charge à attribuer (Régulière ou Supplémentaire)
+    \item \textbf{Code UE} : Sélectionnez une ou plusieurs UE à attribuer, le nombre d'UE et le nombre d'heures vont commencer à s'incrémenter pour indiquer à combien d'heure on est
+\end{itemize}
+\end{tcolorbox}
+
+\subsubsection{Étape 2 : Attribuer}
+
+\begin{enumerate}
+    \item Vérifiez les informations sélectionnées
+    \item Cliquez sur le gros bouton vert\textbf{Attribuer}
+    \item Un message de confirmation s'affiche
+\end{enumerate}
+
+\begin{tcolorbox}[colback=yellow!5!white,colframe=green!75!black,title=Important]
+Le système affiche dans une boîte de dialogue le nombre d'UE à attribuer avant de confirmer.
+\end{tcolorbox}
+
+\subsection{Consulter les attributions}
+
+\subsubsection{Voir les charges par enseignant}
+
+Cliquez sur \textbf{Liste des charges} dans la sidebar:
+\begin{itemize}
+    \item Sélectionner un enseignant dans la liste déroulante
+    \item Sélectionner l'année académique
+    \item Sélectionner le type de charge à voir, s'affiche directement
+    \item Cliquer sur Imprimer(Enseignant) pour voir le pdf
+\end{itemize}
+
+\textbf{Autres donner à voir :}
+\begin{itemize}
+    \item En cliquant sur Imprimer par Section, pour la synthèse de nombre d'heure par type de charge, un formulaire s'affiche pour préciser la section et le type de charge à voir
+    \item En cliquant sur Heures suppl. par Grade, c'est pour voir le condensé de nombre d'heures supplémentaires par grade pour faciliter la budgétisation, ça peut se filtrer par année et par section
+\end{itemize}
+
+\section{Création des Horaires}
+
+Le générateur d'horaires permet de créer des emplois du temps hebdomadaires pour chaque classe, dans un créneau précis.
+
+\subsection{Accéder au générateur d'horaires}
+
+\begin{enumerate}
+    \item Cliquez sur l'icône \textbf{Horaires} (calendrier) dans la sidebar
+    \item Vous accédez au générateur d'horaires
+\end{enumerate}
+
+\subsection{Créer un horaire}
+
+\subsubsection{Étape 1 : Sélectionner les paramètres}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=yellow!75!black,title=Paramètres de base]
+\begin{enumerate}[leftmargin=*]
+	\item \textbf{Classe} : Sélectionnez d'abord la classe (ex: L3 MI ou L1 BC), ça va filtrer dans la liste déroulante des cours, que des cours de cette classe là
+    \item \textbf{Cours à placer dans l'horaire} : Sélectionnez le cours dans la liste déroulante filtrée
+    \item \textbf{Semaine} : Choisissez la semaine concernée (ex: Semaine 1), la semaine en cours est par défaut
+    \item \textbf{Date (plage de date)} : Choisissez la date du début et de la fin de la planification
+    \item \textbf{Date (Créneau)} : Choisissez le créneau pour cette planification(08h00-12h00 ou 14h00-17h00)
+    \item \textbf{Date (Local)} : Choisissez le local qui convient pour ce cours
+    
+\end{enumerate}
+\end{tcolorbox}
+
+
+
+\begin{tcolorbox}[colback=red!5!white,colframe=red!75!black,title=Vérification automatique]
+Le système détecte automatiquement les conflits :
+\begin{itemize}
+    \item Enseignant déjà occupé au même moment
+    \item Salle déjà réservée
+    \item Chevauchement d'horaires
+\end{itemize}
+Un message d'erreur s'affiche en cas de conflit.
+\end{tcolorbox}
+
+\subsubsection{Étape 2 : Visualiser l'horaire}
+
+Au fur et à mesure de l'ajout des créneaux :
+\begin{itemize}
+    \item La grille horaire se remplit automatiquement
+    \item Chaque créneau affiche : Cours, Enseignant, Salle
+    \item Les jours sont en colonnes (Lundi à Samedi)
+    \item Les heures sont en lignes
+\end{itemize}
+
+\subsubsection{Étape 3 : Générer le PDF}
+
+\begin{enumerate}
+    \item Une fois tous les créneaux ajoutés, cliquez sur \textbf{Générer l'horaire PDF}
+    \item Un formulaire s'affiche, dans la liste déroulante sélectionner la semaine concernée, le Chef de Section, et le Chef de Section Adjoint chargé des enseignements vient automatiquement
+    \item Le système génère un document PDF
+    \item Le PDF s'ouvre automatiquement
+    \item Vous pouvez l'imprimer ou le télécharger
+\end{enumerate}
+
+ 
+\section{Suivi des Enseignements}
+
+Le module de suivi permet d'enregistrer et de consulter la progression des cours.
+
+\subsection{Accéder au tableau de bord de suivi}
+
+\begin{enumerate}
+    \item Cliquez sur l'icône \textbf{Suivi} (graphique) dans la sidebar
+    \item Vous accédez au tableau de bord de suivi
+\end{enumerate}
+
+\subsection{Consulter le tableau de bord}
+
+Le tableau de bord affiche :
+
+\subsubsection{Statistiques globales}
+
+\begin{itemize}
+    \item \textbf{Semaine actuelle} : Semaine en cours
+    \item \textbf{Progression globale} : Pourcentage d'avancement général
+    \item \textbf{Heures réalisées / Heures allouées} : Barre de progression
+\end{itemize}
+
+\subsubsection{Tableau de suivi des cours}
+
+Pour chaque cours :
+\begin{itemize}
+    \item Code UE
+    \item Intitulé du cours
+    \item Classe
+    \item Heures réalisées
+    \item Progression en pourcentage (avec barre de progression colorée)
+\end{itemize}
+
+\textbf{Code couleur :}
+\begin{itemize}
+    \item \textcolor{blue}{Bleu} : Moins de 75\% de progression
+    \item \textcolor{orange}{Orange} : Entre 75\% et 99\%
+    \item \textcolor{green}{Vert} : 100\% ou plus (cours terminé)
+\end{itemize}
+
+\subsubsection{Tableau de suivi des enseignants}
+
+Pour chaque enseignant :
+\begin{itemize}
+    \item Nom et prénom
+    \item Heures effectuées
+    \item Heures allouées
+    \item Taux de réalisation
+\end{itemize}
+
+\subsection{Ajouter une progression}
+
+\subsubsection{Étape 1 : Accéder à la gestion}
+
+\begin{enumerate}
+    \item Sur le tableau de bord, cliquez sur \textbf{Gestion de suivi des enseignements}
+    \item Vous accédez à la liste des progressions enregistrées
+\end{enumerate}
+
+\subsubsection{Étape 2 : Créer une nouvelle progression}
+
+\begin{enumerate}
+    \item Cliquez sur \textbf{Nouvel enregistrement} (bouton bleu)
+    \item Remplissez le formulaire :
+\end{enumerate}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=Champs du formulaire]
+\begin{itemize}[leftmargin=*]
+	\item \textbf{Enseignant} : Sélectionnez l'enseignant, ça va filtrer seulement les cours attribués à cet enseignant
+    \item \textbf{Cours (UE)} : Sélectionnez le cours concerné
+    \item \textbf{Semaine} : Choisissez la semaine
+    \item \textbf{Heures effectuées} : Saisir le nombre d'heures réalisées cette semaine
+    \item \textbf{Statut} : Sélectionnez terminé
+    \item \textbf{Observations} : Commentaires ou remarques (optionnel)
+\end{itemize}
+\end{tcolorbox}
+
+\subsubsection{Étape 3 : Enregistrer}
+
+\begin{enumerate}
+    \item Vérifiez les informations
+    \item Cliquez sur \textbf{Enregistrer}
+    \item La progression est ajoutée au système
+    \item Les statistiques du tableau de bord sont mises à jour automatiquement
+\end{enumerate}
+
+\subsection{Modifier une progression}
+
+\begin{enumerate}
+    \item Dans la liste des progressions, cliquez sur l'icône \textbf{Modifier}
+    \item Modifiez les champs nécessaires
+    \item Cliquez sur \textbf{Enregistrer}
+\end{enumerate}
+
+\subsection{Imprimer le rapport de suivi}
+
+\begin{enumerate}
+    \item Sur le tableau de bord, cliquez sur \textbf{Imprimer le rapport}
+     \item Un formulaire apparait, sélectionnez un Chef de Section chargé des enseignements
+      \item Sélectionnez la semaine de la progression
+      \item Sélectionnez le type de semestre (impaires ou paires)
+    \item Le système génère un PDF avec :
+    \begin{itemize}
+        \item Tableaux détaillés des cours
+        \item Tableaux détaillés des enseignants
+    \end{itemize}
+    \item Le PDF s'ouvre automatiquement pour impression ou téléchargement
+\end{enumerate}
+
+\subsection{Filtrer les données}
+
+Sur le tableau de bord, utilisez les filtres pour :
+\begin{itemize}
+    \item Rechercher un cours spécifique (par code ou intitulé)
+    \item Filtrer par semestre (impairs, pairs, ou tous)
+    \item Rechercher un enseignant
+    \item Filtrer par classe
+\end{itemize}
+
+\section{Conseils et bonnes pratiques}
+
+\subsection{Pour les horaires}
+
+\begin{itemize}
+    \item Commencez par les cours à horaires fixes
+    \item Vérifiez la disponibilité des salles avant d'ajouter un créneau
+    \item Laissez des pauses entre les cours (minimum 15 minutes)
+    \item Évitez de programmer des cours après 18h00 si possible
+    \item Générez le PDF régulièrement pour vérifier la cohérence
+\end{itemize}
+
+\subsection{Pour le suivi}
+
+\begin{itemize}
+    \item Enregistrez les progressions chaque semaine
+    \item Consultez régulièrement le tableau de bord pour identifier les retards
+    \item Imprimez le rapport mensuel pour les réunions pédagogiques
+\end{itemize}
+
+\section{Résolution de problèmes}
+
+\subsection{Conflit d'horaires}
+
+\textbf{Problème :} "L'enseignant est déjà occupé à cette heure"
+
+\textbf{Solution :} Choisissez un autre créneau horaire ou un autre enseignant pour ce cours.
+
+\subsection{Progression non visible}
+
+\textbf{Problème :} La progression ajoutée n'apparaît pas dans le tableau de bord
+
+\textbf{Solution :} Rafraîchissez la page (F5) ou vérifiez que vous avez bien sélectionné la bonne semaine et le bon cours.
+
+\section{Contact et support}
+
+Pour toute question ou problème technique, contactez l'administrateur système.
+
+\vspace{1cm}
+
+\begin{center}
+\textit{Fin du manuel d'utilisation}
+\end{center}
+
+\end{document}

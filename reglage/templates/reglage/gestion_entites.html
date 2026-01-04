@@ -6,7 +6,8 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row">
-        <!-- Section -->
+        {% if not is_org_user %}
+        <!-- Section - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -20,8 +21,9 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         
-        <!-- Département -->
+        <!-- Département - Accessible à tous -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -36,7 +38,7 @@
             </div>
         </div>
         
-        <!-- Mention -->
+        <!-- Mention - Accessible à tous -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -51,7 +53,8 @@
             </div>
         </div>
         
-        <!-- Niveau -->
+        {% if not is_org_user %}
+        <!-- Niveau - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -65,8 +68,9 @@
                 </div>
             </div>
         </div>
+        {% endif %}
         
-        <!-- Classe -->
+        <!-- Classe - Accessible à tous -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -81,7 +85,8 @@
             </div>
         </div>
         
-        <!-- Grade -->
+        {% if not is_org_user %}
+        <!-- Grade - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -96,7 +101,7 @@
             </div>
         </div>
         
-        <!-- CatégorieEnseignant -->
+        <!-- CatégorieEnseignant - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -111,7 +116,7 @@
             </div>
         </div>
         
-        <!-- Semestre -->
+        <!-- Semestre - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -126,7 +131,7 @@
             </div>
         </div>
         
-        <!-- Fonction -->
+        <!-- Fonction - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm">
                 <div class="card-body text-center py-2">
@@ -141,7 +146,7 @@
             </div>
         </div>
         
-        <!-- Années Académiques -->
+        <!-- Années Académiques - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm border-success">
                 <div class="card-body text-center py-2">
@@ -156,7 +161,7 @@
             </div>
         </div>
         
-        <!-- Salles -->
+        <!-- Salles - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm border-info">
                 <div class="card-body text-center py-2">
@@ -171,22 +176,7 @@
             </div>
         </div>
         
-        <!-- Créneaux -->
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card shadow-sm border-warning">
-                <div class="card-body text-center py-2">
-                    <div class="mb-2">
-                        <i class="fas fa-clock fa-2x text-warning"></i>
-                    </div>
-                    <h6 class="card-title mb-2">Créneaux</h6>
-                    <a href="{% url 'reglage:creneau_list' %}" class="btn btn-warning btn-sm">
-                        <i class="fas fa-cog me-1"></i>Gérer
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Semaines de Cours -->
+        <!-- Semaines de Cours - Admin uniquement -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm border-danger">
                 <div class="card-body text-center py-2">
@@ -195,6 +185,22 @@
                     </div>
                     <h6 class="card-title mb-2">Semaines de Cours</h6>
                     <a href="{% url 'reglage:semaine_list' %}" class="btn btn-danger btn-sm">
+                        <i class="fas fa-cog me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Créneaux - Accessible à tous (filtré par organisation) -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card shadow-sm border-warning">
+                <div class="card-body text-center py-2">
+                    <div class="mb-2">
+                        <i class="fas fa-clock fa-2x text-warning"></i>
+                    </div>
+                    <h6 class="card-title mb-2">Créneaux</h6>
+                    <a href="{% url 'reglage:creneau_list' %}" class="btn btn-warning btn-sm">
                         <i class="fas fa-cog me-1"></i>Gérer
                     </a>
                 </div>

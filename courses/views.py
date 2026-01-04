@@ -26,7 +26,15 @@ class CourseListView(ListView):
     context_object_name = 'courses'
     
     def get_queryset(self):
+        from accounts.organisation_utils import get_user_organisation
+        
         queryset = Course.objects.all()
+        
+        # Filtrer par organisation de l'utilisateur (via section)
+        user_org = get_user_organisation(self.request.user)
+        if user_org:
+            queryset = queryset.filter(section=user_org.code)
+        
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
@@ -38,6 +46,13 @@ class CourseListView(ListView):
                 Q(departement__icontains=search_query)
             )
         return queryset
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Créer un dictionnaire des codes de département vers leurs désignations
+        departements = Departement.objects.all()
+        context['departement_dict'] = {dept.CodeDept: dept.DesignationDept for dept in departements}
+        return context
 
 class CourseCreateView(UserPassesTestMixin, CreateView):
     model = Course
@@ -53,14 +68,23 @@ class CourseCreateView(UserPassesTestMixin, CreateView):
         return super().form_invalid(form)
 
     def form_valid(self, form):
+        from accounts.organisation_utils import get_user_organisation
+        
         logger.info("Formulaire valide, sauvegarde du cours...")
+        # Assigner automatiquement la section de l'organisation de l'utilisateur
+        user_org = get_user_organisation(self.request.user)
+        if user_org:
+            form.instance.section = user_org.code
+            form.instance.organisation = user_org
         messages.success(self.request, 'Cours ajouté avec succès!')
         return super().form_valid(form)
 
     def test_func(self):
+        from accounts.organisation_utils import is_org_user
         user = self.request.user
         return user.is_authenticated and (
             user.is_staff or
+            is_org_user(user) or
             user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
         )
 
@@ -83,11 +107,17 @@ class CourseUpdateView(UserPassesTestMixin, UpdateView):
         return super().form_valid(form)
 
     def test_func(self):
+        from accounts.organisation_utils import get_user_organisation, is_org_user
         user = self.request.user
-        return user.is_authenticated and (
-            user.is_staff or
-            user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
-        )
+        if not user.is_authenticated:
+            return False
+        if user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists():
+            return True
+        user_org = get_user_organisation(user)
+        if user_org and is_org_user(user):
+            course = self.get_object()
+            return course.section == user_org.code
+        return False
 
 class CourseDeleteView(UserPassesTestMixin, DeleteView):
     model = Course
@@ -132,17 +162,25 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
             return redirect('courses:list')
 
     def test_func(self):
+        from accounts.organisation_utils import get_user_organisation, is_org_user
         user = self.request.user
-        return user.is_authenticated and (
-            user.is_staff or
-            user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
-        )
+        if not user.is_authenticated:
+            return False
+        if user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists():
+            return True
+        user_org = get_user_organisation(user)
+        if user_org and is_org_user(user):
+            course = self.get_object()
+            return course.section == user_org.code
+        return False
 
 @csrf_exempt
 def import_excel(request):
-    # Restreindre l'import aux administrateurs/gestionnaires
+    # Restreindre l'import aux administrateurs/gestionnaires et utilisateurs d'organisation
+    from accounts.organisation_utils import get_user_organisation, is_org_user
     user = request.user
-    if not (user.is_authenticated and (user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
+    user_org = get_user_organisation(user)
+    if not (user.is_authenticated and (user.is_staff or is_org_user(user) or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
         return JsonResponse({'error': "Permission refusée"}, status=403)
 
     if request.method == 'POST':
@@ -224,6 +262,10 @@ def import_excel(request):
                         'semestre': str(row['semestre']).strip(),
                         'departement': str(row['departement']).strip()
                     }
+                    
+                    # Assigner automatiquement la section de l'organisation
+                    if user_org:
+                        course_data['section'] = user_org.code
 
                     Course.objects.update_or_create(
                         code_ue=course_data['code_ue'],

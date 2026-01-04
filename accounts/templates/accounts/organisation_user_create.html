@@ -1,0 +1,857 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Créer un utilisateur - {{ organisation.nom }} - ACH{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        background: #f5f7fa;
+    }
+    
+    .gradient-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2.5rem 0;
+        margin-bottom: 2.5rem;
+        border-radius: 0;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .gradient-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.5;
+    }
+    
+    .gradient-header .container {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .form-card {
+        border: none;
+        border-radius: 1.5rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        overflow: hidden;
+        background: white;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .form-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.12);
+    }
+    
+    .form-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 2rem;
+        position: relative;
+    }
+    
+    .form-card .card-header::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 4px;
+        background: white;
+        border-radius: 2px;
+    }
+    
+    .form-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 1.75rem;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+        border-left: 5px solid #667eea;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .form-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+    }
+    
+    .form-section h6 {
+        color: #667eea;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .form-section h6 i {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        width: 35px;
+        height: 35px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        margin-right: 12px;
+        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+    }
+    
+    .form-control, .form-select {
+        border-radius: 0.75rem;
+        border: 2px solid #e1e8ed;
+        padding: 0.85rem 1.25rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: white;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:hover, .form-select:hover {
+        border-color: #c7d2e0;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .form-control:disabled {
+        background: #f8f9fa;
+        border-color: #e9ecef;
+        cursor: not-allowed;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.65rem;
+        font-size: 0.9rem;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-label i {
+        color: #667eea;
+        margin-right: 6px;
+    }
+    
+    .form-text {
+        color: #718096;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-text::before {
+        content: '💡';
+        margin-right: 6px;
+    }
+    
+    .info-card {
+        border: none;
+        border-radius: 1.5rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        background: white;
+        transition: transform 0.3s ease;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }
+    
+    .info-card .card-header {
+        border: none;
+        font-weight: 700;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 1rem 2.5rem;
+        border-radius: 0.75rem;
+        font-weight: 700;
+        font-size: 1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s;
+    }
+    
+    .btn-primary:hover::before {
+        left: 100%;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+    }
+    
+    .btn-primary:active {
+        transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+        border-radius: 0.75rem;
+        padding: 1rem 2.5rem;
+        font-weight: 700;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        border: 2px solid #e2e8f0;
+        background: white;
+        color: #4a5568;
+    }
+    
+    .btn-secondary:hover {
+        background: #f7fafc;
+        border-color: #cbd5e0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .required-star {
+        color: #f56565;
+        font-weight: bold;
+        margin-left: 3px;
+    }
+    
+    .icon-wrapper {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3rem;
+        height: 3rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 1rem;
+        margin-right: 1rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        flex-shrink: 0;
+    }
+    
+    .alert-info {
+        background: linear-gradient(135deg, #ebf4ff 0%, #e0f2fe 100%);
+        border: none;
+        border-radius: 0.75rem;
+        padding: 1rem;
+    }
+    
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+    }
+    
+    /* Input Groups */
+    .input-group-text {
+        border: 2px solid #e1e8ed;
+        border-right: none;
+        border-radius: 0.75rem 0 0 0.75rem;
+        padding: 0.85rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .input-group .form-control,
+    .input-group .form-select {
+        border-left: none;
+        border-radius: 0 0.75rem 0.75rem 0;
+    }
+    
+    .input-group:focus-within .input-group-text {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #f0f3ff 0%, #e8ebff 100%);
+    }
+    
+    .input-group:focus-within .form-control,
+    .input-group:focus-within .form-select {
+        border-color: #667eea;
+    }
+    
+    /* Custom file upload */
+    .custom-file-upload input[type="file"] {
+        padding: 0.85rem 1.25rem;
+    }
+
+    /* Personnalisation du bouton de sélection de fichier */
+    input[type="file"]::file-selector-button {
+        display: none;
+    }
+    
+    input[type="file"] {
+        color: transparent;
+    }
+    
+    input[type="file"]::-webkit-file-upload-button {
+        display: none;
+    }
+    
+    input[type="file"]::before {
+        content: 'Photo profil';
+        display: inline-block;
+        background: transparent;
+        border: none;
+        padding: 0;
+        outline: none;
+        white-space: nowrap;
+        cursor: pointer;
+        font-weight: 400;
+        color: #6c757d;
+    }
+    
+    input[type="file"]:hover::before {
+        color: #495057;
+    }
+    
+    input[type="file"]:active::before {
+        outline: none;
+    }
+    
+    /* Alert personnalisé */
+    .alert-light {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    /* Séparateur de sections */
+    .border-top {
+        border-color: #e9ecef !important;
+        border-width: 2px !important;
+    }
+    
+    /* Animation d'entrée */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .form-card {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    .info-card {
+        animation: slideInRight 0.6s ease-out;
+    }
+    
+    .info-card:nth-child(2) {
+        animation-delay: 0.1s;
+    }
+    
+    .form-section {
+        animation: fadeInUp 0.4s ease-out;
+    }
+    
+    .form-section:nth-child(2) {
+        animation-delay: 0.1s;
+    }
+    
+    .form-section:nth-child(3) {
+        animation-delay: 0.2s;
+    }
+    
+    /* Amélioration des commentaires */
+    .col-12::before {
+        content: attr(data-label);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .gradient-header {
+            padding: 1.5rem 0;
+        }
+        
+        .form-section {
+            padding: 1.25rem;
+        }
+        
+        .btn-primary, .btn-secondary {
+            padding: 0.85rem 1.5rem;
+            width: 100%;
+        }
+        
+        .input-group-text {
+            padding: 0.75rem 0.85rem;
+        }
+        
+        .d-flex.justify-content-between {
+            flex-direction: column-reverse;
+            gap: 0.75rem;
+        }
+    }
+    
+    /* Amélioration du focus pour l'accessibilité */
+    .form-control:focus,
+    .form-select:focus,
+    .btn:focus {
+        outline: 2px solid #667eea;
+        outline-offset: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="gradient-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-2">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Créer un utilisateur
+                    </h1>
+                    <p class="mb-0 opacity-75">
+                        <i class="fas fa-building me-2"></i>{{ organisation.nom }}
+                    </p>
+                </div>
+                <a href="{% url 'accounts:organisation_edit' organisation.pk %}" class="btn btn-light">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card form-card">
+                    <div class="card-body p-4">
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            
+                            <div class="form-section">
+                                <div class="row g-3">
+                                    <!-- Sélection de l'enseignant -->
+                                    <div class="col-12">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-user-tie text-info"></i>
+                                            </span>
+                                            <select class="form-select" id="teacher_select" name="teacher_id">
+                                                <option value="">-- Sélectionner un enseignant --</option>
+                                                {% for section, section_teachers in teachers_by_section.items %}
+                                                    <optgroup label="📚 {{ section }}">
+                                                        {% for teacher in section_teachers %}
+                                                        <option value="{{ teacher.id }}" 
+                                                                data-section="{{ teacher.section|default:'Sans section' }}"
+                                                                data-nom="{{ teacher.nom|default:'' }}"
+                                                                data-prenom="{{ teacher.prenom|default:'' }}"
+                                                                data-nomcomplet="{{ teacher.nom_complet }}"
+                                                                data-email="{{ teacher.email|default:'' }}"
+                                                                data-telephone="{{ teacher.telephone|default:'' }}">
+                                                            {{ teacher.nom_complet }} {% if teacher.matricule %}({{ teacher.matricule }}){% endif %}
+                                                        </option>
+                                                        {% endfor %}
+                                                    </optgroup>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Nom d'utilisateur -->
+                                    <div class="col-12">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-user text-primary"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="{{ user_form.username.id_for_label }}" name="{{ user_form.username.name }}" placeholder="Nom d'utilisateur *" required>
+                                        </div>
+                                        {% if user_form.username.errors %}
+                                            <div class="text-danger small mt-1">{{ user_form.username.errors }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Champs cachés pour email, prénom et nom (requis par Django) -->
+                                    <input type="hidden" id="{{ user_form.email.id_for_label }}" name="{{ user_form.email.name }}" value="">
+                                    <input type="hidden" id="{{ user_form.first_name.id_for_label }}" name="{{ user_form.first_name.name }}" value="">
+                                    <input type="hidden" id="{{ user_form.last_name.id_for_label }}" name="{{ user_form.last_name.name }}" value="">
+
+                                    <!-- Mots de passe -->
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-lock text-warning"></i>
+                                            </span>
+                                            <input type="password" class="form-control" id="{{ user_form.password1.id_for_label }}" name="{{ user_form.password1.name }}" placeholder="Mot de passe *" required>
+                                        </div>
+                                        {% if user_form.password1.errors %}
+                                            <div class="text-danger small mt-1">{{ user_form.password1.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-lock text-warning"></i>
+                                            </span>
+                                            <input type="password" class="form-control" id="{{ user_form.password2.id_for_label }}" name="{{ user_form.password2.name }}" placeholder="Confirmer le mot de passe *" required>
+                                        </div>
+                                        {% if user_form.password2.errors %}
+                                            <div class="text-danger small mt-1">{{ user_form.password2.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="row g-3">
+                                    <!-- Organisation (lecture seule) -->
+                                    <div class="col-12">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-building text-primary"></i>
+                                            </span>
+                                            <input type="text" class="form-control" value="{{ organisation.nom }}" placeholder="Organisation" disabled>
+                                        </div>
+                                    </div>
+
+                                    <!-- Téléphone et Section -->
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-phone text-success"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="{{ profile_form.phone_number.id_for_label }}" name="{{ profile_form.phone_number.name }}" placeholder="Numéro de téléphone">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-layer-group text-info"></i>
+                                            </span>
+                                            <input type="text" class="form-control" id="{{ profile_form.section.id_for_label }}" name="{{ profile_form.section.name }}" placeholder="Section / Département">
+                                        </div>
+                                    </div>
+
+                                    <!-- Champ adresse caché -->
+                                    <input type="hidden" id="{{ profile_form.address.id_for_label }}" name="{{ profile_form.address.name }}" value="">
+
+                                    <!-- Photo de profil -->
+                                    <div class="col-12">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-camera text-secondary"></i>
+                                            </span>
+                                            <div class="form-control file-input-wrapper" style="padding: 0; overflow: hidden; position: relative;">
+                                                <input type="file" class="file-input-hidden" id="{{ profile_form.profile_picture.id_for_label }}" name="{{ profile_form.profile_picture.name }}" accept="image/*" style="position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer;">
+                                                <span class="file-input-label" style="display: block; padding: 0.85rem 1.25rem; color: #6c757d; cursor: pointer;">Photo profil</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="fas fa-user-tag text-warning"></i>
+                                            </span>
+                                            <select class="form-select" id="role" name="role" required>
+                                                <option value="">-- Sélectionner un rôle * --</option>
+                                                {% for role in roles %}
+                                                <option value="{{ role.id }}">{{ role }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Info sur les rôles -->
+                                    <div class="col-12">
+                                        <div class="alert alert-light border-start border-primary border-4 mb-0">
+                                            <div class="d-flex align-items-start">
+                                                <i class="fas fa-info-circle text-primary me-2 mt-1"></i>
+                                                <div class="small">
+                                                    <strong>À propos des rôles :</strong>
+                                                    <ul class="mb-0 mt-1 ps-3">
+                                                        <li><strong>Admin</strong> : Accès complet au système</li>
+                                                        <li><strong>Gestionnaire</strong> : Gestion des données et utilisateurs</li>
+                                                        <li><strong>Agent</strong> : Consultation et saisie des données</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4 pt-3 border-top">
+                                <a href="{% url 'accounts:organisation_edit' organisation.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i>Annuler
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Créer l'utilisateur
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card info-card">
+                    <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <h6 class="mb-0"><i class="fas fa-building me-2"></i>Organisation</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="icon-wrapper">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">{{ organisation.nom }}</h6>
+                                <small class="text-muted">{{ organisation.code }}</small>
+                            </div>
+                        </div>
+                        <div class="border-top pt-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted small">
+                                    <i class="fas fa-users me-1"></i>Utilisateurs actuels
+                                </span>
+                                <strong class="badge bg-primary">{{ organisation.users.count }}</strong>
+                            </div>
+                        </div>
+                        {% if organisation.description %}
+                        <div class="border-top pt-3 mt-3">
+                            <p class="small text-muted mb-0">{{ organisation.description }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card info-card">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Conseils importants</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-3" style="border-left: 4px solid #667eea;">
+                            <small>
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Isolation des données</strong><br>
+                                L'utilisateur ne verra que les données de <strong>{{ organisation.nom }}</strong>
+                            </small>
+                        </div>
+                        <ul class="small mb-0 ps-3">
+                            <li class="mb-2">Le nom d'utilisateur doit être unique</li>
+                            <li class="mb-2">Choisissez un mot de passe sécurisé</li>
+                            <li class="mb-2">Assignez le rôle approprié</li>
+                            <li>L'utilisateur peut être modifié plus tard</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Mise à jour du texte du bouton de fichier
+    $('.file-input-hidden').on('change', function() {
+        const fileName = $(this).val().split('\\').pop();
+        if (fileName) {
+            $(this).siblings('.file-input-label').text(fileName);
+        } else {
+            $(this).siblings('.file-input-label').text('Photo profil');
+        }
+    });
+    
+    // Remplissage automatique des champs lors de la sélection d'un enseignant
+    $('#teacher_select').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        
+        if (selectedOption.val()) {
+            // Récupérer les données de l'enseignant
+            const section = selectedOption.data('section');
+            const nom = selectedOption.data('nom');
+            const prenom = selectedOption.data('prenom');
+            const nomComplet = selectedOption.data('nomcomplet');
+            const email = selectedOption.data('email');
+            const telephone = selectedOption.data('telephone');
+            
+            // Remplir les champs cachés
+            $('#{{ user_form.first_name.id_for_label }}').val(prenom || '');
+            $('#{{ user_form.last_name.id_for_label }}').val(nom || nomComplet.split(' ').pop() || '');
+            $('#{{ user_form.email.id_for_label }}').val(email || 'noemail@example.com');
+            
+            // Remplir le téléphone dans le profil
+            $('#{{ profile_form.phone_number.id_for_label }}').val(telephone || '');
+            
+            // Remplir la section dans le profil
+            $('#{{ profile_form.section.id_for_label }}').val(section || '');
+            
+            // Générer un nom d'utilisateur : nom + initiales du prénom
+            // Exemple: "Bansimba Mukiese Jean-Roger" -> "bansimba-jr"
+            if (nomComplet) {
+                const parts = nomComplet.trim().split(/\s+/);
+                
+                if (parts.length >= 2) {
+                    // Le premier élément est le nom de famille
+                    const lastName = parts[0].toLowerCase();
+                    
+                    // Les autres éléments sont les prénoms
+                    const prenoms = parts.slice(1);
+                    
+                    // Extraire les initiales des prénoms
+                    let initials = '';
+                    prenoms.forEach(p => {
+                        if (p && p.length > 0) {
+                            initials += p.charAt(0).toLowerCase();
+                        }
+                    });
+                    
+                    // Format: nom-initiales
+                    const username = lastName + (initials ? '-' + initials : '');
+                    $('#{{ user_form.username.id_for_label }}').val(username);
+                } else {
+                    // Si un seul mot, utiliser tel quel
+                    const username = nomComplet.toLowerCase().replace(/\s+/g, '');
+                    $('#{{ user_form.username.id_for_label }}').val(username);
+                }
+            } else if (prenom && nom) {
+                // Fallback si prenom et nom sont séparés
+                const prenomParts = prenom.trim().split(/[\s-]+/);
+                let initials = '';
+                prenomParts.forEach(p => {
+                    if (p && p.length > 0) {
+                        initials += p.charAt(0).toLowerCase();
+                    }
+                });
+                const username = nom.toLowerCase() + (initials ? '-' + initials : '');
+                $('#{{ user_form.username.id_for_label }}').val(username);
+            }
+            
+            // Animation de remplissage sur les champs visibles
+            $('#{{ user_form.username.id_for_label }}, #{{ profile_form.phone_number.id_for_label }}, #{{ profile_form.section.id_for_label }}').each(function() {
+                $(this).addClass('border-success').delay(1000).queue(function() {
+                    $(this).removeClass('border-success').dequeue();
+                });
+            });
+            
+            // Afficher une notification
+            showNotification('Informations de l\'enseignant chargées avec succès', 'success');
+        } else {
+            // Vider les champs si aucun enseignant n'est sélectionné
+            $('#{{ user_form.first_name.id_for_label }}').val('');
+            $('#{{ user_form.last_name.id_for_label }}').val('');
+            $('#{{ user_form.email.id_for_label }}').val('');
+            $('#{{ user_form.username.id_for_label }}').val('');
+            $('#{{ profile_form.phone_number.id_for_label }}').val('');
+            $('#{{ profile_form.section.id_for_label }}').val('');
+        }
+    });
+    
+    // Fonction pour afficher une notification
+    function showNotification(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-info';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+        
+        const notification = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" 
+                 role="alert">
+                <i class="fas ${icon} me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `);
+        
+        $('body').append(notification);
+        
+        // Auto-fermeture après 3 secondes
+        setTimeout(function() {
+            notification.fadeOut(function() {
+                $(this).remove();
+            });
+        }, 3000);
+    }
+    
+    // Validation en temps réel du nom d'utilisateur
+    $('#{{ user_form.username.id_for_label }}').on('input', function() {
+        const username = $(this).val();
+        const regex = /^[a-zA-Z0-9._-]+$/;
+        
+        if (username && !regex.test(username)) {
+            $(this).addClass('is-invalid');
+            if (!$(this).next('.invalid-feedback').length) {
+                $(this).after('<div class="invalid-feedback">Utilisez uniquement des lettres, chiffres, points, tirets et underscores</div>');
+            }
+        } else {
+            $(this).removeClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+        }
+    });
+    
+    // Confirmation de mot de passe en temps réel
+    $('#{{ user_form.password2.id_for_label }}').on('input', function() {
+        const password1 = $('#{{ user_form.password1.id_for_label }}').val();
+        const password2 = $(this).val();
+        
+        if (password2 && password1 !== password2) {
+            $(this).addClass('is-invalid');
+            if (!$(this).next('.invalid-feedback').length) {
+                $(this).after('<div class="invalid-feedback">Les mots de passe ne correspondent pas</div>');
+            }
+        } else {
+            $(this).removeClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+        }
+    });
+});
+</script>
+{% endblock %}

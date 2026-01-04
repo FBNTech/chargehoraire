@@ -3,6 +3,7 @@ from django.db import models
 # Create your models here.
 
 class Teacher(models.Model):
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='teachers', verbose_name='Organisation', null=True, blank=True)
     # Tous les choix statiques ont été supprimés pour éviter les doublons
     # Les choix sont désormais gérés dynamiquement via les tables de référence dans reglage
     

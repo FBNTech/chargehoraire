@@ -29,6 +29,7 @@ urlpatterns = [
     path('schedule/entry/create/', views.ScheduleEntryCreateView.as_view(), name='schedule_entry_create'),
     path('schedule/entry/<int:pk>/edit/', views.ScheduleEntryUpdateView.as_view(), name='schedule_entry_edit'),
     path('schedule/entry/<int:pk>/delete/', views.schedule_entry_delete, name='schedule_entry_delete'),
+    path('schedule/entry/bulk-delete/', views.schedule_entry_bulk_delete, name='schedule_entry_bulk_delete'),
     
     # Autocomplétion et filtrage des UEs
     path('api/autocomplete/ues/', views.autocomplete_ues, name='autocomplete_ues'),

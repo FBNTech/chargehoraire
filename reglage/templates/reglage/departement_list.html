@@ -28,7 +28,9 @@
                         <td>{{ departement.section }}</td>
                         <td>
                             <a href="{% url 'reglage:departement_update' departement.pk %}" class="btn btn-sm btn-warning">Modifier</a>
+                            {% if not is_org_user %}
                             <a href="{% url 'reglage:departement_delete' departement.pk %}" class="btn btn-sm btn-danger">Supprimer</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

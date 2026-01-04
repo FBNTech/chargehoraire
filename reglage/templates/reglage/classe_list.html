@@ -10,9 +10,14 @@
             <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#importExcelModal">
                 <i class="fas fa-file-excel"></i> Importer Excel
             </button>
-            <a href="{% url 'reglage:classe_create' %}" class="btn btn-primary">
+            <a href="{% url 'reglage:classe_create' %}" class="btn btn-primary me-2">
                 <i class="fas fa-plus"></i> Ajouter une Classe
             </a>
+            {% if user.is_superuser %}
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllClassesModal">
+                <i class="fas fa-trash-alt"></i> Supprimer tout
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -36,8 +41,14 @@
                         <td>{{ classe.niveau }}</td>
                         <td>{{ classe.mention }}</td>
                         <td>
-                            <a href="{% url 'reglage:classe_update' classe.pk %}" class="btn btn-sm btn-warning">Modifier</a>
-                            <a href="{% url 'reglage:classe_delete' classe.pk %}" class="btn btn-sm btn-danger">Supprimer</a>
+                            <a href="{% url 'reglage:classe_update' classe.pk %}" class="btn btn-sm btn-warning" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if not is_org_user %}
+                            <a href="{% url 'reglage:classe_delete' classe.pk %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -108,5 +119,36 @@
         </div>
     </div>
 </div>
+
+{% if user.is_superuser %}
+<!-- Modal Supprimer tout -->
+<div class="modal fade" id="deleteAllClassesModal" tabindex="-1" aria-labelledby="deleteAllClassesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAllClassesModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-danger fw-bold">Êtes-vous sûr de vouloir supprimer TOUTES les classes ?</p>
+                <p>Cette action est irréversible et supprimera {{ classes|length }} classe(s).</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <form method="post" action="{% url 'reglage:classe_delete_all' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Supprimer tout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% endblock %}

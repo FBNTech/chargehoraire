@@ -6,6 +6,7 @@ from django.utils import timezone
 # Create your models here.
 
 class Attribution(models.Model):
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='attributions', verbose_name='Organisation', null=True, blank=True)
     TYPE_CHARGE_CHOICES = [
         ('Reguliere', 'Régulière'),
         ('Supplementaire', 'Supplémentaire'),
@@ -27,6 +28,7 @@ class Attribution(models.Model):
         return f"{self.code_ue.classe} | {self.code_ue.code_ue} - {self.code_ue.intitule_ue} ({self.matricule.grade} {self.matricule.nom_complet}) - {self.annee_academique}"
 
 class Cours_Attribution(models.Model):
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='cours_attributions', verbose_name='Organisation', null=True, blank=True)
     CLASSE_CHOICES = [
         ('L1', 'L1'),
         ('L2', 'L2'),
@@ -71,6 +73,13 @@ class Cours_Attribution(models.Model):
  
 
 class ScheduleEntry(models.Model):
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='schedule_entries', verbose_name='Organisation', null=True, blank=True)
+    
+    TYPE_HORAIRE_CHOICES = [
+        ('cours', 'Cours'),
+        ('examen', 'Examen'),
+    ]
+    
     DAYS = [
         ('lundi', 'Lundi'),
         ('mardi', 'Mardi'),
@@ -81,6 +90,8 @@ class ScheduleEntry(models.Model):
     ]
 
     attribution = models.ForeignKey(Attribution, on_delete=models.CASCADE, related_name='schedule_entries')
+    type_horaire = models.CharField(max_length=10, choices=TYPE_HORAIRE_CHOICES, default='cours', 
+                                   help_text="Type d'horaire : cours ou examen")
     annee_academique = models.CharField(max_length=9)
     semaine_debut = models.DateField(null=True, blank=True, help_text="Date de début de la plage de dates")
     date_fin = models.DateField(null=True, blank=True, help_text="Date de fin de la plage de dates (inclusive)")
