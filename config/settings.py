@@ -28,7 +28,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-)xdy_c*jt&y1l0m%u7ge8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,fabonk.pythonanywhere.com,.onrender.com,webapp-2829980.pythonanywhere.com,www.gestionchargehoraires.fbn,gestionchargehoraires.fbn', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,fabonk.pythonanywhere.com,.onrender.com', cast=Csv())
 
 
 # Application definition
