@@ -105,8 +105,7 @@ def truncate_ue_title(title):
 def attribution_list(request):
     from accounts.organisation_utils import filter_queryset_by_organisation
     
-    teachers = Teacher.objects.all()
-    teachers = filter_queryset_by_organisation(teachers, request.user).order_by('nom_complet')
+    teachers = Teacher.objects.all().order_by('nom_complet')
     
     cours_attributions = Cours_Attribution.objects.all()
     cours_attributions = filter_queryset_by_organisation(cours_attributions, request.user).order_by('code_ue')
@@ -325,34 +324,54 @@ def delete_course(request, course_id):
 
 @require_http_methods(['POST'])
 def migrate_courses(request):
+    from accounts.organisation_utils import get_user_organisation
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
     try:
+        # Récupérer l'organisation de l'utilisateur
+        user_org = get_user_organisation(request.user)
+        
         with transaction.atomic():
             # Supprimer tous les cours existants dans Cours_Attribution
+            deleted_count = Cours_Attribution.objects.all().count()
             Cours_Attribution.objects.all().delete()
+            logger.info(f"{deleted_count} cours supprimés de Cours_Attribution")
             
             # Migrer tous les cours de Course vers Cours_Attribution
             courses = Course.objects.all()
             count = 0
+            errors = []
             
             for course in courses:
-                # Créer tous les cours (même avec des code_ue en double)
-                Cours_Attribution.objects.create(
-                    code_ue=course.code_ue,
-                    intitule_ue=course.intitule_ue,
-                    intitule_ec=course.intitule_ec or '',
-                    credit=int(course.credit) if course.credit else 0,
-                    cmi=float(course.cmi) if course.cmi else 0,
-                    td_tp=float(course.td_tp) if course.td_tp else 0,
-                    classe=course.classe,
-                    semestre=course.semestre,
-                    departement=course.departement,
-                    section=course.section or ''
-                )
-                count += 1
+                try:
+                    # Créer tous les cours avec l'organisation de l'utilisateur
+                    Cours_Attribution.objects.create(
+                        organisation=user_org,
+                        code_ue=course.code_ue,
+                        intitule_ue=course.intitule_ue,
+                        intitule_ec=course.intitule_ec or '',
+                        credit=int(course.credit) if course.credit else 0,
+                        cmi=float(course.cmi) if course.cmi else 0,
+                        td_tp=float(course.td_tp) if course.td_tp else 0,
+                        classe=course.classe,
+                        semestre=course.semestre,
+                        departement=course.departement,
+                        section=course.section or ''
+                    )
+                    count += 1
+                except Exception as e:
+                    errors.append(f"Erreur pour {course.code_ue}: {str(e)}")
+                    logger.error(f"Erreur migration cours {course.code_ue}: {str(e)}")
             
-            messages.success(request, f'{count} cours ont été migrés avec succès depuis la table Course')
+            if errors:
+                messages.warning(request, f'{count} cours migrés avec {len(errors)} erreurs. Consultez les logs pour plus de détails.')
+            else:
+                messages.success(request, f'{count} cours ont été migrés avec succès depuis la table Course')
             
     except Exception as e:
+        logger.error(f'Erreur lors de la migration : {str(e)}')
         messages.error(request, f'Erreur lors de la migration : {str(e)}')
     
     return redirect('attribution:attribution_list')
@@ -626,17 +645,9 @@ def delete_attribution(request, attribution_id):
 
 def liste_attributions_view(request):
     try:
-        from accounts.organisation_utils import get_user_organisation
-        
-        user_org = get_user_organisation(request.user)
-        
-        # Filtrer par organisation
+        # Afficher tous les enseignants et cours sans filtrage par organisation
         teachers = Teacher.objects.all().order_by('nom_complet')
         courses = Course.objects.all().order_by('code_ue')
-        
-        if user_org:
-            teachers = teachers.filter(section=user_org.code)
-            courses = courses.filter(section=user_org.code)
         
         academic_years = Attribution.objects.values_list('annee_academique', flat=True).distinct().order_by('-annee_academique')
 

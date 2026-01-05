@@ -26,12 +26,7 @@ class TeacherListView(ListView):
     context_object_name = 'teachers'
     
     def get_queryset(self):
-        from accounts.organisation_utils import filter_queryset_by_organisation
-        
         queryset = Teacher.objects.all()
-        
-        # Filtrer par organisation de l'utilisateur (via section)
-        queryset = filter_queryset_by_organisation(queryset, self.request.user, field_name='section')
         
         search_query = self.request.GET.get('search')
         if search_query:
@@ -46,17 +41,15 @@ class TeacherListView(ListView):
         return queryset
     
     def get_context_data(self, **kwargs):
-        from accounts.organisation_utils import filter_queryset_by_organisation
-        
         context = super().get_context_data(**kwargs)
         
-        # Statistiques générales (filtrées par organisation)
-        filtered_teachers = filter_queryset_by_organisation(Teacher.objects, self.request.user, field_name='section')
-        context['total_teachers'] = filtered_teachers.count()
+        # Statistiques générales (tous les enseignants)
+        all_teachers = Teacher.objects.all()
+        context['total_teachers'] = all_teachers.count()
         
-        # Statistiques par grade (filtrées)
-        grades = filtered_teachers.values_list('grade', flat=True).distinct()
-        context['stats_by_grade'] = {grade: filtered_teachers.filter(grade=grade).count() for grade in grades}
+        # Statistiques par grade (tous)
+        grades = all_teachers.values_list('grade', flat=True).distinct()
+        context['stats_by_grade'] = {grade: all_teachers.filter(grade=grade).count() for grade in grades}
         
         return context
 
