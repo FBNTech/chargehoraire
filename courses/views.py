@@ -135,8 +135,12 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
     template_name = 'courses/course_confirm_delete.html'
 
     def delete(self, request, *args, **kwargs):
-        course = self.get_object()
-        course_name = course.code_ue + ' - ' + course.intitule_ue
+        try:
+            course = self.get_object()
+            course_name = course.code_ue + ' - ' + course.intitule_ue
+        except Course.DoesNotExist:
+            messages.error(request, "Le cours que vous essayez de supprimer n'existe pas ou a déjà été supprimé.")
+            return redirect(self.success_url)
         
         try:
             # Utiliser une transaction atomique pour garantir la cohérence
