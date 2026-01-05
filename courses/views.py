@@ -187,8 +187,12 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
             return True
         user_org = get_user_organisation(user)
         if user_org and is_org_user(user):
-            course = self.get_object()
-            return course.section == user_org.code
+            try:
+                course = self.get_object()
+                return course.section == user_org.code
+            except Course.DoesNotExist:
+                # Si le cours n'existe pas, autoriser l'accès pour afficher un message d'erreur approprié
+                return True
         return False
 
 @csrf_exempt
