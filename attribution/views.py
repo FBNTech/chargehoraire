@@ -107,11 +107,9 @@ def attribution_list(request):
     
     teachers = Teacher.objects.all().order_by('nom_complet')
     
-    cours_attributions = Cours_Attribution.objects.all()
-    cours_attributions = filter_queryset_by_organisation(cours_attributions, request.user).order_by('code_ue')
+    cours_attributions = Cours_Attribution.objects.all().order_by('code_ue')
     
-    courses = Course.objects.all()
-    courses = filter_queryset_by_organisation(courses, request.user).order_by('code_ue')
+    courses = Course.objects.all().order_by('code_ue')
     
     # Récupérer la liste unique des départements (filtrée par organisation)
     departements = filter_queryset_by_organisation(Cours_Attribution.objects, request.user).values_list('departement', flat=True).distinct().order_by('departement')
