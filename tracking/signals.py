@@ -57,19 +57,21 @@ def log_attribution_save(sender, instance, created, **kwargs):
     """Enregistrer la création ou modification d'une attribution"""
     user = get_current_user()
     if created:
+        heures = float(instance.code_ue.cmi or 0) + float(instance.code_ue.td_tp or 0)
         ActionLog.log_action(
             user=user,
             action_type='attribution_create',
-            description=f"Création attribution: {instance.code_ue.code_ue} ({instance.code_ue.intitule_ue}) - {instance.matricule.nom_complet} - {instance.nombre_heures}h",
+            description=f"Création attribution: {instance.code_ue.code_ue} ({instance.code_ue.intitule_ue}) - {instance.matricule.nom_complet} - {heures}h",
             model_name='Attribution',
             object_id=instance.id,
             object_repr=str(instance)
         )
     else:
+        heures = float(instance.code_ue.cmi or 0) + float(instance.code_ue.td_tp or 0)
         ActionLog.log_action(
             user=user,
             action_type='attribution_update',
-            description=f"Modification attribution: {instance.code_ue.code_ue} ({instance.code_ue.intitule_ue}) - {instance.matricule.nom_complet} - {instance.nombre_heures}h",
+            description=f"Modification attribution: {instance.code_ue.code_ue} ({instance.code_ue.intitule_ue}) - {instance.matricule.nom_complet} - {heures}h",
             model_name='Attribution',
             object_id=instance.id,
             object_repr=str(instance)
@@ -80,10 +82,11 @@ def log_attribution_save(sender, instance, created, **kwargs):
 def log_attribution_delete(sender, instance, **kwargs):
     """Enregistrer la suppression d'une attribution"""
     user = get_current_user()
+    heures = float(instance.code_ue.cmi or 0) + float(instance.code_ue.td_tp or 0)
     ActionLog.log_action(
         user=user,
         action_type='attribution_delete',
-        description=f"Suppression attribution: {instance.code_ue.code_ue} ({instance.code_ue.intitule_ue}) - {instance.matricule.nom_complet} - {instance.nombre_heures}h",
+        description=f"Suppression attribution: {instance.code_ue.code_ue} ({instance.code_ue.intitule_ue}) - {instance.matricule.nom_complet} - {heures}h",
         model_name='Attribution',
         object_id=instance.id,
         object_repr=str(instance)

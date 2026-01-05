@@ -60,6 +60,11 @@ class CourseCreateView(UserPassesTestMixin, CreateView):
     template_name = 'courses/course_form.html'
     success_url = reverse_lazy('courses:list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_invalid(self, form):
         logger.error(f"Erreurs de validation du formulaire: {form.errors}")
         for field, errors in form.errors.items():
@@ -93,6 +98,11 @@ class CourseUpdateView(UserPassesTestMixin, UpdateView):
     form_class = CourseForm
     template_name = 'courses/course_form.html'
     success_url = reverse_lazy('courses:list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def form_invalid(self, form):
         logger.error(f"Erreurs de validation du formulaire: {form.errors}")

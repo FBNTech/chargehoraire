@@ -239,14 +239,9 @@
                         <div class="filter-group me-2 mb-2">
                             <select class="form-select" id="department-select">
                                 <option value="">Tous les départements</option>
-                                <option value="Informatique">Informatique</option>
-                                <option value="Physique">Physique</option>
-                                <option value="Chimie">Chimie</option>
-                                <option value="Biologie">Biologie</option>
-                                <option value="SCAD">SCAD</option>
-                                <option value="Histoire">Histoire</option>
-                                <option value="Anglais">Anglais</option>
-                                <option value="Mathématique">Mathématique</option>
+                                {% for dept in departements %}
+                                <option value="{{ dept }}">{{ dept }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="action-buttons mb-2">

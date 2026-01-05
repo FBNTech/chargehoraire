@@ -37,21 +37,36 @@ class CourseForm(forms.ModelForm):
     )
 
     def __init__(self, *args, **kwargs):
+        # Récupérer l'utilisateur depuis kwargs si fourni
+        user = kwargs.pop('user', None)
         super(CourseForm, self).__init__(*args, **kwargs)
         
         try:
-            # Remplir les choix pour les classes à partir du modèle Classe
-            classes = Classe.objects.all().order_by('CodeClasse')
-            classe_choices = [('', 'Sélectionner une classe')] + [(classe.CodeClasse, classe.DesignationClasse) for classe in classes]
+            # Filtrer les classes par organisation de l'utilisateur
+            from accounts.organisation_utils import get_user_organisation
+            user_org = get_user_organisation(user) if user else None
+            
+            if user_org:
+                # Filtrer les classes par section via mention → departement → section
+                classes = Classe.objects.filter(mention__departement__section__CodeSection=user_org.code).order_by('CodeClasse')
+            else:
+                classes = Classe.objects.all().order_by('CodeClasse')
+            
+            classe_choices = [('', 'Sélectionner une classe')] + [(classe.CodeClasse, classe.CodeClasse) for classe in classes]
             self.fields['classe'].choices = classe_choices
             
             # Remplir les choix pour les semestres à partir du modèle Semestre
             semestres = Semestre.objects.all().order_by('CodeSemestre')
-            semestre_choices = [('', 'Sélectionner un semestre')] + [(semestre.CodeSemestre, semestre.DesignationSemestre) for semestre in semestres]
+            semestre_choices = [('', 'Sélectionner un semestre')] + [(semestre.CodeSemestre, semestre.CodeSemestre) for semestre in semestres]
             self.fields['semestre'].choices = semestre_choices
             
-            # Remplir les choix pour les départements à partir du modèle Departement
-            departements = Departement.objects.all().order_by('CodeDept')
+            # Filtrer les départements par organisation de l'utilisateur
+            if user_org:
+                # Filtrer les départements par section
+                departements = Departement.objects.filter(section__CodeSection=user_org.code).order_by('CodeDept')
+            else:
+                departements = Departement.objects.all().order_by('CodeDept')
+            
             departement_choices = [('', 'Sélectionner un département')] + [(dept.CodeDept, dept.DesignationDept) for dept in departements]
             self.fields['departement'].choices = departement_choices
             

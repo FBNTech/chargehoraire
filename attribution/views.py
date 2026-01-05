@@ -103,16 +103,40 @@ def truncate_ue_title(title):
 # config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
 
 def attribution_list(request):
-    from accounts.organisation_utils import filter_queryset_by_organisation
+    from accounts.organisation_utils import filter_queryset_by_organisation, get_user_organisation
     
     teachers = Teacher.objects.all().order_by('nom_complet')
     
-    cours_attributions = Cours_Attribution.objects.all().order_by('code_ue')
+    # Debug: Vérifier l'organisation de l'utilisateur
+    user_org = get_user_organisation(request.user)
+    print(f"DEBUG - User: {request.user.username}, Organisation: {user_org}, Is superuser: {request.user.is_superuser}")
+    print(f"DEBUG - Total cours avant filtre: {Cours_Attribution.objects.count()}")
     
-    courses = Course.objects.all().order_by('code_ue')
+    # Afficher la répartition des cours par organisation et section
+    from django.db.models import Count
+    repartition = Cours_Attribution.objects.values('organisation__code', 'organisation__nom').annotate(count=Count('id'))
+    print("DEBUG - Répartition des cours par organisation:")
+    for r in repartition:
+        print(f"  {r['organisation__code']} ({r['organisation__nom']}): {r['count']} cours")
     
-    # Récupérer la liste unique des départements (filtrée par organisation)
-    departements = filter_queryset_by_organisation(Cours_Attribution.objects, request.user).values_list('departement', flat=True).distinct().order_by('departement')
+    repartition_section = Cours_Attribution.objects.values('section').annotate(count=Count('id'))
+    print("DEBUG - Répartition des cours par section:")
+    for r in repartition_section:
+        print(f"  Section {r['section']}: {r['count']} cours")
+    
+    # Filtrer les cours par organisation (via le champ section)
+    cours_attributions = filter_queryset_by_organisation(Cours_Attribution.objects, request.user, field_name='section').order_by('code_ue')
+    print(f"DEBUG - Total cours après filtre: {cours_attributions.count()}")
+    print(f"DEBUG - Code section recherché: {user_org.code if user_org else 'None'}")
+    
+    # Filtrer la liste déroulante des cours par organisation (via le champ section)
+    if user_org:
+        courses = Course.objects.filter(section=user_org.code).order_by('code_ue')
+    else:
+        courses = Course.objects.all().order_by('code_ue')
+    
+    # Récupérer la liste unique des départements (filtrée par organisation via section)
+    departements = filter_queryset_by_organisation(Cours_Attribution.objects, request.user, field_name='section').values_list('departement', flat=True).distinct().order_by('departement')
     
     # Récupérer l'année académique en cours depuis le modèle AnneeAcademique
     annee_courante = AnneeAcademique.objects.filter(est_en_cours=True).first()
@@ -239,7 +263,9 @@ def add_course_attribution(request):
                 'td_tp': course.td_tp or 0,
                 'classe': course.classe or 'N/A',
                 'semestre': course.semestre or 'S1',
-                'departement': course.departement or 'N/A'
+                'departement': course.departement or 'N/A',
+                'section': course.section,
+                'organisation': course.organisation
             }
             
             logger.info(f"Données du cours préparées : {cours_data}")
@@ -499,29 +525,60 @@ def create_attribution(request):
                         teacher = Teacher.objects.get(matricule=matricule)
                         
                         # Récupérer le cours depuis Cours_Attribution (table source) par code_ue
-                        # Utiliser filter().first() pour éviter MultipleObjectsReturned
-                        cours_attr = Cours_Attribution.objects.filter(code_ue=cours['code_ue']).first()
+                        # Filtrer par organisation de l'utilisateur
+                        from accounts.organisation_utils import get_user_organisation
+                        user_org = get_user_organisation(request.user)
+                        
+                        print(f"DEBUG - User org: {user_org}, Code: {user_org.code if user_org else 'None'}")
+                        print(f"DEBUG - Recherche cours: {cours['code_ue']}")
+                        
+                        if user_org:
+                            cours_attr = Cours_Attribution.objects.filter(
+                                code_ue=cours['code_ue'],
+                                section=user_org.code
+                            ).first()
+                            print(f"DEBUG - Cours trouvé avec filtre org: {cours_attr}")
+                        else:
+                            cours_attr = Cours_Attribution.objects.filter(code_ue=cours['code_ue']).first()
+                            print(f"DEBUG - Cours trouvé sans filtre: {cours_attr}")
                         
                         if not cours_attr:
-                            errors.append(f"Cours avec code_ue {cours['code_ue']} non trouvé dans Cours_Attribution")
+                            error_msg = f"Cours avec code_ue {cours['code_ue']} non trouvé dans Cours_Attribution pour l'organisation {user_org.code if user_org else 'N/A'}"
+                            print(f"ERROR - {error_msg}")
+                            errors.append(error_msg)
                             continue
                         
-                        # Créer/récupérer le cours dans Course avec get_or_create
-                        # La clé unique : code_ue + intitule_ue + intitule_ec + credit + cmi + td_tp + classe
-                        course, created = Course.objects.get_or_create(
-                            code_ue=cours_attr.code_ue,
-                            intitule_ue=cours_attr.intitule_ue,
-                            intitule_ec=cours_attr.intitule_ec,
-                            credit=cours_attr.credit,
-                            cmi=cours_attr.cmi,
-                            td_tp=cours_attr.td_tp,
-                            classe=cours_attr.classe,
-                            defaults={
-                                'semestre': cours_attr.semestre,
-                                'departement': cours_attr.departement,
-                                'section': cours_attr.section,
-                            }
-                        )
+                        # Récupérer le cours existant dans Course par code_ue et section
+                        # Ne pas créer de doublon
+                        try:
+                            course = Course.objects.get(
+                                code_ue=cours_attr.code_ue,
+                                section=cours_attr.section
+                            )
+                            print(f"DEBUG - Cours existant trouvé: {course.code_ue}")
+                        except Course.DoesNotExist:
+                            # Si le cours n'existe pas, le créer
+                            course = Course.objects.create(
+                                code_ue=cours_attr.code_ue,
+                                intitule_ue=cours_attr.intitule_ue,
+                                intitule_ec=cours_attr.intitule_ec,
+                                credit=cours_attr.credit,
+                                cmi=cours_attr.cmi,
+                                td_tp=cours_attr.td_tp,
+                                classe=cours_attr.classe,
+                                semestre=cours_attr.semestre,
+                                departement=cours_attr.departement,
+                                section=cours_attr.section,
+                                organisation=cours_attr.organisation
+                            )
+                            print(f"DEBUG - Nouveau cours créé: {course.code_ue}")
+                        except Course.MultipleObjectsReturned:
+                            # Si plusieurs cours existent avec le même code_ue et section, prendre le premier
+                            course = Course.objects.filter(
+                                code_ue=cours_attr.code_ue,
+                                section=cours_attr.section
+                            ).first()
+                            print(f"DEBUG - Plusieurs cours trouvés, utilisation du premier: {course.code_ue}")
                         
                         # Vérification si l'attribution existe déjà
                         existing_attribution = Attribution.objects.filter(
