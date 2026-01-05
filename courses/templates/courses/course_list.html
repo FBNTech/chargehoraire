@@ -130,7 +130,7 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     {% if not is_org_user %}
-                                    <a href="{% url 'courses:delete' course.id %}" class="btn btn-sm btn-danger">
+                                    <a href="{% url 'courses:delete' course.code_ue %}" class="btn btn-sm btn-danger">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                     {% endif %}

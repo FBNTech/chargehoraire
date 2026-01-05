@@ -133,20 +133,23 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
     model = Course
     success_url = reverse_lazy('courses:list')
     template_name = 'courses/course_confirm_delete.html'
+    slug_field = 'code_ue'
+    slug_url_kwarg = 'code_ue'
 
     def delete(self, request, *args, **kwargs):
+        code_ue = kwargs.get('code_ue')
         try:
-            course = self.get_object()
+            course = Course.objects.get(code_ue=code_ue)
             course_name = course.code_ue + ' - ' + course.intitule_ue
         except Course.DoesNotExist:
-            messages.error(request, "Le cours que vous essayez de supprimer n'existe pas ou a déjà été supprimé.")
+            messages.error(request, f"Le cours avec le code {code_ue} n'existe pas ou a déjà été supprimé.")
             return redirect(self.success_url)
         
         try:
             # Utiliser une transaction atomique pour garantir la cohérence
             with transaction.atomic():
                 # Verrouiller le cours pour éviter les conflits concurrents
-                course = Course.objects.select_for_update().get(pk=course.pk)
+                course = Course.objects.select_for_update().get(code_ue=code_ue)
                 
                 # IMPORTANT: Supprimer MANUELLEMENT les objets liés pour éviter les problèmes SQLite CASCADE
                 # 1. D'abord les horaires liés aux attributions de ce cours

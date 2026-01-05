@@ -13,9 +13,9 @@ urlpatterns = [
     path('update/<int:pk>/', views.CourseUpdateView.as_view(), name='update'),
     # Ajout d'un alias pour l'ancien nom d'URL
     path('update/<int:pk>/', views.CourseUpdateView.as_view(), name='course_update'),
-    path('delete/<int:pk>/', views.CourseDeleteView.as_view(), name='delete'),
+    path('delete/<str:code_ue>/', views.CourseDeleteView.as_view(), name='delete'),
     # Ajout d'un alias pour l'ancien nom d'URL
-    path('delete/<int:pk>/', views.CourseDeleteView.as_view(), name='course_delete'),
+    path('delete/<str:code_ue>/', views.CourseDeleteView.as_view(), name='course_delete'),
     path('import-excel/', views.import_excel, name='import_excel_file'),
     path('import/', views.import_courses, name='import_courses'),
     path('import-progress/', views.import_progress, name='import_progress'),
