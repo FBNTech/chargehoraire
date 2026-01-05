@@ -136,6 +136,14 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
     slug_field = 'code_ue'
     slug_url_kwarg = 'code_ue'
 
+    def get_object(self, queryset=None):
+        """Surcharge pour gérer le cas où le cours n'existe pas"""
+        code_ue = self.kwargs.get('code_ue')
+        try:
+            return Course.objects.get(code_ue=code_ue)
+        except Course.DoesNotExist:
+            return None
+
     def delete(self, request, *args, **kwargs):
         code_ue = kwargs.get('code_ue')
         try:
@@ -187,12 +195,11 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
             return True
         user_org = get_user_organisation(user)
         if user_org and is_org_user(user):
-            try:
-                course = self.get_object()
-                return course.section == user_org.code
-            except Course.DoesNotExist:
-                # Si le cours n'existe pas, autoriser l'accès pour afficher un message d'erreur approprié
+            course = self.get_object()
+            # Si le cours n'existe pas (None), autoriser l'accès pour afficher un message d'erreur approprié
+            if course is None:
                 return True
+            return course.section == user_org.code
         return False
 
 @csrf_exempt
