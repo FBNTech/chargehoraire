@@ -1939,6 +1939,7 @@ def generate_pdf(request):
     # Obtenir des informations sur l'enseignant (pour l'en-tête)
     enseignant_info = None
     csae_info = None
+    sgac_info = None
     if attributions.exists():
         enseignant_info = attributions.first().matricule
         
@@ -1951,6 +1952,13 @@ def generate_pdf(request):
             ).first()
         except:
             csae_info = None
+        
+        # Récupérer le SGAC (Secrétaire Général Académique)
+        try:
+            from teachers.models import Teacher
+            sgac_info = Teacher.objects.filter(fonction='SGAC').first()
+        except:
+            sgac_info = None
     
     # Séparer les attributions par type de charge
     attributions_regulieres = attributions.filter(type_charge='Reguliere')
@@ -2325,17 +2333,23 @@ def generate_pdf(request):
     signature_data = []
     
     # Signature du Secrétaire Général Académique (gauche) et CSAE (droite)
-    if csae_info:
-        csae_grade = csae_info.get_grade_designation() if hasattr(csae_info, 'get_grade_designation') else ''
-        signature_data.append([
-            Paragraph("LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>", signature_style),
-            Paragraph(f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>", signature_style),
-        ])
+    sgac_grade = sgac_info.get_grade_designation() if sgac_info and hasattr(sgac_info, 'get_grade_designation') else ''
+    csae_grade = csae_info.get_grade_designation() if csae_info and hasattr(csae_info, 'get_grade_designation') else ''
+    
+    if sgac_info:
+        sgac_text = f"LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/><b><u>{sgac_info.nom_complet}</u></b><br/><i>{sgac_grade}</i>"
     else:
-        signature_data.append([
-            Paragraph("LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>", signature_style),
-            Paragraph("CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>", signature_style),
-        ])
+        sgac_text = "LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>"
+    
+    if csae_info:
+        csae_text = f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>"
+    else:
+        csae_text = "CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>"
+    
+    signature_data.append([
+        Paragraph(sgac_text, signature_style),
+        Paragraph(csae_text, signature_style),
+    ])
     
     signature_table = Table(signature_data, colWidths=[280, 280])
     signature_table.setStyle(TableStyle([
