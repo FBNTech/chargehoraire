@@ -154,26 +154,38 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
             return redirect(self.success_url)
         
         try:
+            # Désactiver temporairement les signaux pour éviter les erreurs en cascade
+            from django.db.models.signals import post_delete
+            from tracking.signals import log_attribution_delete, log_schedule_entry_delete
+            from attribution.models import Attribution, ScheduleEntry
+            
             # Utiliser une transaction atomique pour garantir la cohérence
             with transaction.atomic():
-                # Verrouiller le cours pour éviter les conflits concurrents
-                course = Course.objects.select_for_update().get(code_ue=code_ue)
+                # Déconnecter les signaux
+                post_delete.disconnect(log_attribution_delete, sender=Attribution)
+                post_delete.disconnect(log_schedule_entry_delete, sender=ScheduleEntry)
                 
-                # IMPORTANT: Supprimer MANUELLEMENT les objets liés pour éviter les problèmes SQLite CASCADE
-                # 1. D'abord les horaires liés aux attributions de ce cours
-                from attribution.models import Attribution, ScheduleEntry
-                
-                attributions = Attribution.objects.filter(code_ue=course)
-                for attribution in attributions:
-                    # Supprimer les horaires de cette attribution
-                    ScheduleEntry.objects.filter(attribution=attribution).delete()
-                
-                # 2. Ensuite les attributions de ce cours
-                attributions_count = attributions.count()
-                attributions.delete()
-                
-                # 3. Enfin le cours lui-même
-                course.delete()
+                try:
+                    # Verrouiller le cours pour éviter les conflits concurrents
+                    course = Course.objects.select_for_update().get(code_ue=code_ue)
+                    
+                    # IMPORTANT: Supprimer MANUELLEMENT les objets liés pour éviter les problèmes SQLite CASCADE
+                    # 1. D'abord les horaires liés aux attributions de ce cours
+                    attributions = Attribution.objects.filter(code_ue=course)
+                    for attribution in attributions:
+                        # Supprimer les horaires de cette attribution
+                        ScheduleEntry.objects.filter(attribution=attribution).delete()
+                    
+                    # 2. Ensuite les attributions de ce cours
+                    attributions_count = attributions.count()
+                    attributions.delete()
+                    
+                    # 3. Enfin le cours lui-même
+                    course.delete()
+                finally:
+                    # Reconnecter les signaux
+                    post_delete.connect(log_attribution_delete, sender=Attribution)
+                    post_delete.connect(log_schedule_entry_delete, sender=ScheduleEntry)
             
             message = f"Le cours {course_name} a été supprimé avec succès."
             if attributions_count > 0:

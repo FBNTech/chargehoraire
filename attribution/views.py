@@ -1051,7 +1051,7 @@ def generate_courses_pdf(request, cours_attribution_objects, departement=None):
         canvas.setFont('Helvetica', 8)
         page_num = canvas.getPageNumber()
         text = f"Page {page_num}"
-        canvas.drawRightString(landscape(A4)[0]-20, 10, text)
+        canvas.drawRightString(A4[0]-20, 10, text)
         canvas.restoreState()
 
     elements = []
@@ -1368,7 +1368,7 @@ def schedule_pdf(request):
         canvas.setFont('Times-Roman', 8)
         page_num = canvas.getPageNumber()
         text = f"Page {page_num}"
-        canvas.drawRightString(landscape(A4)[0]-20, 10, text)
+        canvas.drawRightString(A4[0]-20, 10, text)
         canvas.restoreState()
 
     # Debug: Afficher le nombre total d'entrées après filtrage
@@ -1938,8 +1938,19 @@ def generate_pdf(request):
     
     # Obtenir des informations sur l'enseignant (pour l'en-tête)
     enseignant_info = None
+    csae_info = None
     if attributions.exists():
         enseignant_info = attributions.first().matricule
+        
+        # Récupérer le CSAE de la section de l'enseignant
+        try:
+            from teachers.models import Teacher
+            csae_info = Teacher.objects.filter(
+                fonction='CSAE',
+                section=enseignant_info.section
+            ).first()
+        except:
+            csae_info = None
     
     # Séparer les attributions par type de charge
     attributions_regulieres = attributions.filter(type_charge='Reguliere')
@@ -1948,10 +1959,10 @@ def generate_pdf(request):
     # Créer un buffer pour le PDF
     buffer = BytesIO()
     
-    # Créer le document PDF avec l'orientation paysage pour correspondre au format demandé
+    # Créer le document PDF avec l'orientation portrait
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=landscape(A4),
+        pagesize=A4,
         rightMargin=15,
         leftMargin=15,
         topMargin=15,
@@ -1963,7 +1974,7 @@ def generate_pdf(request):
         canvas.setFont('Helvetica', 8)
         page_num = canvas.getPageNumber()
         text = f"Page {page_num}"
-        canvas.drawRightString(landscape(A4)[0]-20, 10, text)
+        canvas.drawRightString(A4[0]-20, 10, text)
         canvas.restoreState()
 
     elements = []
@@ -1987,7 +1998,7 @@ def generate_pdf(request):
     cell_style = ParagraphStyle(
         'CellStyle',
         parent=styles['Normal'],
-        fontSize=9,
+        fontSize=8,
         leading=12,
         alignment=1  # Centre le texte
     )
@@ -2092,32 +2103,52 @@ def generate_pdf(request):
             ))
             photo_element = photo_placeholder
         
-        # Créer le tableau d'informations
+        # Créer le tableau d'informations adapté au portrait (6 lignes x 2 colonnes)
         enseignant_data = [
-            ['Matricule en interne :', enseignant_info.matricule, '', '', '', ''],
-            ['Nom et post-noms :', enseignant_info.nom_complet, '', '', '', ''],
-            ['Grade :', grade_designation, '', '', '', ''],
-            ['Département :', departement_designation, '', '', '', ''],
-            ['Section :', section_designation, '', '', '', ''],
-            ['Année académique :', annee_academique if annee_academique else 'Toutes les années', '', '', '', '']
+            [Paragraph('Matricule en interne :', ParagraphStyle('LabelStyle', parent=styles['Normal'], alignment=2, fontName='Helvetica-Bold', fontSize=9)), enseignant_info.matricule],
+            [Paragraph('Nom et post-noms :', ParagraphStyle('LabelStyle', parent=styles['Normal'], alignment=2, fontName='Helvetica-Bold', fontSize=9)), enseignant_info.nom_complet],
+            [Paragraph('Grade :', ParagraphStyle('LabelStyle', parent=styles['Normal'], alignment=2, fontName='Helvetica-Bold', fontSize=9)), grade_designation],
+            [Paragraph('Département :', ParagraphStyle('LabelStyle', parent=styles['Normal'], alignment=2, fontName='Helvetica-Bold', fontSize=9)), departement_designation],
+            [Paragraph('Section :', ParagraphStyle('LabelStyle', parent=styles['Normal'], alignment=2, fontName='Helvetica-Bold', fontSize=9)), section_designation],
+            [Paragraph('Année académique :', ParagraphStyle('LabelStyle', parent=styles['Normal'], alignment=2, fontName='Helvetica-Bold', fontSize=9)), annee_academique if annee_academique else 'Toutes les années']
         ]
         
-        info_table = Table(enseignant_data, colWidths=[120, 280, 60, 60, 60, 60])
+        # Largeurs adaptées au portrait (première colonne 120px, deuxième colonne réduite de 2cm total: 358 - 56 ≈ 302px)
+        info_table = Table(enseignant_data, colWidths=[120, 302])
         info_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),   # Deuxième colonne alignée à gauche
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('GRID', (0, 0), (1, -1), 0.5, colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
-        # Créer un tableau global avec infos à gauche et photo à droite
+        # Ajouter le titre "CHARGE HORAIRE" responsive
+        title_data = [[Paragraph("CHARGE HORAIRE", title_style)]]
+        title_table = Table(title_data, colWidths=[565])
+        title_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        elements.append(title_table)
+        elements.append(Spacer(1, 10))
+        
+        # Créer un tableau global avec infos à gauche alignées et photo à droite
         main_data = [[info_table, photo_element]]
-        main_table = Table(main_data, colWidths=[610, 110])
+        main_table = Table(main_data, colWidths=[422, 120])  # Total 542px pour s'adapter au tableau d'informations réduit de 2cm
         main_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),   # Tableau d'informations aligné à gauche
             ('VALIGN', (0, 0), (0, 0), 'TOP'),
             ('ALIGN', (1, 0), (1, 0), 'CENTER'),
             ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (0, 0), 5),
+            ('RIGHTPADDING', (0, 0), (0, 0), 5),
+            ('TOPPADDING', (0, 0), (0, 0), 5),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 5),
             ('LEFTPADDING', (1, 0), (1, 0), 5),
             ('RIGHTPADDING', (1, 0), (1, 0), 5),
             ('TOPPADDING', (1, 0), (1, 0), 5),
@@ -2131,7 +2162,7 @@ def generate_pdf(request):
     def creer_tableau_charges(attributions, titre):
         # Créer une cellule pour le titre avec fond gris
         titre_data = [[Paragraph(titre, cell_style)]]
-        titre_table = Table(titre_data, colWidths=[720])
+        titre_table = Table(titre_data, colWidths=[529])  # Même largeur que le tableau de données augmenté
         titre_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -2149,14 +2180,15 @@ def generate_pdf(request):
             'Présentiel',
             'TP - TD',
             'Total',
+            'Crédits',
             'Classe',
             'Semestre'
         ]
         
         # Colonne double pour les heures prévues
         header_data = [
-            ['Code', 'Intitulé U.E.', 'Intitulé EC', 'Heures prévues', '', 'Total', 'Classe', 'Semestre'],
-            ['', '', '', 'Présentiel', 'TP - TD', '', '', '']
+            ['Code', 'Intitulé U.E.', 'Intitulé EC', 'Heures prévues', '', 'Total', 'Crédits', 'Classe', 'Semestre'],
+            ['', '', '', 'Présentiel', 'TP - TD', '', '', '', '']
         ]
         
         # Préparer les données
@@ -2166,6 +2198,7 @@ def generate_pdf(request):
         total_presentiel = 0
         total_tp_td = 0
         total_heures = 0
+        total_credits = 0
         
         # Ajouter chaque attribution au tableau
         for attr in attributions:
@@ -2177,6 +2210,7 @@ def generate_pdf(request):
             total_presentiel += presentiel
             total_tp_td += tp_td
             total_heures += total
+            total_credits += attr.code_ue.credit if attr.code_ue.credit else 0
             
             # Utiliser Paragraph pour permettre le retour à la ligne automatique dans les cellules
             row = [
@@ -2186,6 +2220,7 @@ def generate_pdf(request):
                 str(presentiel),
                 str(tp_td),
                 str(total),
+                str(attr.code_ue.credit) if attr.code_ue.credit else '0',
                 Paragraph(attr.code_ue.classe or '', cell_style),
                 attr.code_ue.semestre
             ]
@@ -2193,14 +2228,14 @@ def generate_pdf(request):
         
         # Ajouter ligne de sous-total
         sous_total_row = ['', '', 'Sous-total ' + ('1' if titre == 'Charge régulière' else '2'), 
-                        str(total_presentiel), str(total_tp_td), str(total_heures), '', '']
+                        str(total_presentiel), str(total_tp_td), str(total_heures), str(total_credits), '', '']
         data.append(sous_total_row)
         
         # Combiner les en-têtes et les données
         all_data = header_data + data
         
-        # Définir les largeurs de colonnes
-        col_widths = [60, 150, 150, 80, 80, 80, 60, 60]
+        # Définir les largeurs de colonnes adaptées au portrait (total 529px = 501px + 28px)
+        col_widths = [42, 95, 95, 58, 58, 58, 42, 42, 39]
         
         # Créer le tableau
         table = Table(all_data, colWidths=col_widths, repeatRows=2)
@@ -2212,38 +2247,43 @@ def generate_pdf(request):
             ('TEXTCOLOR', (0, 0), (-1, 1), colors.black),
             ('ALIGN', (0, 0), (-1, 1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 1), 9),
+            ('FONTSIZE', (0, 0), (-1, 1), 7),  # Entêtes aussi à taille 7
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('SPAN', (3, 0), (4, 0)),  # Fusion des cellules pour "Heures prévues"
             
             # Style des cellules de données
             ('ALIGN', (0, 2), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTSIZE', (0, 2), (-1, -1), 7),  # Toutes les données à taille 7
+            
+            # Style pour la colonne des codes (première colonne)
+            ('ALIGN', (0, 2), (0, -1), 'LEFT'),  # Aligné à gauche pour mieux gérer le retour à la ligne
             
             # Style pour la ligne de sous-total
             ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, -1), (-1, -1), 7),  # Sous-total aussi à taille 7
             ('SPAN', (0, -1), (2, -1)),  # Fusion des 3 premières cellules pour le texte "Sous-total"
         ])
         
         table.setStyle(style)
-        return table, total_presentiel, total_tp_td, total_heures
+        return table, total_presentiel, total_tp_td, total_heures, total_credits
     
     # Générer et ajouter le tableau des charges régulières
     if attributions_regulieres.exists():
-        table_regulieres, total_presentiel_reg, total_tp_td_reg, total_heures_reg = creer_tableau_charges(attributions_regulieres, 'Charge régulière')
+        table_regulieres, total_presentiel_reg, total_tp_td_reg, total_heures_reg, total_credits_reg = creer_tableau_charges(attributions_regulieres, 'Charge régulière')
         elements.append(table_regulieres)
         elements.append(Spacer(1, 10))
     else:
-        total_presentiel_reg, total_tp_td_reg, total_heures_reg = 0, 0, 0
+        total_presentiel_reg, total_tp_td_reg, total_heures_reg, total_credits_reg = 0, 0, 0, 0
     
     # Générer et ajouter le tableau des charges supplémentaires
     if attributions_supplementaires.exists():
-        table_supplementaires, total_presentiel_supp, total_tp_td_supp, total_heures_supp = creer_tableau_charges(attributions_supplementaires, 'Charge supplémentaire')
+        table_supplementaires, total_presentiel_supp, total_tp_td_supp, total_heures_supp, total_credits_supp = creer_tableau_charges(attributions_supplementaires, 'Charge supplémentaire')
         elements.append(table_supplementaires)
         elements.append(Spacer(1, 10))
     else:
-        total_presentiel_supp, total_tp_td_supp, total_heures_supp = 0, 0, 0
+        total_presentiel_supp, total_tp_td_supp, total_heures_supp, total_credits_supp = 0, 0, 0, 0
     
     # Ajouter le total général
     total_data = [
@@ -2251,10 +2291,11 @@ def generate_pdf(request):
          str(total_presentiel_reg + total_presentiel_supp), 
          str(total_tp_td_reg + total_tp_td_supp), 
          str(total_heures_reg + total_heures_supp), 
+         str(total_credits_reg + total_credits_supp),
          '', '']  # Colonnes vides pour classe et semestre
     ]
     
-    total_table = Table(total_data, colWidths=[60, 150, 150, 80, 80, 80, 60, 60])
+    total_table = Table(total_data, colWidths=[42, 95, 95, 58, 58, 58, 42, 42, 39])
     total_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -2266,6 +2307,48 @@ def generate_pdf(request):
     ]))
     
     elements.append(total_table)
+    
+    # Ajouter la section des signatures
+    elements.append(Spacer(1, 14))  # 0.5cm d'espace (14 points ≈ 0.5cm) pour faire monter encore plus la signature
+    
+    # Styles pour les signatures
+    styles = getSampleStyleSheet()
+    signature_style = ParagraphStyle(
+        'SignatureStyle',
+        parent=styles['Normal'],
+        fontSize=8,  # Réduit à 8 points pour que le titre tienne sur une ligne
+        alignment=1,  # Centre
+        leading=10
+    )
+    
+    # Créer le tableau des signatures
+    signature_data = []
+    
+    # Signature du CSAE
+    if csae_info:
+        csae_grade = csae_info.get_grade_designation() if hasattr(csae_info, 'get_grade_designation') else ''
+        signature_data.append([
+            '',
+            '',
+            Paragraph(f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>", signature_style),
+            ''
+        ])
+    else:
+        signature_data.append([
+            '',
+            '',
+            Paragraph("CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>", signature_style),
+            ''
+        ])
+    
+    signature_table = Table(signature_data, colWidths=[250, 80, 250, 80])  # Première colonne augmentée de 85px supplémentaires (environ 3cm de plus)
+    signature_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+    ]))
+    
+    elements.append(signature_table)
     
     # Générer le PDF avec le footer
     doc.build(elements, onFirstPage=footer, onLaterPages=footer)

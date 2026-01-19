@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from teachers.models import Teacher
+from reglage.models import Classe
 
 
 class AutorisationAbsenceEnseignant(models.Model):
@@ -127,3 +128,25 @@ class Annonce(models.Model):
         if self.date_expiration:
             return timezone.now() > self.date_expiration
         return False
+
+
+class Inscription(models.Model):
+    """Modèle pour gérer les inscriptions des étudiants"""
+    etudiant = models.ForeignKey('Etudiant', on_delete=models.CASCADE, verbose_name="Étudiant")
+    code_classe = models.ForeignKey(Classe, on_delete=models.CASCADE, verbose_name="Classe")
+    annee_academique = models.CharField(max_length=20, verbose_name="Année académique")
+    date_inscription = models.DateTimeField(auto_now_add=True, verbose_name="Date d'inscription")
+    est_actif = models.BooleanField(default=True, verbose_name="Inscription active")
+    
+    # Champs de suivi
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+    
+    class Meta:
+        verbose_name = "Inscription"
+        verbose_name_plural = "Inscriptions"
+        unique_together = ('etudiant', 'code_classe', 'annee_academique')
+        ordering = ['-date_inscription']
+    
+    def __str__(self):
+        return f"Inscription de {self.etudiant.nom_complet} en {self.code_classe.DesignationClasse} ({self.annee_academique})"

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Importer des Inscriptions{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-excel me-2"></i>
+                        Importer des Inscriptions depuis Excel
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Format du fichier Excel attendu :</h6>
+                        <p class="mb-2">Le fichier Excel doit contenir 3 colonnes avec ces en-têtes exactes :</p>
+                        <ol class="mb-0">
+                            <li><strong>matricule</strong> : Le matricule de l'étudiant déjà enregistré</li>
+                            <li><strong>code_classe</strong> : Le code de la classe (ex: L1BC, L1IG, L1MEC)</li>
+                            <li><strong>annee_academique</strong> : L'année académique (ex: 2024-2025)</li>
+                        </ol>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.excel_file.id_for_label }}" class="form-label">
+                                        Fichier Excel <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.excel_file }}
+                                    {% if form.excel_file.errors %}
+                                        <div class="text-danger small">
+                                            {{ form.excel_file.errors }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Formats acceptés : .xlsx, .xls
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'gestion_administrative:liste_inscriptions' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-2"></i>Importer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Améliorer l'affichage du champ fichier
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+        fileInput.classList.add('form-control');
+    }
+});
+</script>
+{% endblock %}

@@ -10,8 +10,8 @@ from django.utils import timezone
 from django.db.models import Q
 from django.core.paginator import Paginator
 
-from .forms import AutorisationAbsenceEnseignantForm, EtudiantForm, ImportExcelForm, AutorisationAbsenceEtudiantForm
-from .models import AbsenceEnseignant, Etudiant, AutorisationAbsenceEtudiant, Annonce
+from .forms import AutorisationAbsenceEnseignantForm, EtudiantForm, ImportExcelForm, AutorisationAbsenceEtudiantForm, InscriptionForm, ImportInscriptionsForm
+from .models import AbsenceEnseignant, Etudiant, AutorisationAbsenceEtudiant, Annonce, Inscription
 from teachers.models import Teacher
 from reglage.models import Departement, Grade, Fonction
 import pandas as pd
@@ -883,3 +883,147 @@ def supprimer_annonce(request, annonce_id):
         return JsonResponse({'success': True, 'message': f'Annonce "{titre}" supprimée avec succès.'})
     
     return JsonResponse({'success': False, 'message': 'Méthode non autorisée'}, status=405)
+
+
+# Vues pour la gestion des inscriptions
+def liste_inscriptions(request):
+    """Affiche la liste des inscriptions"""
+    inscriptions = Inscription.objects.all().order_by('-date_inscription')
+    
+    # Pagination
+    paginator = Paginator(inscriptions, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'gestion_administrative/inscriptions_list.html', {
+        'page_obj': page_obj
+    })
+
+
+def ajouter_inscription(request):
+    """Ajoute une nouvelle inscription"""
+    if request.method == 'POST':
+        form = InscriptionForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Inscription ajoutée avec succès.")
+            return redirect('gestion_administrative:liste_inscriptions')
+    else:
+        form = InscriptionForm()
+    
+    return render(request, 'gestion_administrative/inscription_form.html', {
+        'form': form,
+        'title': 'Ajouter une inscription'
+    })
+
+
+def modifier_inscription(request, inscription_id):
+    """Modifie une inscription existante"""
+    inscription = get_object_or_404(Inscription, id=inscription_id)
+    
+    if request.method == 'POST':
+        form = InscriptionForm(request.POST, instance=inscription)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Inscription modifiée avec succès.")
+            return redirect('gestion_administrative:liste_inscriptions')
+    else:
+        form = InscriptionForm(instance=inscription)
+    
+    return render(request, 'gestion_administrative/inscription_form.html', {
+        'form': form,
+        'title': 'Modifier une inscription',
+        'inscription': inscription
+    })
+
+
+def supprimer_inscription(request, inscription_id):
+    """Supprime une inscription"""
+    if request.method == 'POST':
+        inscription = get_object_or_404(Inscription, id=inscription_id)
+        inscription.delete()
+        messages.success(request, "Inscription supprimée avec succès.")
+        return redirect('gestion_administrative:liste_inscriptions')
+    
+    return JsonResponse({'success': False, 'message': 'Méthode non autorisée'}, status=405)
+
+
+def importer_inscriptions_excel(request):
+    """Importe des inscriptions depuis un fichier Excel"""
+    if request.method == 'POST':
+        form = ImportInscriptionsForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                print('DEBUG importer_inscriptions_excel: using pandas + *_id assignment')
+                fichier = request.FILES['excel_file']
+                df = pd.read_excel(fichier)
+                
+                # Colonnes attendues
+                colonnes_requises = ['matricule', 'code_classe', 'annee_academique']
+                
+                # Vérifier les colonnes requises
+                for col in colonnes_requises:
+                    if col not in df.columns:
+                        messages.error(request, f'Colonne requise manquante: {col}')
+                        return render(request, 'gestion_administrative/import_inscriptions.html', {'form': form})
+                
+                inscriptions_crees = 0
+                inscriptions_modifiees = 0
+                erreurs = []
+                
+                for index, row in df.iterrows():
+                    try:
+                        # Récupérer les données
+                        matricule = str(row['matricule']).strip()
+                        code_classe = str(row['code_classe']).strip()
+                        annee_academique = str(row['annee_academique']).strip()
+                        
+                        # Vérifier l'étudiant
+                        try:
+                            etudiant = Etudiant.objects.get(matricule=matricule)
+                        except Etudiant.DoesNotExist:
+                            erreurs.append(f'Ligne {index + 2}: Étudiant {matricule} non trouvé')
+                            continue
+                        
+                        # Vérifier la classe
+                        try:
+                            classe_id = Classe.objects.only('id').get(CodeClasse=code_classe).id
+                        except Classe.DoesNotExist:
+                            erreurs.append(f'Ligne {index + 2}: Classe {code_classe} non trouvée')
+                            continue
+                        
+                        # Créer ou mettre à jour l'inscription
+                        inscription, created = Inscription.objects.update_or_create(
+                            etudiant_id=etudiant.id,
+                            code_classe_id=classe_id,
+                            annee_academique=annee_academique,
+                            defaults={'est_actif': True}
+                        )
+                        
+                        if created:
+                            inscriptions_crees += 1
+                        else:
+                            inscriptions_modifiees += 1
+                            
+                    except Exception as e:
+                        erreurs.append(f'Ligne {index + 2}: {str(e)}')
+                
+                # Messages de résultat
+                if inscriptions_crees > 0:
+                    messages.success(request, f'{inscriptions_crees} inscriptions créées')
+                if inscriptions_modifiees > 0:
+                    messages.info(request, f'{inscriptions_modifiees} inscriptions modifiées')
+                if erreurs:
+                    for erreur in erreurs[:5]:  # Limiter à 5 erreurs
+                        messages.error(request, erreur)
+                    if len(erreurs) > 5:
+                        messages.error(request, f'... et {len(erreurs) - 5} autres erreurs')
+                
+                return redirect('gestion_administrative:liste_inscriptions')
+                
+            except Exception as e:
+                messages.error(request, f'Erreur lors de l\'importation: {str(e)}')
+    else:
+        form = ImportInscriptionsForm()
+    
+    return render(request, 'gestion_administrative/import_inscriptions.html', {'form': form})

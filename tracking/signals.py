@@ -132,14 +132,19 @@ def log_schedule_entry_save(sender, instance, created, **kwargs):
 def log_schedule_entry_delete(sender, instance, **kwargs):
     """Enregistrer la suppression d'une entrée de planning"""
     user = get_current_user()
-    course_code = instance.attribution.code_ue.code_ue if instance.attribution and instance.attribution.code_ue else 'N/A'
-    salle = instance.salle_link.nom_salle if instance.salle_link else (instance.salle if instance.salle else 'N/A')
-    creneau = f"{instance.creneau.heure_debut}-{instance.creneau.heure_fin}" if instance.creneau else 'N/A'
+    try:
+        course_code = instance.attribution.code_ue.code_ue if instance.attribution and instance.attribution.code_ue else 'N/A'
+        salle = instance.salle_link.nom_salle if instance.salle_link else (instance.salle if instance.salle else 'N/A')
+        creneau = f"{instance.creneau.heure_debut}-{instance.creneau.heure_fin}" if instance.creneau else 'N/A'
+        description = f"Suppression planning: {course_code} - {salle} ({instance.jour} {creneau})"
+    except Exception:
+        # Si les objets liés n'existent plus (suppression en cascade), utiliser une description simplifiée
+        description = f"Suppression planning (ID: {instance.id})"
     
     ActionLog.log_action(
         user=user,
         action_type='schedule_delete',
-        description=f"Suppression planning: {course_code} - {salle} ({instance.jour} {creneau})",
+        description=description,
         model_name='ScheduleEntry',
         object_id=instance.id,
         object_repr=str(instance)

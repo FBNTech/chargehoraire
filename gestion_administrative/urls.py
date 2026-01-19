@@ -25,4 +25,11 @@ urlpatterns = [
     path('etudiants/autorisation-absence/', views.autorisation_absence_etudiant, name='autorisation_absence_etudiant'),
     path('etudiants/liste-absences/', views.liste_absences_etudiants, name='liste_absences_etudiants'),
     path('etudiants/supprimer-absence/<int:absence_id>/', views.supprimer_absence_etudiant, name='supprimer_absence_etudiant'),
+    
+    # URLs pour la gestion des inscriptions
+    path('inscriptions/', views.liste_inscriptions, name='liste_inscriptions'),
+    path('inscriptions/ajouter/', views.ajouter_inscription, name='ajouter_inscription'),
+    path('inscriptions/modifier/<int:inscription_id>/', views.modifier_inscription, name='modifier_inscription'),
+    path('inscriptions/supprimer/<int:inscription_id>/', views.supprimer_inscription, name='supprimer_inscription'),
+    path('inscriptions/import/', views.importer_inscriptions_excel, name='importer_inscriptions'),
 ]

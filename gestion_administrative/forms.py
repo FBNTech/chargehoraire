@@ -1,6 +1,6 @@
 from django import forms
 from teachers.models import Teacher
-from .models import AutorisationAbsenceEnseignant, Etudiant, AutorisationAbsenceEtudiant
+from .models import AutorisationAbsenceEnseignant, Etudiant, AutorisationAbsenceEtudiant, Inscription
 from reglage.models import Classe
 
 
@@ -133,3 +133,24 @@ class AutorisationAbsenceEtudiantForm(forms.ModelForm):
             widget=forms.Select(attrs={'class': 'form-select'}),
             required=True
         )
+
+
+class InscriptionForm(forms.ModelForm):
+    """Formulaire pour les inscriptions"""
+    class Meta:
+        model = Inscription
+        fields = ['etudiant', 'code_classe', 'annee_academique', 'est_actif']
+        widgets = {
+            'etudiant': forms.Select(attrs={'class': 'form-select'}),
+            'code_classe': forms.Select(attrs={'class': 'form-select'}),
+            'annee_academique': forms.TextInput(attrs={'class': 'form-control'}),
+            'est_actif': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class ImportInscriptionsForm(forms.Form):
+    """Formulaire pour importer des inscriptions depuis Excel"""
+    excel_file = forms.FileField(
+        label='Fichier Excel (.xlsx, .xls)',
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.xlsx,.xls'})
+    )
