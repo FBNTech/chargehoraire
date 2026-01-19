@@ -2317,48 +2317,68 @@ def generate_pdf(request):
     elements.append(total_table)
     
     # Ajouter la section des signatures
-    elements.append(Spacer(1, 14))  # 0.5cm d'espace (14 points ≈ 0.5cm) pour faire monter encore plus la signature
+    elements.append(Spacer(1, 14))
     
     # Styles pour les signatures
     styles = getSampleStyleSheet()
     signature_style = ParagraphStyle(
         'SignatureStyle',
         parent=styles['Normal'],
-        fontSize=8,  # Réduit à 8 points pour que le titre tienne sur une ligne
+        fontSize=8,
         alignment=1,  # Centre
         leading=10
     )
     
-    # Créer le tableau des signatures
-    signature_data = []
+    # Date et lieu à droite
+    from datetime import datetime
+    date_du_jour = datetime.now().strftime("%d/%m/%Y")
+    date_style = ParagraphStyle('DateStyle', parent=styles['Normal'], fontSize=9, alignment=2)  # Aligné à droite
+    elements.append(Paragraph(f"Fait à Mbanza-Ngungu le {date_du_jour}", date_style))
+    elements.append(Spacer(1, 10))
     
-    # Signature du Secrétaire Général Académique (gauche) et CSAE (droite)
-    sgac_grade = sgac_info.get_grade_designation() if sgac_info and hasattr(sgac_info, 'get_grade_designation') else ''
+    # Récupérer les grades
+    enseignant_grade = enseignant_info.get_grade_designation() if enseignant_info and hasattr(enseignant_info, 'get_grade_designation') else ''
     csae_grade = csae_info.get_grade_designation() if csae_info and hasattr(csae_info, 'get_grade_designation') else ''
+    sgac_grade = sgac_info.get_grade_designation() if sgac_info and hasattr(sgac_info, 'get_grade_designation') else ''
     
-    if sgac_info:
-        sgac_text = f"LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/><b><u>{sgac_info.nom_complet}</u></b><br/><i>{sgac_grade}</i>"
+    # Première ligne: Enseignant (gauche) et CSAE (droite)
+    if enseignant_info:
+        enseignant_text = f"L'ENSEIGNANT<br/><br/><br/><br/><b><u>{enseignant_info.nom_complet}</u></b><br/><i>{enseignant_grade}</i>"
     else:
-        sgac_text = "LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>"
+        enseignant_text = "L'ENSEIGNANT<br/><br/><br/><br/>"
     
     if csae_info:
         csae_text = f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>"
     else:
         csae_text = "CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>"
     
-    signature_data.append([
-        Paragraph(sgac_text, signature_style),
+    signature_data_row1 = [[
+        Paragraph(enseignant_text, signature_style),
         Paragraph(csae_text, signature_style),
-    ])
+    ]]
     
-    signature_table = Table(signature_data, colWidths=[280, 280])
-    signature_table.setStyle(TableStyle([
+    signature_table1 = Table(signature_data_row1, colWidths=[280, 280])
+    signature_table1.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
     ]))
+    elements.append(signature_table1)
     
-    elements.append(signature_table)
+    elements.append(Spacer(1, 15))
+    
+    # Deuxième ligne: SGAC (centré)
+    if sgac_info:
+        sgac_text = f"LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/><b><u>{sgac_info.nom_complet}</u></b><br/><i>{sgac_grade}</i>"
+    else:
+        sgac_text = "LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>"
+    
+    signature_data_row2 = [[Paragraph(sgac_text, signature_style)]]
+    signature_table2 = Table(signature_data_row2, colWidths=[560])
+    signature_table2.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(signature_table2)
     
     # Générer le PDF avec le footer
     doc.build(elements, onFirstPage=footer, onLaterPages=footer)
