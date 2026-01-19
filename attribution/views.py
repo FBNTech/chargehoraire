@@ -2324,24 +2324,20 @@ def generate_pdf(request):
     # Créer le tableau des signatures
     signature_data = []
     
-    # Signature du CSAE
+    # Signature du Secrétaire Général Académique (gauche) et CSAE (droite)
     if csae_info:
         csae_grade = csae_info.get_grade_designation() if hasattr(csae_info, 'get_grade_designation') else ''
         signature_data.append([
-            '',
-            '',
+            Paragraph("LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>", signature_style),
             Paragraph(f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>", signature_style),
-            ''
         ])
     else:
         signature_data.append([
-            '',
-            '',
+            Paragraph("LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>", signature_style),
             Paragraph("CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>", signature_style),
-            ''
         ])
     
-    signature_table = Table(signature_data, colWidths=[250, 80, 250, 80])  # Première colonne augmentée de 85px supplémentaires (environ 3cm de plus)
+    signature_table = Table(signature_data, colWidths=[280, 280])
     signature_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
