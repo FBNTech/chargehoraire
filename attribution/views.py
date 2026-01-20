@@ -1990,14 +1990,14 @@ def generate_pdf(request):
     # Ajouter l'en-tête institutionnelle
     header = create_header_table()
     elements.append(header)
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 2))
     
     # Styles
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=14,
+        fontSize=11,
         spaceAfter=10,
         alignment=1
     )
@@ -2131,19 +2131,13 @@ def generate_pdf(request):
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         
-        # Ajouter le titre "CHARGE HORAIRE" responsive
-        title_data = [[Paragraph("CHARGE HORAIRE", title_style)]]
-        title_table = Table(title_data, colWidths=[565])
-        title_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 14),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
+        # Ajouter le titre "DESCRIPTION DE LA CHARGE HORAIRE POUR L'ANNEE ACADEMIQUE" responsive
+        annee_display = annee_academique if annee_academique else 'Toutes les années'
+        title_text = f"<u>DESCRIPTION DE LA CHARGE HORAIRE POUR L'ANNEE ACADEMIQUE  {annee_display}</u>"
+        title_para = Paragraph(title_text, title_style)
         
-        elements.append(title_table)
-        elements.append(Spacer(1, 10))
+        elements.append(title_para)
+        elements.append(Spacer(1, 1))
         
         # Créer un tableau global avec infos à gauche alignées et photo à droite
         main_data = [[info_table, photo_element]]
@@ -2324,61 +2318,62 @@ def generate_pdf(request):
     signature_style = ParagraphStyle(
         'SignatureStyle',
         parent=styles['Normal'],
-        fontSize=8,
+        fontSize=9,
         alignment=1,  # Centre
-        leading=10
+        leading=11
     )
     
-    # Date et lieu à droite
+    signature_style_italic = ParagraphStyle(
+        'SignatureStyleItalic',
+        parent=styles['Normal'],
+        fontSize=9,
+        alignment=2,  # Aligné à droite
+        leading=11,
+        fontName='Helvetica-Oblique'
+    )
+    
+    # Date et lieu à droite + "Signature de l'intéressé"
     from datetime import datetime
     date_du_jour = datetime.now().strftime("%d/%m/%Y")
-    date_style = ParagraphStyle('DateStyle', parent=styles['Normal'], fontSize=9, alignment=2)  # Aligné à droite
-    elements.append(Paragraph(f"Fait à Mbanza-Ngungu le {date_du_jour}", date_style))
-    elements.append(Spacer(1, 10))
+    date_style = ParagraphStyle('DateStyle', parent=styles['Normal'], fontSize=10, alignment=2)  # Aligné à droite
+    elements.append(Paragraph(f"Fait à Mbanza-Ngungu, le  {date_du_jour}", date_style))
+    elements.append(Paragraph("<i>Signature de l'intéressé</i>", signature_style_italic))
+    elements.append(Spacer(1, 20))
+    
+    # Titre "Pour accord :" centré
+    pour_accord_style = ParagraphStyle('PourAccord', parent=styles['Normal'], fontSize=11, alignment=1, fontName='Helvetica-BoldOblique')
+    elements.append(Paragraph("<i><b>Pour accord :</b></i>", pour_accord_style))
+    elements.append(Spacer(1, 15))
     
     # Récupérer les grades
     enseignant_grade = enseignant_info.get_grade_designation() if enseignant_info and hasattr(enseignant_info, 'get_grade_designation') else ''
     csae_grade = csae_info.get_grade_designation() if csae_info and hasattr(csae_info, 'get_grade_designation') else ''
     sgac_grade = sgac_info.get_grade_designation() if sgac_info and hasattr(sgac_info, 'get_grade_designation') else ''
     
-    # Première ligne: Enseignant (centré en haut)
-    if enseignant_info:
-        enseignant_text = f"L'ENSEIGNANT<br/><br/><br/><br/><b><u>{enseignant_info.nom_complet}</u></b><br/><i>{enseignant_grade}</i>"
-    else:
-        enseignant_text = "L'ENSEIGNANT<br/><br/><br/><br/>"
+    # Ligne des signatures: CSAE (gauche) et SGAC (droite)
+    signature_left_style = ParagraphStyle('SignatureLeft', parent=styles['Normal'], fontSize=9, alignment=0, leading=11)
+    signature_right_style = ParagraphStyle('SignatureRight', parent=styles['Normal'], fontSize=9, alignment=2, leading=11)
     
-    signature_data_row1 = [[Paragraph(enseignant_text, signature_style)]]
-    signature_table1 = Table(signature_data_row1, colWidths=[560])
-    signature_table1.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    elements.append(signature_table1)
-    
-    elements.append(Spacer(1, 15))
-    
-    # Deuxième ligne: CSAE (gauche) et SGAC (droite)
     if csae_info:
-        csae_text = f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>"
+        csae_text = f"<i>Date et signature du Chef de Section/Adjoint<br/>Chargé de l'Enseignement</i><br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>"
     else:
-        csae_text = "CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>"
+        csae_text = "<i>Date et signature du Chef de Section/Adjoint<br/>Chargé de l'Enseignement</i><br/><br/><br/><br/>"
     
     if sgac_info:
-        sgac_text = f"LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/><b><u>{sgac_info.nom_complet}</u></b><br/><i>{sgac_grade}</i>"
+        sgac_text = f"<i>Date et signature du Secrétaire Général Académique</i><br/><br/><br/><br/><b><u>{sgac_info.nom_complet}</u></b><br/><i>{sgac_grade}</i>"
     else:
-        sgac_text = "LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>"
+        sgac_text = "<i>Date et signature du Secrétaire Général Académique</i><br/><br/><br/><br/>"
     
-    signature_data_row2 = [[
-        Paragraph(csae_text, signature_style),
-        Paragraph(sgac_text, signature_style),
+    signature_data = [[
+        Paragraph(csae_text, signature_left_style),
+        Paragraph(sgac_text, signature_right_style),
     ]]
     
-    signature_table2 = Table(signature_data_row2, colWidths=[280, 280])
-    signature_table2.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    signature_table = Table(signature_data, colWidths=[280, 280])
+    signature_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
-    elements.append(signature_table2)
+    elements.append(signature_table)
     
     # Générer le PDF avec le footer
     doc.build(elements, onFirstPage=footer, onLaterPages=footer)
@@ -3275,10 +3270,23 @@ def generer_pdf_heures_supplementaires(request, attributions, annee_academique, 
     from django.conf import settings
     import os
     from reportlab.platypus import Image
+    from PIL import Image as PILImage
     
     entete_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'entete.PNG')
     if os.path.exists(entete_path):
-        img = Image(entete_path, width=doc.width, height=1.5*inch)
+        try:
+            # Lire les dimensions originales de l'image
+            with PILImage.open(entete_path) as pil_img:
+                original_width, original_height = pil_img.size
+                aspect_ratio = original_width / original_height
+            
+            # Calculer la hauteur proportionnelle
+            calculated_height = doc.width / aspect_ratio
+            img = Image(entete_path, width=doc.width, height=calculated_height)
+        except:
+            # En cas d'erreur, utiliser une hauteur par défaut
+            img = Image(entete_path, width=doc.width, height=1.2*inch)
+        
         elements.append(img)
         elements.append(Spacer(1, 10))
     
@@ -3707,10 +3715,23 @@ def imprimer_charges_section(request):
     from django.conf import settings
     import os
     from reportlab.platypus import Image
+    from PIL import Image as PILImage
     
     entete_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'entete.PNG')
     if os.path.exists(entete_path):
-        img = Image(entete_path, width=doc.width, height=1.5*inch)
+        try:
+            # Lire les dimensions originales de l'image
+            with PILImage.open(entete_path) as pil_img:
+                original_width, original_height = pil_img.size
+                aspect_ratio = original_width / original_height
+            
+            # Calculer la hauteur proportionnelle
+            calculated_height = doc.width / aspect_ratio
+            img = Image(entete_path, width=doc.width, height=calculated_height)
+        except:
+            # En cas d'erreur, utiliser une hauteur par défaut
+            img = Image(entete_path, width=doc.width, height=1.2*inch)
+        
         elements.append(img)
         elements.append(Spacer(1, 10))
     
