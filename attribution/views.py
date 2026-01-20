@@ -2175,22 +2175,8 @@ def generate_pdf(request):
         elements.append(titre_table)
         
         # Entêtes du tableau principal
-        headers = [
-            'Code',
-            'Intitulé U.E.',
-            'Intitulé EC',
-            'Présentiel',
-            'TP - TD',
-            'Total',
-            'Crédits',
-            'Classe',
-            'Semestre'
-        ]
-        
-        # Colonne double pour les heures prévues
         header_data = [
-            ['Code', 'Intitulé U.E.', 'Intitulé EC', 'Heures prévues', '', 'Total', 'Crédits', 'Classe', 'Semestre'],
-            ['', '', '', 'Présentiel', 'TP - TD', '', '', '', '']
+            ['Code', 'Intitulé U.E.', 'Intitulé EC', 'Heures', 'Crédits', 'Classe', 'Semestre']
         ]
         
         # Préparer les données
@@ -2219,9 +2205,7 @@ def generate_pdf(request):
                 attr.code_ue.code_ue,
                 Paragraph(attr.code_ue.intitule_ue, cell_style),
                 Paragraph(attr.code_ue.intitule_ec or '', cell_style),
-                str(presentiel),
-                str(tp_td),
-                str(total),
+                str(int(total)),
                 str(attr.code_ue.credit) if attr.code_ue.credit else '0',
                 Paragraph(attr.code_ue.classe or '', cell_style),
                 attr.code_ue.semestre
@@ -2230,41 +2214,40 @@ def generate_pdf(request):
         
         # Ajouter ligne de sous-total
         sous_total_row = ['', '', 'Sous-total ' + ('1' if titre == 'Charge régulière' else '2'), 
-                        str(total_presentiel), str(total_tp_td), str(total_heures), str(total_credits), '', '']
+                        str(int(total_heures)), str(int(total_credits)), '', '']
         data.append(sous_total_row)
         
         # Combiner les en-têtes et les données
         all_data = header_data + data
         
-        # Définir les largeurs de colonnes adaptées au portrait (total 529px = 501px + 28px)
-        col_widths = [42, 95, 95, 58, 58, 58, 42, 42, 39]
+        # Définir les largeurs de colonnes adaptées au portrait
+        col_widths = [50, 140, 140, 70, 50, 50, 50]
         
         # Créer le tableau
-        table = Table(all_data, colWidths=col_widths, repeatRows=2)
+        table = Table(all_data, colWidths=col_widths, repeatRows=1)
         
         # Style du tableau
         style = TableStyle([
             # Style des entêtes
-            ('BACKGROUND', (0, 0), (-1, 1), colors.lightgrey),
-            ('TEXTCOLOR', (0, 0), (-1, 1), colors.black),
-            ('ALIGN', (0, 0), (-1, 1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 1), 7),  # Entêtes aussi à taille 7
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('SPAN', (3, 0), (4, 0)),  # Fusion des cellules pour "Heures prévues"
             
             # Style des cellules de données
-            ('ALIGN', (0, 2), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTSIZE', (0, 2), (-1, -1), 7),  # Toutes les données à taille 7
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
             
             # Style pour la colonne des codes (première colonne)
-            ('ALIGN', (0, 2), (0, -1), 'LEFT'),  # Aligné à gauche pour mieux gérer le retour à la ligne
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
             
             # Style pour la ligne de sous-total
             ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
             ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, -1), (-1, -1), 7),  # Sous-total aussi à taille 7
+            ('FONTSIZE', (0, -1), (-1, -1), 8),
             ('SPAN', (0, -1), (2, -1)),  # Fusion des 3 premières cellules pour le texte "Sous-total"
         ])
         
@@ -2290,21 +2273,19 @@ def generate_pdf(request):
     # Ajouter le total général
     total_data = [
         ['Total', '', '', 
-         str(total_presentiel_reg + total_presentiel_supp), 
-         str(total_tp_td_reg + total_tp_td_supp), 
-         str(total_heures_reg + total_heures_supp), 
-         str(total_credits_reg + total_credits_supp),
+         str(int(total_heures_reg + total_heures_supp)), 
+         str(int(total_credits_reg + total_credits_supp)),
          '', '']  # Colonnes vides pour classe et semestre
     ]
     
-    total_table = Table(total_data, colWidths=[42, 95, 95, 58, 58, 58, 42, 42, 39])
+    total_table = Table(total_data, colWidths=[50, 140, 140, 70, 50, 50, 50])
     total_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('GRID', (0, 0), (5, 0), 0.5, colors.black),
+        ('GRID', (0, 0), (-1, 0), 0.5, colors.black),
         ('SPAN', (0, 0), (2, 0)),  # Fusion des 3 premières cellules pour le texte "Total"
     ]))
     
