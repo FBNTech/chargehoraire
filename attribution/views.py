@@ -2341,23 +2341,14 @@ def generate_pdf(request):
     csae_grade = csae_info.get_grade_designation() if csae_info and hasattr(csae_info, 'get_grade_designation') else ''
     sgac_grade = sgac_info.get_grade_designation() if sgac_info and hasattr(sgac_info, 'get_grade_designation') else ''
     
-    # Première ligne: Enseignant (gauche) et CSAE (droite)
+    # Première ligne: Enseignant (centré en haut)
     if enseignant_info:
         enseignant_text = f"L'ENSEIGNANT<br/><br/><br/><br/><b><u>{enseignant_info.nom_complet}</u></b><br/><i>{enseignant_grade}</i>"
     else:
         enseignant_text = "L'ENSEIGNANT<br/><br/><br/><br/>"
     
-    if csae_info:
-        csae_text = f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>"
-    else:
-        csae_text = "CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>"
-    
-    signature_data_row1 = [[
-        Paragraph(enseignant_text, signature_style),
-        Paragraph(csae_text, signature_style),
-    ]]
-    
-    signature_table1 = Table(signature_data_row1, colWidths=[280, 280])
+    signature_data_row1 = [[Paragraph(enseignant_text, signature_style)]]
+    signature_table1 = Table(signature_data_row1, colWidths=[560])
     signature_table1.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -2366,14 +2357,23 @@ def generate_pdf(request):
     
     elements.append(Spacer(1, 15))
     
-    # Deuxième ligne: SGAC (centré)
+    # Deuxième ligne: CSAE (gauche) et SGAC (droite)
+    if csae_info:
+        csae_text = f"CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/><b><u>{csae_info.nom_complet}</u></b><br/><i>{csae_grade}</i>"
+    else:
+        csae_text = "CHEF DE SECTION-ADJOINT / ENSEIGNEMENT<br/><br/><br/><br/>"
+    
     if sgac_info:
         sgac_text = f"LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/><b><u>{sgac_info.nom_complet}</u></b><br/><i>{sgac_grade}</i>"
     else:
         sgac_text = "LE SECRÉTAIRE GÉNÉRAL ACADÉMIQUE<br/><br/><br/><br/>"
     
-    signature_data_row2 = [[Paragraph(sgac_text, signature_style)]]
-    signature_table2 = Table(signature_data_row2, colWidths=[560])
+    signature_data_row2 = [[
+        Paragraph(csae_text, signature_style),
+        Paragraph(sgac_text, signature_style),
+    ]]
+    
+    signature_table2 = Table(signature_data_row2, colWidths=[280, 280])
     signature_table2.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
