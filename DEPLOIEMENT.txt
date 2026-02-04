@@ -1,0 +1,157 @@
+===========================================
+GUIDE DE DEPLOIEMENT SUR PYTHONANYWHERE
+===========================================
+
+Ce guide vous aide à déployer votre application Django avec MySQL sur PythonAnywhere.
+
+===========================================
+ETAPE 1 : CONFIGURER MYSQL SUR PYTHONANYWHERE
+===========================================
+
+1. Connectez-vous à PythonAnywhere : https://www.pythonanywhere.com
+
+2. Allez dans l'onglet "Databases"
+
+3. Créez une base de données MySQL :
+   - Cliquez sur "Create a new database"
+   - Nom de la base : chargehoraire
+   - Notez les informations suivantes :
+     * Nom d'hôte MySQL : votre_username.mysql.pythonanywhere-services.com
+     * Nom de la base : votre_username$chargehoraire
+     * Utilisateur : votre_username
+     * Mot de passe : (celui que vous avez défini)
+
+===========================================
+ETAPE 2 : CONFIGURER LES VARIABLES D'ENVIRONNEMENT
+===========================================
+
+1. Allez dans l'onglet "Web"
+
+2. Cliquez sur votre application web
+
+3. Trouvez la section "Code" et cliquez sur le lien vers votre fichier WSGI
+
+4. Ajoutez ces lignes AVANT la ligne "from django.core.wsgi import get_wsgi_application" :
+
+import os
+os.environ['DB_NAME'] = 'votre_username$chargehoraire'
+os.environ['DB_USER'] = 'votre_username'
+os.environ['DB_PASSWORD'] = 'votre_mot_de_passe_mysql'
+os.environ['DB_HOST'] = 'votre_username.mysql.pythonanywhere-services.com'
+os.environ['DB_PORT'] = '3306'
+
+IMPORTANT : Remplacez "votre_username" et "votre_mot_de_passe_mysql" par vos vraies valeurs !
+
+===========================================
+ETAPE 3 : METTRE A JOUR LE CODE DEPUIS GITHUB
+===========================================
+
+1. Ouvrez une console Bash sur PythonAnywhere :
+   - Cliquez sur "Consoles" dans le menu
+   - Ouvrez une console "Bash"
+
+2. Exécutez ces commandes :
+
+cd ~/chargehoraire
+git pull origin main
+
+===========================================
+ETAPE 4 : INSTALLER PYMYSQL
+===========================================
+
+Dans la console Bash, exécutez :
+
+pip install --user pymysql
+
+===========================================
+ETAPE 5 : EXECUTER LES MIGRATIONS
+===========================================
+
+Dans la console Bash, exécutez :
+
+cd ~/chargehoraire
+python manage.py migrate
+
+===========================================
+ETAPE 6 : COLLECTER LES FICHIERS STATIQUES
+===========================================
+
+Dans la console Bash, exécutez :
+
+python manage.py collectstatic --noinput
+
+===========================================
+ETAPE 7 : REDEMARRER L'APPLICATION
+===========================================
+
+Option 1 - Via l'interface web :
+1. Allez dans l'onglet "Web"
+2. Cliquez sur le bouton vert "Reload votre_site.pythonanywhere.com"
+
+Option 2 - Via la console Bash :
+touch /var/www/votre_username_pythonanywhere_com_wsgi.py
+
+===========================================
+ETAPE 8 : IMPORTER LES DONNEES (OPTIONNEL)
+===========================================
+
+Si vous souhaitez importer vos données depuis votre base locale :
+
+1. Exportez vos données locales :
+   python manage.py dumpdata > data.json
+
+2. Uploadez le fichier data.json sur PythonAnywhere via l'onglet "Files"
+
+3. Dans la console Bash sur PythonAnywhere :
+   cd ~/chargehoraire
+   python manage.py loaddata data.json
+
+===========================================
+VERIFICATION
+===========================================
+
+1. Visitez votre site : https://votre_username.pythonanywhere.com
+
+2. Vérifiez que :
+   - La page d'accueil se charge correctement
+   - Vous pouvez vous connecter
+   - Les données s'affichent correctement
+
+===========================================
+DEPANNAGE
+===========================================
+
+Si vous rencontrez des erreurs :
+
+1. Consultez les logs d'erreur :
+   - Onglet "Web" > Section "Log files"
+   - Cliquez sur "Error log"
+
+2. Vérifiez que PyMySQL est bien installé :
+   pip list | grep -i pymysql
+
+3. Vérifiez les variables d'environnement dans le fichier WSGI
+
+4. Assurez-vous que la base de données MySQL est bien créée
+
+===========================================
+NOTES IMPORTANTES
+===========================================
+
+- Votre environnement LOCAL continue d'utiliser :
+  * Base : chargehoraire
+  * User : django_user
+  * Password : fbn
+  * Host : localhost
+
+- Votre environnement PYTHONANYWHERE utilise :
+  * Base : votre_username$chargehoraire
+  * User : votre_username
+  * Password : votre_mot_de_passe_mysql
+  * Host : votre_username.mysql.pythonanywhere-services.com
+
+- Les variables d'environnement permettent de basculer automatiquement entre les deux
+
+===========================================
+FIN DU GUIDE
+===========================================

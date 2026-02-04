@@ -114,15 +114,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 #     }
 # }
 
-# Configuration MySQL (activée)
+# Configuration MySQL
+# Utilise les variables d'environnement pour supporter différents environnements
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'chargehoraire',
-        'USER': 'django_user',
-        'PASSWORD': 'fbn',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'NAME': os.getenv('DB_NAME', 'chargehoraire'),
+        'USER': os.getenv('DB_USER', 'django_user'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'fbn'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
