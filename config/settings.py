@@ -14,6 +14,10 @@ from pathlib import Path
 import os
 import dj_database_url
 from decouple import config, Csv
+import pymysql
+
+# Configuration PyMySQL pour Django
+pymysql.install_as_MySQLdb()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -98,15 +102,33 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 # Configuration de base (SQLite pour développement local)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#         'OPTIONS': {
+#             'timeout': 20,
+#             'check_same_thread': False,
+#         },
+#         'CONN_MAX_AGE': 0,
+#     }
+# }
+
+# Configuration MySQL (activée)
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'chargehoraire',
+        'USER': 'django_user',
+        'PASSWORD': 'fbn',
+        'HOST': 'localhost',
+        'PORT': '3306',
         'OPTIONS': {
-            'timeout': 20,
-            'check_same_thread': False,
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'connect_timeout': 60,
+            'sql_mode': 'STRICT_TRANS_TABLES',
         },
-        'CONN_MAX_AGE': 0,
     }
 }
 

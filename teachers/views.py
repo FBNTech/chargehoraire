@@ -353,6 +353,7 @@ def import_teachers(request):
 def delete_all_teachers(request):
     """Supprime tous les enseignants de la base de données"""
     from django.db import connection
+    from attribution.models import Attribution, ScheduleEntry
     
     # Vérifier les permissions
     user = request.user
@@ -360,23 +361,27 @@ def delete_all_teachers(request):
         messages.error(request, 'Permission refusée. Vous n\'avez pas les droits pour supprimer tous les enseignants.')
         return redirect('teachers:list')
     
+    # Accepter uniquement les requêtes POST
+    if request.method != 'POST':
+        messages.error(request, 'Méthode non autorisée.')
+        return redirect('teachers:list')
+    
     try:
         # Compter le nombre d'enseignants avant suppression
         count = Teacher.objects.count()
         
-        # Désactiver temporairement les contraintes de clés étrangères pour SQLite
-        with connection.cursor() as cursor:
-            cursor.execute('PRAGMA foreign_keys = OFF;')
-        
-        try:
-            # Supprimer tous les enseignants
+        # Utiliser une transaction atomique
+        with transaction.atomic():
+            # Supprimer d'abord tous les horaires liés aux attributions
+            ScheduleEntry.objects.all().delete()
+            
+            # Ensuite supprimer toutes les attributions
+            Attribution.objects.all().delete()
+            
+            # Enfin supprimer tous les enseignants
             Teacher.objects.all().delete()
             
             messages.success(request, f'✅ {count} enseignant(s) ont été supprimé(s) avec succès.')
-        finally:
-            # Réactiver les contraintes de clés étrangères
-            with connection.cursor() as cursor:
-                cursor.execute('PRAGMA foreign_keys = ON;')
         
     except Exception as e:
         messages.error(request, f'❌ Erreur lors de la suppression : {str(e)}')

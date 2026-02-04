@@ -25,15 +25,84 @@
     </div>
     {% endif %}
 
-    <!-- Barre d'actions -->
+    <!-- Cartes statistiques -->
+    <div class="row mb-4">
+        <!-- Carte nombre de cours -->
+        <div class="col-md-6">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-book me-2"></i> Nombre de cours
+                        {% if current_classe %}
+                        <small class="float-end">
+                            <i class="fas fa-filter"></i> {{ current_classe_designation }}
+                        </small>
+                        {% endif %}
+                    </h5>
+                    <div class="text-center">
+                        <h2>{{ courses.count }}</h2>
+                        <p class="mb-0">
+                            cours au total
+                            {% if current_classe %}
+                            <small>({{ current_classe_designation }})</small>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Carte crédits totaux -->
+        <div class="col-md-6">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-calculator me-2"></i> Total crédits
+                        {% if current_classe %}
+                        <small class="float-end">
+                            <i class="fas fa-filter"></i> {{ current_classe_designation }}
+                        </small>
+                        {% endif %}
+                    </h5>
+                    <div class="text-center">
+                        <h2>{{ total_credits }}</h2>
+                        <p class="mb-0">
+                            crédits au total
+                            {% if current_classe %}
+                            <small>({{ current_classe_designation }})</small>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre d'actions et filtres -->
     <div class="d-flex align-items-center mb-3">
-        <!-- Champ de recherche (largeur réduite) -->
-        <div style="width: 50%;">
-            <form method="get" action="{% url 'courses:list' %}" class="d-flex search-form">
+        <!-- Champ de recherche et filtre -->
+        <div style="width: 65%;">
+            <form method="get" action="{% url 'courses:list' %}" class="d-flex gap-2">
                 <input type="text" name="search" class="form-control" placeholder="Rechercher un cours..." value="{{ request.GET.search }}">
-                <button type="submit" class="btn ms-2 btn-blue">
+                
+                <select name="classe" class="form-select" style="max-width: 200px;" onchange="this.form.submit()">
+                    <option value="">Toutes classes</option>
+                    {% for classe in classes_list %}
+                    <option value="{{ classe.CodeClasse }}" {% if current_classe == classe.CodeClasse %}selected{% endif %}>
+                        {{ classe.CodeClasse }}
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <button type="submit" class="btn btn-blue">
                     <i class="fas fa-search"></i>
                 </button>
+                
+                {% if request.GET.search or request.GET.classe %}
+                <a href="{% url 'courses:list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Effacer
+                </a>
+                {% endif %}
             </form>
         </div>
         
@@ -58,11 +127,19 @@
                 </button>
             </form>
             
+            <!-- Boutons d'action groupée -->
+            <button type="button" class="btn btn-warning" onclick="deleteSelected()" id="deleteSelectedBtn" style="display: none;">
+                <i class="fas fa-trash"></i> Supprimer la sélection (<span id="selectedCount">0</span>)
+            </button>
+            
             <!-- Bouton Supprimer tout (Administrateur uniquement) -->
             {% if can_delete_all %}
-            <button type="button" class="btn btn-danger" onclick="confirmDeleteAll()">
-                <i class="fas fa-trash-alt"></i> Supprimer tout
-            </button>
+            <form method="post" action="{% url 'courses:delete_all' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteAll(this.form)">
+                    <i class="fas fa-trash-alt"></i> Supprimer tout
+                </button>
+            </form>
             {% endif %}
         </div>
         {% endif %}
@@ -73,9 +150,10 @@
             table-layout: auto;
             width: 100%;
         }
+        .courses-table th.checkbox-column { width: 3%; }
         .courses-table th.code-column { width: 8%; }
-        .courses-table th.intitule-ue-column { width: 17%; }
-        .courses-table th.intitule-ec-column { width: 17%; }
+        .courses-table th.intitule-ue-column { width: 16%; }
+        .courses-table th.intitule-ec-column { width: 16%; }
         .courses-table th.classe-column { width: 8%; }
         .courses-table th.semestre-column { width: 8%; }
         .courses-table th.departement-column { width: 12%; }
@@ -93,6 +171,9 @@
                 <table class="table table-striped table-bordered table-responsive-cards courses-table">
                     <thead>
                         <tr>
+                            <th class="checkbox-column">
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
                             <th class="code-column">Code UE</th>
                             <th class="intitule-ue-column">Intitulé UE</th>
                             <th class="intitule-ec-column">Intitulé EC</th>
@@ -108,6 +189,9 @@
                     <tbody>
                         {% for course in courses %}
                         <tr>
+                            <td data-label="Sélection">
+                                <input type="checkbox" class="course-checkbox" value="{{ course.code_ue }}" onchange="updateSelectedCount()">
+                            </td>
                             <td data-label="Code UE">{{ course.code_ue }}</td>
                             <td data-label="Intitulé UE">{{ course.intitule_ue }}</td>
                             <td data-label="Intitulé EC">{{ course.intitule_ec }}</td>
@@ -190,13 +274,79 @@
 </div>
 
 <script>
+    // Fonctions pour la sélection multiple
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.course-checkbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        
+        updateSelectedCount();
+    }
+    
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.course-checkbox:checked');
+        const count = checkboxes.length;
+        const deleteBtn = document.getElementById('deleteSelectedBtn');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        selectedCount.textContent = count;
+        
+        if (count > 0) {
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
+    
+    function deleteSelected() {
+        const checkboxes = document.querySelectorAll('.course-checkbox:checked');
+        const selectedCodes = Array.from(checkboxes).map(cb => cb.value);
+        
+        if (selectedCodes.length === 0) {
+            alert('Veuillez sélectionner au moins un cours à supprimer.');
+            return;
+        }
+        
+        if (confirm(`⚠️ ATTENTION ⚠️\n\nÊtes-vous sûr de vouloir supprimer ${selectedCodes.length} cours sélectionnés ?\n\nCette action est IRRÉVERSIBLE.\n\nCliquez sur OK pour confirmer la suppression.`)) {
+            // Créer un formulaire pour la suppression groupée
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "courses:delete_selected" %}';
+            
+            // Ajouter le token CSRF
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            // Ajouter les codes des cours à supprimer
+            selectedCodes.forEach(code => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected_courses';
+                input.value = code;
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    
     // Fonction pour confirmer la suppression de tous les cours
-    function confirmDeleteAll() {
+    function confirmDeleteAll(form) {
         if (confirm('⚠️ ATTENTION ⚠️\n\nÊtes-vous absolument sûr de vouloir supprimer TOUS les cours ?\n\nCette action est IRRÉVERSIBLE et supprimera définitivement tous les cours de la base de données.\n\nCliquez sur OK pour confirmer la suppression.')) {
             // Demander une double confirmation
             if (confirm('Dernière confirmation !\n\nVous allez supprimer TOUS les cours. Confirmez-vous cette action ?')) {
-                // Rediriger vers l'URL de suppression
-                window.location.href = "{% url 'courses:delete_all' %}";
+                // Soumettre le formulaire
+                form.submit();
             }
         }
     }

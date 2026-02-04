@@ -4,14 +4,14 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from accounts.models import Role
 from django.urls import reverse_lazy
 from django.contrib import messages
-from django.db import transaction
+from django.db import transaction, models
 from .models import Course
 from .forms import CourseForm
 import pandas as pd
 from django.http import JsonResponse
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
-from reglage.models import Departement
+from reglage.models import Departement, Classe
 import logging
 import os
 import tempfile
@@ -35,6 +35,12 @@ class CourseListView(ListView):
         if user_org:
             queryset = queryset.filter(section=user_org.code)
         
+        # Filtrer par classe
+        classe_filter = self.request.GET.get('classe')
+        if classe_filter:
+            queryset = queryset.filter(classe=classe_filter)
+            print(f"Filtrage par classe: {classe_filter}, résultats: {queryset.count()}")
+        
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
@@ -52,6 +58,32 @@ class CourseListView(ListView):
         # Créer un dictionnaire des codes de département vers leurs désignations
         departements = Departement.objects.all()
         context['departement_dict'] = {dept.CodeDept: dept.DesignationDept for dept in departements}
+        
+        # Définir les permissions pour le bouton "Supprimer tout"
+        user = self.request.user
+        context['can_delete_all'] = user.is_authenticated and (
+            user.is_staff or 
+            user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists()
+        )
+        
+        # Ajouter les options de filtre par classe depuis reglage
+        classes = Classe.objects.all().order_by('CodeClasse')
+        context['classes_list'] = classes
+        current_classe_code = self.request.GET.get('classe', '')
+        context['current_classe'] = current_classe_code
+        
+        # Trouver la désignation de la classe actuelle
+        current_classe_designation = ''
+        if current_classe_code:
+            current_classe_obj = classes.filter(CodeClasse=current_classe_code).first()
+            if current_classe_obj:
+                current_classe_designation = current_classe_obj.DesignationClasse
+        context['current_classe_designation'] = current_classe_designation
+        
+        # Calculer le total des crédits
+        queryset = self.get_queryset()
+        context['total_credits'] = queryset.aggregate(total=models.Sum('credit'))['total'] or 0
+        
         return context
 
 class CourseCreateView(UserPassesTestMixin, CreateView):
@@ -144,6 +176,14 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
         except Course.DoesNotExist:
             return None
 
+    def post(self, request, *args, **kwargs):
+        """Override to handle missing courses before DeleteView processes them"""
+        code_ue = kwargs.get('code_ue')
+        if not Course.objects.filter(code_ue=code_ue).exists():
+            messages.error(request, f"Le cours avec le code {code_ue} n'existe pas ou a déjà été supprimé.")
+            return redirect(self.success_url)
+        return self.delete(request, *args, **kwargs)
+
     def delete(self, request, *args, **kwargs):
         code_ue = kwargs.get('code_ue')
         try:
@@ -166,9 +206,6 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
                 post_delete.disconnect(log_schedule_entry_delete, sender=ScheduleEntry)
                 
                 try:
-                    # Verrouiller le cours pour éviter les conflits concurrents
-                    course = Course.objects.select_for_update().get(code_ue=code_ue)
-                    
                     # IMPORTANT: Supprimer MANUELLEMENT les objets liés pour éviter les problèmes SQLite CASCADE
                     # 1. D'abord les horaires liés aux attributions de ce cours
                     attributions = Attribution.objects.filter(code_ue=course)
@@ -207,11 +244,15 @@ class CourseDeleteView(UserPassesTestMixin, DeleteView):
             return True
         user_org = get_user_organisation(user)
         if user_org and is_org_user(user):
-            course = self.get_object()
-            # Si le cours n'existe pas (None), autoriser l'accès pour afficher un message d'erreur approprié
-            if course is None:
+            try:
+                course = self.get_object()
+                # Si le cours n'existe pas (None), autoriser l'accès pour afficher un message d'erreur approprié
+                if course is None:
+                    return True
+                return course.section == user_org.code
+            except Course.DoesNotExist:
+                # Si le cours n'existe pas, autoriser l'accès pour que la méthode post() puisse gérer l'erreur
                 return True
-            return course.section == user_org.code
         return False
 
 @csrf_exempt
@@ -525,9 +566,63 @@ def import_progress(request):
     
     return JsonResponse(progress_data)
 
+@csrf_exempt
+def delete_selected_courses(request):
+    """Supprime les cours sélectionnés"""
+    from attribution.models import Attribution, ScheduleEntry
+    
+    # Vérifier les permissions
+    user = request.user
+    if not (user.is_authenticated and (user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
+        messages.error(request, 'Permission refusée. Vous n\'avez pas les droits pour supprimer des cours.')
+        return redirect('courses:list')
+    
+    if request.method != 'POST':
+        messages.error(request, 'Méthode non autorisée.')
+        return redirect('courses:list')
+    
+    selected_courses = request.POST.getlist('selected_courses')
+    
+    if not selected_courses:
+        messages.error(request, 'Aucun cours sélectionné.')
+        return redirect('courses:list')
+    
+    try:
+        # Utiliser une transaction atomique pour garantir la cohérence
+        with transaction.atomic():
+            deleted_count = 0
+            
+            for course_code in selected_courses:
+                try:
+                    # Récupérer le cours
+                    course = Course.objects.get(code_ue=course_code)
+                    
+                    # 1. Supprimer les horaires liés aux attributions de ce cours
+                    attributions = Attribution.objects.filter(code_ue=course)
+                    for attribution in attributions:
+                        ScheduleEntry.objects.filter(attribution=attribution).delete()
+                    
+                    # 2. Supprimer les attributions de ce cours
+                    attributions.delete()
+                    
+                    # 3. Supprimer le cours
+                    course.delete()
+                    deleted_count += 1
+                    
+                except Course.DoesNotExist:
+                    continue  # Ignorer si le cours n'existe plus
+        
+        messages.success(request, f'✅ {deleted_count} cours ont été supprimés avec succès.')
+        
+    except Exception as e:
+        messages.error(request, f'❌ Erreur lors de la suppression : {str(e)}')
+    
+    return redirect('courses:list')
+
+@csrf_exempt
 def delete_all_courses(request):
     """Supprime tous les cours de la base de données"""
-    from django.db import connection
+    from attribution.models import Attribution, ScheduleEntry
     
     # Vérifier les permissions
     user = request.user
@@ -535,23 +630,27 @@ def delete_all_courses(request):
         messages.error(request, 'Permission refusée. Vous n\'avez pas les droits pour supprimer tous les cours.')
         return redirect('courses:list')
     
+    # Accepter uniquement les requêtes POST
+    if request.method != 'POST':
+        messages.error(request, 'Méthode non autorisée.')
+        return redirect('courses:list')
+    
     try:
         # Compter le nombre de cours avant suppression
         count = Course.objects.count()
         
-        # Désactiver temporairement les contraintes de clés étrangères pour SQLite
-        with connection.cursor() as cursor:
-            cursor.execute('PRAGMA foreign_keys = OFF;')
-        
-        try:
-            # Supprimer tous les cours
+        # Utiliser une transaction atomique pour garantir la cohérence
+        with transaction.atomic():
+            # 1. D'abord supprimer tous les horaires
+            ScheduleEntry.objects.all().delete()
+            
+            # 2. Ensuite supprimer toutes les attributions
+            Attribution.objects.all().delete()
+            
+            # 3. Enfin supprimer tous les cours
             Course.objects.all().delete()
             
             messages.success(request, f'✅ {count} cours ont été supprimés avec succès.')
-        finally:
-            # Réactiver les contraintes de clés étrangères
-            with connection.cursor() as cursor:
-                cursor.execute('PRAGMA foreign_keys = ON;')
         
     except Exception as e:
         messages.error(request, f'❌ Erreur lors de la suppression : {str(e)}')

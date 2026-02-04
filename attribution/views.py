@@ -31,6 +31,7 @@ from datetime import datetime
 import json
 import re
 import traceback
+import pandas as pd
 
 # Fonction pour ne garder que le nom de famille
 def truncate_teacher_name(full_name):
@@ -3852,3 +3853,124 @@ def imprimer_charges_section(request):
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     
     return response
+
+@csrf_exempt
+def import_excel_attributions(request):
+    """Importe les attributions depuis un fichier Excel"""
+    from accounts.models import Role
+    
+    # Vérifier les permissions
+    user = request.user
+    if not (user.is_authenticated and (user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
+        messages.error(request, 'Permission refusée. Vous n\'avez pas les droits pour importer des attributions.')
+        return redirect('attribution:liste_charges')
+    
+    if request.method != 'POST':
+        messages.error(request, 'Méthode non autorisée.')
+        return redirect('attribution:liste_charges')
+    
+    if 'file' not in request.FILES:
+        messages.error(request, 'Veuillez sélectionner un fichier Excel.')
+        return redirect('attribution:liste_charges')
+    
+    file = request.FILES['file']
+    
+    # Vérifier l'extension du fichier
+    if not file.name.endswith(('.xls', '.xlsx')):
+        messages.error(request, 'Veuillez sélectionner un fichier Excel valide (.xls ou .xlsx).')
+        return redirect('attribution:liste_charges')
+    
+    try:
+        # Lire le fichier Excel
+        df = pd.read_excel(file)
+        
+        # Colonnes attendues dans le fichier Excel
+        required_columns = ['matricule', 'code_ue', 'annee_academique', 'type_charge']
+        
+        # Vérifier les colonnes requises
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            messages.error(request, f'Colonnes manquantes dans le fichier Excel : {", ".join(missing_columns)}')
+            return redirect('attribution:liste_charges')
+        
+        # Statistiques d'import
+        total_rows = len(df)
+        imported_count = 0
+        skipped_count = 0
+        error_count = 0
+        
+        # Utiliser une transaction pour garantir la cohérence
+        with transaction.atomic():
+            for index, row in df.iterrows():
+                try:
+                    # Nettoyer les données
+                    matricule = str(row['matricule']).strip()
+                    code_ue = str(row['code_ue']).strip()
+                    annee_academique = str(row['annee_academique']).strip()
+                    type_charge = str(row['type_charge']).strip()
+                    
+                    # Valider les données
+                    if not matricule or not code_ue or not annee_academique or not type_charge:
+                        skipped_count += 1
+                        continue
+                    
+                    # Vérifier que l'enseignant existe
+                    try:
+                        teacher = Teacher.objects.get(matricule=matricule)
+                    except Teacher.DoesNotExist:
+                        skipped_count += 1
+                        continue
+                    
+                    # Vérifier que le cours existe
+                    try:
+                        course = Course.objects.get(code_ue=code_ue)
+                    except Course.DoesNotExist:
+                        skipped_count += 1
+                        continue
+                    
+                    # Valider le type de charge
+                    if type_charge not in ['Reguliere', 'Supplementaire']:
+                        type_charge = 'Reguliere'  # Valeur par défaut
+                    
+                    # Vérifier si l'attribution existe déjà
+                    if Attribution.objects.filter(
+                        matricule=teacher,
+                        code_ue=course,
+                        annee_academique=annee_academique
+                    ).exists():
+                        skipped_count += 1
+                        continue
+                    
+                    # Créer l'attribution
+                    Attribution.objects.create(
+                        matricule=teacher,
+                        code_ue=course,
+                        annee_academique=annee_academique,
+                        type_charge=type_charge
+                    )
+                    
+                    imported_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    continue
+        
+        # Messages de succès
+        if imported_count > 0:
+            messages.success(request, f'✅ {imported_count} attributions ont été importées avec succès.')
+        
+        if skipped_count > 0:
+            messages.info(request, f'ℹ️ {skipped_count} lignes ont été ignorées (données manquantes, doublons ou références invalides).')
+        
+        if error_count > 0:
+            messages.warning(request, f'⚠️ {error_count} lignes ont généré des erreurs lors de l\'import.')
+        
+        # Message récapitulatif
+        total_processed = imported_count + skipped_count + error_count
+        if total_processed < total_rows:
+            messages.info(request, f'📊 Traitement : {total_processed}/{total_rows} lignes traitées.')
+        
+    except Exception as e:
+        messages.error(request, f'❌ Erreur lors de la lecture du fichier Excel : {str(e)}')
+    
+    return redirect('attribution:liste_charges')

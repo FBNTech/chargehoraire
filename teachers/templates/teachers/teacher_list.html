@@ -424,7 +424,8 @@ $(document).ready(function() {
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times"></i> Annuler
                 </button>
-                <form method="get" action="{% url 'teachers:delete_all' %}" style="display: inline;">
+                <form method="post" action="{% url 'teachers:delete_all' %}" style="display: inline;">
+                    {% csrf_token %}
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-trash-alt"></i> Confirmer la suppression
                     </button>
