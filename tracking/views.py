@@ -477,12 +477,10 @@ class DashboardView(TemplateView):
         classes_queryset = Classe.objects.all()
         if user_organisation:
             classes_queryset = classes_queryset.filter(mention__departement__section__CodeSection=user_organisation.code)
-        context['classes_disponibles'] = classes_queryset.order_by('DesignationClasse')
+        context['classes_disponibles'] = classes_queryset.order_by('CodeClasse')
         
-        semestres_queryset = Semestre.objects.all()
-        if user_organisation:
-            semestres_queryset = semestres_queryset.filter(section__CodeSection=user_organisation.code)
-        context['semestres_disponibles'] = semestres_queryset.order_by('DesignationSemestre')
+        # Récupérer tous les semestres (pas de filtre par organisation car le modèle Semestre n'a pas de relation avec Section)
+        context['semestres_disponibles'] = Semestre.objects.all().order_by('CodeSemestre')
         
         return context
 

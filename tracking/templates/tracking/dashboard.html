@@ -322,20 +322,27 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <select id="classeFilter" class="form-control">
                                 <option value="all">Toutes les classes</option>
                                 {% for classe in classes_disponibles %}
-                                <option value="{{ classe.DesignationClasse }}">{{ classe.DesignationClasse }}</option>
+                                <option value="{{ classe.CodeClasse }}">{{ classe.CodeClasse }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <select id="classSemesterFilter" class="form-control">
                                 <option value="all">Tous les semestres</option>
                                 {% for semestre in semestres_disponibles %}
-                                <option value="{{ semestre.DesignationSemestre }}">{{ semestre.DesignationSemestre }}</option>
+                                <option value="{{ semestre.CodeSemestre }}">{{ semestre.CodeSemestre }}</option>
                                 {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="semesterTypeFilter" class="form-control">
+                                <option value="all">Tous les types</option>
+                                <option value="odd">Semestres impairs</option>
+                                <option value="even">Semestres pairs</option>
                             </select>
                         </div>
                     </div>
@@ -549,16 +556,30 @@ function setupClassSemesterFilter() {
     }
 }
 
-// Fonction pour appliquer les filtres combinés (classe + semestre)
+// Fonction de filtrage par type de semestre (impairs/pairs)
+function setupSemesterTypeFilter() {
+    const semesterTypeFilter = document.getElementById('semesterTypeFilter');
+    const table = document.getElementById('classesTable');
+    
+    if (semesterTypeFilter && table) {
+        semesterTypeFilter.addEventListener('change', function() {
+            applyClassFilters();
+        });
+    }
+}
+
+// Fonction pour appliquer les filtres combinés (classe + semestre + type)
 function applyClassFilters() {
     const classeFilter = document.getElementById('classeFilter');
     const classSemesterFilter = document.getElementById('classSemesterFilter');
+    const semesterTypeFilter = document.getElementById('semesterTypeFilter');
     const table = document.getElementById('classesTable');
     
     if (!table) return;
     
     const classeValue = classeFilter ? classeFilter.value : 'all';
     const semesterValue = classSemesterFilter ? classSemesterFilter.value : 'all';
+    const typeValue = semesterTypeFilter ? semesterTypeFilter.value : 'all';
     const tbody = table.querySelector('tbody');
     const rows = tbody.querySelectorAll('tr');
     
@@ -581,13 +602,31 @@ function applyClassFilters() {
             }
         }
         
-        // Filtrer par semestre
+        // Filtrer par semestre spécifique
         if (showRow && semesterValue !== 'all') {
             const semesterCell = row.cells[1];
             if (semesterCell) {
                 const semesterText = semesterCell.textContent.trim();
                 if (semesterText !== semesterValue) {
                     showRow = false;
+                }
+            }
+        }
+        
+        // Filtrer par type de semestre (impairs/pairs)
+        if (showRow && typeValue !== 'all') {
+            const semesterCell = row.cells[1];
+            if (semesterCell) {
+                const semesterText = semesterCell.textContent.trim();
+                const semesterMatch = semesterText.match(/S(\d+)/);
+                
+                if (semesterMatch) {
+                    const semesterNumber = parseInt(semesterMatch[1]);
+                    if (typeValue === 'odd' && semesterNumber % 2 === 0) {
+                        showRow = false;
+                    } else if (typeValue === 'even' && semesterNumber % 2 === 1) {
+                        showRow = false;
+                    }
                 }
             }
         }
@@ -667,6 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupSemesterFilter();
     setupClasseFilter();
     setupClassSemesterFilter();
+    setupSemesterTypeFilter();
     setupChargeTypeFilter();
     
     // Gérer le clic sur le bouton d'impression - Ouvrir le modal
