@@ -595,6 +595,7 @@
         
         // Fonction pour charger les statistiques des heures supplémentaires
         function chargerHeuresSupplementaires(annee = '') {
+            console.log('Chargement des heures supplémentaires...');
             $.ajax({
                 url: '{% url "attribution:heures_supplementaires_grade" %}',
                 type: 'GET',
@@ -605,6 +606,7 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 },
                 beforeSend: function() {
+                    console.log('Début du chargement AJAX');
                     $('#heures-supp-content').html(`
                         <div class="text-center">
                             <div class="spinner-border text-primary" role="status">
@@ -615,14 +617,20 @@
                 },
                 success: function(data) {
                     console.log('Données reçues:', data);
-                    console.log('Années disponibles:', data.annees_disponibles);
+                    console.log('Stats par grade:', data.stats_par_grade);
+                    console.log('Nombre de stats:', data.stats_par_grade ? data.stats_par_grade.length : 0);
                     afficherStatistiques(data);
                 },
                 error: function(xhr, status, error) {
+                    console.error('Erreur AJAX:', error);
+                    console.error('Status:', status);
+                    console.error('Response:', xhr.responseText);
                     $('#heures-supp-content').html(`
                         <div class="alert alert-danger">
                             <i class="fas fa-exclamation-triangle"></i> 
-                            Erreur lors du chargement des données: ${error}
+                            Erreur lors du chargement des données: ${error}<br>
+                            Status: ${status}<br>
+                            Détails: ${xhr.responseText}
                         </div>
                     `);
                 }
@@ -631,6 +639,8 @@
         
         // Fonction pour afficher les statistiques
         function afficherStatistiques(data) {
+            console.log('Affichage des statistiques...');
+            console.log('Data:', data);
             var html = '';
             
             // Ne pas recharger les sections car elles sont déjà dans le template
@@ -638,6 +648,7 @@
             
             // Vérifier s'il y a des données
             if (!data.stats_par_grade || data.stats_par_grade.length === 0) {
+                console.log('Aucune donnée à afficher');
                 html = `
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i> 
@@ -645,6 +656,7 @@
                     </div>
                 `;
             } else {
+                console.log('Affichage de', data.stats_par_grade.length, 'grades');
                 // Tableau des statistiques
                 html = `
                     <div class="table-responsive">
