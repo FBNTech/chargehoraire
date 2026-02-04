@@ -1014,6 +1014,10 @@ def get_teacher_courses(request, teacher_id):
 def dashboard_pdf_view(request):
     """Vue pour générer le PDF du rapport de suivi des enseignements avec filtres"""
     
+    # Récupérer l'organisation de l'utilisateur
+    from accounts.organisation_utils import get_user_organisation
+    user_org = get_user_organisation(request.user)
+    
     # Récupérer les paramètres de filtrage
     semester_filter = request.GET.get('semester_filter', 'all')
     charge_type_filter = request.GET.get('charge_type_filter', 'all')
