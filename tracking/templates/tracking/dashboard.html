@@ -322,14 +322,20 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-md-8">
-                            <input type="text" id="searchClasses" class="form-control" placeholder="Rechercher par classe ou semestre...">
+                        <div class="col-md-6">
+                            <select id="classeFilter" class="form-control">
+                                <option value="all">Toutes les classes</option>
+                                {% for classe in classes_disponibles %}
+                                <option value="{{ classe.DesignationClasse }}">{{ classe.DesignationClasse }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <select id="classSemesterFilter" class="form-control">
                                 <option value="all">Tous les semestres</option>
-                                <option value="odd">Semestres impairs</option>
-                                <option value="even">Semestres pairs</option>
+                                {% for semestre in semestres_disponibles %}
+                                <option value="{{ semestre.DesignationSemestre }}">{{ semestre.DesignationSemestre }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -519,6 +525,18 @@ function setupSemesterFilter() {
     }
 }
 
+// Fonction de filtrage par classe
+function setupClasseFilter() {
+    const classeFilter = document.getElementById('classeFilter');
+    const table = document.getElementById('classesTable');
+    
+    if (classeFilter && table) {
+        classeFilter.addEventListener('change', function() {
+            applyClassFilters();
+        });
+    }
+}
+
 // Fonction de filtrage par semestre pour les classes
 function setupClassSemesterFilter() {
     const classSemesterFilter = document.getElementById('classSemesterFilter');
@@ -526,40 +544,56 @@ function setupClassSemesterFilter() {
     
     if (classSemesterFilter && table) {
         classSemesterFilter.addEventListener('change', function() {
-            const filterValue = this.value;
-            const tbody = table.querySelector('tbody');
-            const rows = tbody.querySelectorAll('tr');
-            
-            rows.forEach(function(row) {
-                // Ignorer les lignes vides (messages "Aucun... trouvé")
-                if (row.cells.length === 1 && row.cells[0].getAttribute('colspan')) {
-                    return;
-                }
-                
-                // Récupérer le semestre de la deuxième colonne
-                const semesterCell = row.cells[1];
-                if (semesterCell) {
-                    const semesterText = semesterCell.textContent.trim();
-                    const semesterMatch = semesterText.match(/S(\d+)/);
-                    
-                    if (semesterMatch) {
-                        const semesterNumber = parseInt(semesterMatch[1]);
-                        let showRow = false;
-                        
-                        if (filterValue === 'all') {
-                            showRow = true;
-                        } else if (filterValue === 'odd' && semesterNumber % 2 === 1) {
-                            showRow = true;
-                        } else if (filterValue === 'even' && semesterNumber % 2 === 0) {
-                            showRow = true;
-                        }
-                        
-                        row.style.display = showRow ? '' : 'none';
-                    }
-                }
-            });
+            applyClassFilters();
         });
     }
+}
+
+// Fonction pour appliquer les filtres combinés (classe + semestre)
+function applyClassFilters() {
+    const classeFilter = document.getElementById('classeFilter');
+    const classSemesterFilter = document.getElementById('classSemesterFilter');
+    const table = document.getElementById('classesTable');
+    
+    if (!table) return;
+    
+    const classeValue = classeFilter ? classeFilter.value : 'all';
+    const semesterValue = classSemesterFilter ? classSemesterFilter.value : 'all';
+    const tbody = table.querySelector('tbody');
+    const rows = tbody.querySelectorAll('tr');
+    
+    rows.forEach(function(row) {
+        // Ignorer les lignes vides (messages "Aucun... trouvé")
+        if (row.cells.length === 1 && row.cells[0].getAttribute('colspan')) {
+            return;
+        }
+        
+        let showRow = true;
+        
+        // Filtrer par classe
+        if (classeValue !== 'all') {
+            const classeCell = row.cells[0];
+            if (classeCell) {
+                const classeText = classeCell.textContent.trim();
+                if (classeText !== classeValue) {
+                    showRow = false;
+                }
+            }
+        }
+        
+        // Filtrer par semestre
+        if (showRow && semesterValue !== 'all') {
+            const semesterCell = row.cells[1];
+            if (semesterCell) {
+                const semesterText = semesterCell.textContent.trim();
+                if (semesterText !== semesterValue) {
+                    showRow = false;
+                }
+            }
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
 }
 
 // Fonction de filtrage par type de charge pour les enseignants
@@ -630,8 +664,8 @@ function generatePDFUrl() {
 document.addEventListener('DOMContentLoaded', function() {
     setupTableSearch('searchCourses', 'coursesTable');
     setupTableSearch('searchTeachers', 'teachersTable');
-    setupTableSearch('searchClasses', 'classesTable');
     setupSemesterFilter();
+    setupClasseFilter();
     setupClassSemesterFilter();
     setupChargeTypeFilter();
     

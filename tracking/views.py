@@ -471,6 +471,19 @@ class DashboardView(TemplateView):
             annee_academique=academic_year
         ).order_by('numero_semaine')
         
+        # Récupérer les classes et semestres disponibles pour les filtres
+        from reglage.models import Classe, Semestre
+        
+        classes_queryset = Classe.objects.all()
+        if user_organisation:
+            classes_queryset = classes_queryset.filter(mention__departement__section__CodeSection=user_organisation.code)
+        context['classes_disponibles'] = classes_queryset.order_by('DesignationClasse')
+        
+        semestres_queryset = Semestre.objects.all()
+        if user_organisation:
+            semestres_queryset = semestres_queryset.filter(section__CodeSection=user_organisation.code)
+        context['semestres_disponibles'] = semestres_queryset.order_by('DesignationSemestre')
+        
         return context
 
 class TeachingProgressListView(ListView):
