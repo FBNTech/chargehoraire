@@ -20,6 +20,7 @@ urlpatterns = [
     path('import/', views.import_courses, name='import_courses'),
     path('import-progress/', views.import_progress, name='import_progress'),
     path('get-section/', views.get_section_by_departement, name='get_section_by_departement'),
+    path('delete-selected/', views.delete_selected_courses, name='delete_selected'),
     path('delete-all/', views.delete_all_courses, name='delete_all'),
 ]
 

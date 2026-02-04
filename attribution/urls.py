@@ -43,4 +43,7 @@ urlpatterns = [
     
     # Impression des charges par section
     path('imprimer-charges-section/', views.imprimer_charges_section, name='imprimer_charges_section'),
+    
+    # Import Excel des attributions
+    path('import-excel-attributions/', views.import_excel_attributions, name='import_excel_attributions'),
 ]
