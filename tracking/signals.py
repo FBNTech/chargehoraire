@@ -22,7 +22,7 @@ def log_teaching_progress_save(sender, instance, created, **kwargs):
         ActionLog.log_action(
             user=user,
             action_type='progress_create',
-            description=f"Création suivi: {instance.course.code_ue} - {instance.teacher.nom_complet} ({instance.hours_done}h/{instance.total_hours}h) - Semaine {instance.week}",
+            description=f"Création suivi: {instance.course.code_ue} - {instance.teacher.nom_complet} ({instance.hours_done}h) - Semaine {instance.week}",
             model_name='TeachingProgress',
             object_id=instance.id,
             object_repr=str(instance)
@@ -31,7 +31,7 @@ def log_teaching_progress_save(sender, instance, created, **kwargs):
         ActionLog.log_action(
             user=user,
             action_type='progress_update',
-            description=f"Modification suivi: {instance.course.code_ue} - {instance.teacher.nom_complet} ({instance.hours_done}h/{instance.total_hours}h) - Semaine {instance.week}",
+            description=f"Modification suivi: {instance.course.code_ue} - {instance.teacher.nom_complet} ({instance.hours_done}h) - Semaine {instance.week}",
             model_name='TeachingProgress',
             object_id=instance.id,
             object_repr=str(instance)
