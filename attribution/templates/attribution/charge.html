@@ -60,7 +60,7 @@
                                     <i class="fas fa-print"></i> Imprimer (Enseignant)
                                 </button>
                             </div>
-                            <div class="col-12 text-center mb-2">
+                                                        <div class="col-12 text-center mb-2">
                                 <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#imprimerSectionModal">
                                     <i class="fas fa-file-pdf"></i> Imprimer par Section
                                 </button>
@@ -132,26 +132,37 @@
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-5">
-                            <form method="GET" action="{% url 'attribution:liste_charges' %}" id="ue-search-form">
-                                {% csrf_token %}
-                                <div class="d-flex">
-                                    <select class="form-select form-select-sm" id="code_ue_search" name="code_ue">
-                                        <option value="">Sélectionner une UE</option>
-                                        {% for ue in cours_ues %}
-                                        <option value="{{ ue.code_ue }}" 
-                                                data-enseignants="{% for ens in ue_enseignants|dict_get:ue.code_ue %}{{ ens }}{% if not forloop.last %}, {% endif %}{% endfor %}"
-                                                {% if selected_code_ue == ue.code_ue %}selected{% endif %}>
-                                            {{ ue.code_ue }} - {{ ue.intitule_ue }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" class="btn btn-primary btn-sm ms-2">
-                                        <i class="fas fa-search"></i>
+                        <div class="col-md-8">
+                            <div class="d-flex gap-2">
+                                <form method="GET" action="{% url 'attribution:liste_charges' %}" id="ue-search-form" class="flex-grow-1">
+                                    {% csrf_token %}
+                                    <div class="d-flex">
+                                        <select class="form-select form-select-sm" id="code_ue_search" name="code_ue">
+                                            <option value="">Sélectionner une UE</option>
+                                            {% for ue in cours_ues %}
+                                            <option value="{{ ue.code_ue }}" 
+                                                    data-enseignants="{% for ens in ue_enseignants|dict_get:ue.code_ue %}{{ ens }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                                                    {% if selected_code_ue == ue.code_ue %}selected{% endif %}>
+                                                {{ ue.code_ue }} - {{ ue.intitule_ue }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm ms-2">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted mt-1 d-block" id="ue-enseignant"></small>
+                                </form>
+                                
+                                <!-- Bouton Importer Excel -->
+                                <form method="post" action="{% url 'attribution:import_excel_attributions' %}" enctype="multipart/form-data" class="m-0">
+                                    {% csrf_token %}
+                                    <input type="file" name="file" id="excel_file_input" accept=".xls,.xlsx" style="display: none;">
+                                    <button type="button" class="btn btn-success btn-sm" style="background-color: #1D6F42; color: white;" onclick="document.getElementById('excel_file_input').click()">
+                                        <i class="fas fa-file-excel"></i> Importer Excel
                                     </button>
-                                </div>
-                                <small class="text-muted mt-1 d-block" id="ue-enseignant"></small>
-                            </form>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -749,6 +760,16 @@
         $('#annee-filter, #section-filter').on('keypress', function(e) {
             if (e.which === 13) {
                 $('#filter-heures-supp').click();
+            }
+        });
+        
+        // ========== IMPORT EXCEL ==========
+        
+        // Gérer le clic sur le bouton Importer Excel
+        document.getElementById('excel_file_input').addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                // Soumettre le formulaire automatiquement
+                e.target.form.submit();
             }
         });
         
