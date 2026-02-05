@@ -3922,6 +3922,10 @@ def import_excel_attributions(request):
         skipped_count = 0
         error_count = 0
         
+        # Collecter les détails des lignes ignorées
+        skipped_details = []
+        error_details = []
+        
         # Utiliser une transaction pour garantir la cohérence
         with transaction.atomic():
             for index, row in df.iterrows():
@@ -3935,6 +3939,7 @@ def import_excel_attributions(request):
                     # Valider les données
                     if not matricule or not code_ue or not annee_academique or not type_charge:
                         skipped_count += 1
+                        skipped_details.append(f"Ligne {index+2}: {matricule} - {code_ue} (données manquantes)")
                         continue
                     
                     # Vérifier que l'enseignant existe
@@ -3942,6 +3947,7 @@ def import_excel_attributions(request):
                         teacher = Teacher.objects.get(matricule=matricule)
                     except Teacher.DoesNotExist:
                         skipped_count += 1
+                        skipped_details.append(f"Ligne {index+2}: {matricule} - {code_ue} (enseignant non trouvé)")
                         continue
                     
                     # Vérifier que le cours existe
@@ -3949,6 +3955,7 @@ def import_excel_attributions(request):
                         course = Course.objects.get(code_ue=code_ue)
                     except Course.DoesNotExist:
                         skipped_count += 1
+                        skipped_details.append(f"Ligne {index+2}: {matricule} - {code_ue} (cours non trouvé)")
                         continue
                     
                     # Valider le type de charge
@@ -3962,6 +3969,7 @@ def import_excel_attributions(request):
                         annee_academique=annee_academique
                     ).exists():
                         skipped_count += 1
+                        skipped_details.append(f"Ligne {index+2}: {matricule} - {code_ue} (attribution déjà existante)")
                         continue
                     
                     # Créer l'attribution
@@ -3976,6 +3984,7 @@ def import_excel_attributions(request):
                     
                 except Exception as e:
                     error_count += 1
+                    error_details.append(f"Ligne {index+2}: {matricule} - {code_ue} (erreur: {str(e)})")
                     continue
         
         # Messages de succès
@@ -3984,9 +3993,19 @@ def import_excel_attributions(request):
         
         if skipped_count > 0:
             messages.info(request, f'ℹ️ {skipped_count} lignes ont été ignorées (données manquantes, doublons ou références invalides).')
+            # Afficher les détails des lignes ignorées (limité à 10 pour éviter trop de messages)
+            for detail in skipped_details[:10]:
+                messages.info(request, f'🔸 {detail}')
+            if len(skipped_details) > 10:
+                messages.info(request, f'🔸 ... et {len(skipped_details) - 10} autres lignes ignorées')
         
         if error_count > 0:
             messages.warning(request, f'⚠️ {error_count} lignes ont généré des erreurs lors de l\'import.')
+            # Afficher les détails des erreurs (limité à 10 pour éviter trop de messages)
+            for detail in error_details[:10]:
+                messages.warning(request, f'❌ {detail}')
+            if len(error_details) > 10:
+                messages.warning(request, f'❌ ... et {len(error_details) - 10} autres erreurs')
         
         # Message récapitulatif
         total_processed = imported_count + skipped_count + error_count
