@@ -392,6 +392,8 @@
             var matriculeFiltrer = $('#teacher_matricule').val();
             var anneeAcademiqueFiltrer = $('#teacher_academic_year').val();
             var typeChargeFiltrer = $('#type_charge').val();
+            
+            console.log('Filtrage - Type charge sélectionné:', typeChargeFiltrer);
 
             $('#charges-table tbody tr').each(function() {
                 var matricule = $(this).data('matricule');
@@ -410,9 +412,16 @@
                     afficherLigne = false;
                 }
 
-                // Filtrer par type de charge
-                if (typeChargeFiltrer && typeChargeFiltrer !== typeCharge) {
-                    afficherLigne = false;
+                // Filtrer par type de charge (normaliser les valeurs pour comparaison)
+                if (typeChargeFiltrer) {
+                    var typeChargeNormalise = String(typeCharge).trim();
+                    var typeChargeFiltrerNormalise = String(typeChargeFiltrer).trim();
+                    
+                    console.log('Comparaison:', typeChargeNormalise, '===', typeChargeFiltrerNormalise);
+                    
+                    if (typeChargeNormalise !== typeChargeFiltrerNormalise) {
+                        afficherLigne = false;
+                    }
                 }
 
                 // Afficher ou masquer la ligne
@@ -423,6 +432,8 @@
             var totalLignes = $('#charges-table tbody tr').length;
             var lignesVisibles = $('#charges-table tbody tr:visible').length;
             $('#total-resultats').text(lignesVisibles + ' / ' + totalLignes);
+            
+            console.log('Résultats filtrés:', lignesVisibles, '/', totalLignes);
         }
 
         // Ajouter un écouteur d'événement pour le changement d'enseignant
