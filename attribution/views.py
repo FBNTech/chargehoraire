@@ -974,9 +974,8 @@ def liste_charges(request):
     # Récupérer les années et sections pour le modal heures supplémentaires
     from reglage.models import Section as SectionReglage
     annees_modal = list(AnneeAcademique.objects.all().order_by('-date_debut'))
+    # Ne pas filtrer les sections pour le modal - afficher toutes les sections disponibles
     sections_modal = list(SectionReglage.objects.all().order_by('CodeSection'))
-    if user_org:
-        sections_modal = [s for s in sections_modal if s.CodeSection == user_org.code]
     
     # Filtrer les enseignants par organisation
     teachers = Teacher.objects.all().order_by('nom_complet')
