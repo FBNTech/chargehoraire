@@ -3997,3 +3997,28 @@ def import_excel_attributions(request):
         messages.error(request, f'❌ Erreur lors de la lecture du fichier Excel : {str(e)}')
     
     return redirect('attribution:liste_charges')
+
+def delete_all_attributions(request):
+    """Supprimer toutes les attributions de charges (réservé au superuser)"""
+    if not request.user.is_superuser:
+        messages.error(request, "❌ Accès non autorisé. Cette fonction est réservée au superuser.")
+        return redirect('attribution:liste_charges')
+    
+    if request.method == 'POST':
+        try:
+            # Compter avant suppression
+            total_attributions = Attribution.objects.count()
+            
+            if total_attributions == 0:
+                messages.info(request, "ℹ️ Il n'y a aucune attribution à supprimer.")
+                return redirect('attribution:liste_charges')
+            
+            # Supprimer toutes les attributions
+            deleted_count, _ = Attribution.objects.all().delete()
+            
+            messages.success(request, f'✅ {deleted_count} attributions ont été supprimées avec succès.')
+            
+        except Exception as e:
+            messages.error(request, f'❌ Erreur lors de la suppression : {str(e)}')
+    
+    return redirect('attribution:liste_charges')

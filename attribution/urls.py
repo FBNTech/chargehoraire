@@ -46,4 +46,7 @@ urlpatterns = [
     
     # Import Excel des attributions
     path('import-excel-attributions/', views.import_excel_attributions, name='import_excel_attributions'),
+    
+    # Supprimer toutes les attributions (superuser uniquement)
+    path('delete-all-attributions/', views.delete_all_attributions, name='delete_all_attributions'),
 ]

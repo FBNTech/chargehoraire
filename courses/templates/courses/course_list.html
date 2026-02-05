@@ -213,7 +213,7 @@
                                     <a href="{% url 'courses:update' course.id %}" class="btn btn-sm btn-primary me-2">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    {% if not is_org_user %}
+                                    {% if user.is_superuser %}
                                     <a href="{% url 'courses:delete' course.code_ue %}" class="btn btn-sm btn-danger">
                                         <i class="fas fa-trash"></i>
                                     </a>

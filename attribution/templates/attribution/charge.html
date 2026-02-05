@@ -162,6 +162,16 @@
                                         <i class="fas fa-file-excel"></i> Importer Excel
                                     </button>
                                 </form>
+                                
+                                <!-- Bouton Supprimer tout (Superuser uniquement) -->
+                                {% if user.is_superuser %}
+                                <form method="post" action="{% url 'attribution:delete_all_attributions' %}" class="m-0" onsubmit="return confirmDeleteAllAttributions()">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash-alt"></i> Supprimer tout
+                                    </button>
+                                </form>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -856,6 +866,13 @@
             var modal = bootstrap.Modal.getInstance(document.getElementById('imprimerSectionModal'));
             modal.hide();
         });
+        
+        // ========== CONFIRMATION SUPPRIMER TOUT ==========
+        
+        // Fonction de confirmation pour supprimer toutes les attributions
+        function confirmDeleteAllAttributions() {
+            return confirm('⚠️ ATTENTION !\n\nVous êtes sur le point de supprimer TOUTES les attributions de charges.\n\nCette action est IRRÉVERSIBLE et supprimera :\n- Toutes les attributions de charges\n- Toutes les données associées\n\nÊtes-vous ABSOLUMENT certain de vouloir continuer ?');
+        }
     });
 </script>
 {% endblock %}
