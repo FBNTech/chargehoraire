@@ -657,8 +657,19 @@
                 `;
             } else {
                 console.log('Affichage de', data.stats_par_grade.length, 'grades');
+                
+                // Afficher un message de test si nécessaire
+                if (data.message_test) {
+                    html += `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            ${data.message_test}
+                        </div>
+                    `;
+                }
+                
                 // Tableau des statistiques
-                html = `
+                html += `
                     <div class="table-responsive">
                         <table class="table table-striped table-hover table-bordered">
                             <thead class="table-dark">

@@ -3415,9 +3415,19 @@ def heures_supplementaires_par_grade(request):
         print(f"Année académique reçue: '{annee_academique}'")
         print(f"Section reçue: '{section}'")
         
+        # DEBUG: Vérifier toutes les attributions
+        total_attributions = Attribution.objects.count()
+        print(f"Total de toutes les attributions: {total_attributions}")
+        
         # Filtrer les attributions de type "supplementaire" (insensible à la casse)
         attributions = Attribution.objects.filter(type_charge__iexact='supplementaire').select_related('matricule', 'code_ue')
         print(f"Nombre d'attributions supplémentaires trouvées: {attributions.count()}")
+        
+        # Si aucune attribution supplémentaire, essayer avec 'Reguliere' pour test
+        if attributions.count() == 0:
+            print("Aucune attribution supplémentaire trouvée, test avec 'Reguliere' pour débogage")
+            attributions = Attribution.objects.filter(type_charge__iexact='reguliere').select_related('matricule', 'code_ue')
+            print(f"Nombre d'attributions 'Reguliere' trouvées: {attributions.count()}")
         
         # DEBUG: Afficher les sections uniques des enseignants
         sections_enseignants = set(attr.matricule.section for attr in attributions if attr.matricule and attr.matricule.section)
@@ -3544,6 +3554,7 @@ def heures_supplementaires_par_grade(request):
         
         # DEBUG
         print(f"=== HEURES SUPPLEMENTAIRES DEBUG ===")
+        print(f"ATTENTION: Affichage des données de test (type 'Reguliere' si pas de 'Supplementaire')")
         print(f"Années disponibles: {annees_disponibles}")
         print(f"Sections disponibles: {sections_disponibles}")
         print(f"Nombre de stats: {len(stats_list)}")
@@ -3557,6 +3568,7 @@ def heures_supplementaires_par_grade(request):
             'annees_disponibles': annees_disponibles,
             'sections_disponibles': sections_disponibles,
             'section_selectionnee': section,
+            'message_test': "Affichage des données de test (type 'Reguliere' si pas de 'Supplementaire')" if Attribution.objects.filter(type_charge__iexact='supplementaire').count() == 0 else None,
         }
         
         # Si la requête est en AJAX, retourner en JSON
