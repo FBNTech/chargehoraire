@@ -3469,14 +3469,21 @@ def heures_supplementaires_par_grade(request):
         # Grouper par grade et calculer les statistiques
         stats_par_grade = {}
         
-        for attribution in attributions:
+        # DEBUG: Forcer l'évaluation du queryset et compter
+        attributions_list = list(attributions)
+        print(f"DEBUG: Nombre d'attributions à traiter: {len(attributions_list)}")
+        
+        for i, attribution in enumerate(attributions_list):
             try:
+                print(f"DEBUG: Traitement attribution {i+1}/{len(attributions_list)} - ID: {attribution.id}")
+                
                 # Vérifier que l'attribution a un matricule et un code_ue
                 if not attribution.matricule or not attribution.code_ue:
                     print(f"Attribution {attribution.id} sans matricule ou code_ue")
                     continue
                 
                 grade = attribution.matricule.grade if attribution.matricule.grade else "Non spécifié"
+                print(f"DEBUG: Attribution {attribution.id} - Grade: {grade}")
                 
                 if grade not in stats_par_grade:
                     stats_par_grade[grade] = {
@@ -3501,9 +3508,14 @@ def heures_supplementaires_par_grade(request):
                 stats_par_grade[grade]['total_cmi'] += cmi
                 stats_par_grade[grade]['total_td_tp'] += td_tp
                 stats_par_grade[grade]['total_heures'] += (cmi + td_tp)
+                print(f"DEBUG: Attribution {attribution.id} traitée avec succès")
             except Exception as e:
                 print(f"Erreur traitement attribution {attribution.id}: {e}")
+                import traceback
+                print(traceback.format_exc())
                 continue
+        
+        print(f"DEBUG: stats_par_grade après boucle: {list(stats_par_grade.keys())}")
         
         # Convertir les sets en nombres
         for grade in stats_par_grade:
