@@ -88,4 +88,16 @@ urlpatterns = [
     path('semaines/create/', views.SemaineCoursCreateView.as_view(), name='semaine_create'),
     path('semaines/<int:pk>/update/', views.SemaineCoursUpdateView.as_view(), name='semaine_update'),
     path('semaines/<int:pk>/delete/', views.SemaineCoursDeleteView.as_view(), name='semaine_delete'),
+    
+    # URLs pour TypeCharge
+    path('types-charge/', views.TypeChargeListView.as_view(), name='type_charge_list'),
+    path('types-charge/create/', views.TypeChargeCreateView.as_view(), name='type_charge_create'),
+    path('types-charge/<int:pk>/update/', views.TypeChargeUpdateView.as_view(), name='type_charge_update'),
+    path('types-charge/<int:pk>/delete/', views.TypeChargeDeleteView.as_view(), name='type_charge_delete'),
+    
+    # URLs pour Taux
+    path('taux/', views.TauxListView.as_view(), name='taux_list'),
+    path('taux/create/', views.TauxCreateView.as_view(), name='taux_create'),
+    path('taux/<int:pk>/update/', views.TauxUpdateView.as_view(), name='taux_update'),
+    path('taux/<int:pk>/delete/', views.TauxDeleteView.as_view(), name='taux_delete'),
 ]

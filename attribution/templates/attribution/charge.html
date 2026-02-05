@@ -11,7 +11,7 @@
                     <form id="chargeForm" method="GET" action="{% url 'attribution:liste_charges' %}">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <select class="form-control" id="teacher_name" name="teacher_name">
+                            <select class="form-control" id="teacher_name" name="teacher_name_select">
                                 <option value="">Sélectionner un enseignant</option>
                                 {% for teacher in teachers %}
                                 <option value="{{ teacher.id }}"
@@ -44,8 +44,11 @@
                         <div class="mb-3">
                             <select class="form-control" id="type_charge" name="type_charge">
                                 <option value="">Sélectionner type charge</option>
-                                <option value="Reguliere">Reguliere</option>
-                                <option value="Supplementaire">Supplementaire</option>
+                                {% for type_charge in types_charge %}
+                                    <option value="{{ type_charge.code_type_charge }}" {% if selected_type == type_charge.code_type_charge %}selected{% endif %}>
+                                        {{ type_charge.designation_type_charge }}
+                                    </option>
+                                {% endfor %}
                             </select>
                         </div>
                         
@@ -422,8 +425,33 @@
             $('#total-resultats').text(lignesVisibles + ' / ' + totalLignes);
         }
 
-        // Ajouter un écouteur d'événement pour le filtrage
-        $('#teacher_matricule, #teacher_academic_year, #type_charge').on('change', filtrerTableau);
+        // Ajouter un écouteur d'événement pour le changement d'enseignant
+        $('#teacher_matricule').on('change', function() {
+            // Soumettre le formulaire pour charger les nouvelles données de l'enseignant
+            $('#chargeForm').submit();
+        });
+        
+        // Soumettre le formulaire lors du changement d'année académique uniquement
+        $('#teacher_academic_year').on('change', function() {
+            // Si un enseignant est sélectionné, soumettre le formulaire
+            if ($('#teacher_matricule').val()) {
+                $('#chargeForm').submit();
+            } else {
+                // Sinon, juste faire le filtrage côté client
+                filtrerTableau();
+            }
+        });
+        
+        // Le changement de type_charge ne fait que le filtrage côté client pour garder l'enseignant sélectionné
+        $('#type_charge').on('change', function() {
+            filtrerTableau();
+        });
+
+        // Gestion du bouton rechercher
+        $('#rechercher-btn').on('click', function(e) {
+            e.preventDefault();
+            $('#chargeForm').submit();
+        });
 
         // Gestion de l'impression
         $('#imprimer-btn').on('click', function() {

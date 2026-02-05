@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from django.db.models import Q
 from .models import (
     Section, Departement, Mention, Niveau, Classe, Grade, CategorieEnseignant, 
-    Semestre, Fonction, AnneeAcademique, Salle, Creneau, SemaineCours
+    Semestre, Fonction, AnneeAcademique, Salle, Creneau, SemaineCours, TypeCharge, Taux
 )
 from .forms import CreneauForm, SemaineCoursForm
 import openpyxl
@@ -805,3 +805,152 @@ def mention_generate_all_classes(request):
         messages.error(request, f"Erreur lors de la génération des classes : {str(e)}")
     
     return redirect('reglage:classe_list')
+
+
+# Vues CRUD pour TypeCharge
+class TypeChargeListView(OrganisationFilterMixin, ListView):
+    """Liste des types de charge"""
+    model = TypeCharge
+    template_name = 'reglage/type_charge_list.html'
+    context_object_name = 'type_charges'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Filtrage par recherche
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(code_type_charge__icontains=search) |
+                Q(designation_type_charge__icontains=search)
+            )
+        return queryset
+
+
+class TypeChargeCreateView(OrganisationFilterMixin, CreateView):
+    """Créer un type de charge"""
+    model = TypeCharge
+    template_name = 'reglage/type_charge_form.html'
+    fields = ['code_type_charge', 'designation_type_charge']
+    success_url = reverse_lazy('reglage:type_charge_list')
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Type de charge créé avec succès.')
+        return super().form_valid(form)
+
+
+class TypeChargeUpdateView(OrganisationFilterMixin, UpdateView):
+    """Modifier un type de charge"""
+    model = TypeCharge
+    template_name = 'reglage/type_charge_form.html'
+    fields = ['code_type_charge', 'designation_type_charge']
+    success_url = reverse_lazy('reglage:type_charge_list')
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Type de charge modifié avec succès.')
+        return super().form_valid(form)
+
+
+class TypeChargeDeleteView(OrganisationFilterMixin, SafeDeleteView):
+    """Supprimer un type de charge"""
+    model = TypeCharge
+    template_name = 'reglage/type_charge_confirm_delete.html'
+    success_url = reverse_lazy('reglage:type_charge_list')
+    success_message = 'Type de charge supprimé avec succès.'
+
+
+# Vues CRUD pour Taux
+class TauxListView(OrganisationFilterMixin, ListView):
+    """Lister tous les taux horaires"""
+    model = Taux
+    template_name = 'reglage/taux_list.html'
+    context_object_name = 'taux_list'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(grade__icontains=search) |
+                Q(montant_par_heure__icontains=search)
+            )
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search'] = self.request.GET.get('search', '')
+        context['total_count'] = self.get_queryset().count()
+        return context
+
+
+class TauxCreateView(OrganisationFilterMixin, CreateView):
+    """Créer un nouveau taux horaire"""
+    model = Taux
+    template_name = 'reglage/taux_form.html'
+    fields = ['montant_par_heure']
+    success_url = reverse_lazy('reglage:taux_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Récupérer tous les grades disponibles
+        context['grades'] = Grade.objects.all().order_by('DesignationGrade')
+        return context
+    
+    def form_valid(self, form):
+        # Récupérer le grade depuis le POST
+        grade_code = self.request.POST.get('grade')
+        if not grade_code:
+            form.add_error(None, 'Veuillez sélectionner un grade.')
+            return self.form_invalid(form)
+        
+        # Vérifier que le grade existe
+        try:
+            Grade.objects.get(CodeGrade=grade_code)
+            form.instance.grade = grade_code
+        except Grade.DoesNotExist:
+            form.add_error(None, 'Le grade sélectionné n\'existe pas.')
+            return self.form_invalid(form)
+        
+        messages.success(self.request, 'Taux horaire créé avec succès.')
+        return super().form_valid(form)
+
+
+class TauxUpdateView(OrganisationFilterMixin, UpdateView):
+    """Modifier un taux horaire"""
+    model = Taux
+    template_name = 'reglage/taux_form.html'
+    fields = ['montant_par_heure']
+    success_url = reverse_lazy('reglage:taux_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Récupérer tous les grades disponibles
+        context['grades'] = Grade.objects.all().order_by('DesignationGrade')
+        return context
+    
+    def form_valid(self, form):
+        # Récupérer le grade depuis le POST
+        grade_code = self.request.POST.get('grade')
+        if not grade_code:
+            form.add_error(None, 'Veuillez sélectionner un grade.')
+            return self.form_invalid(form)
+        
+        # Vérifier que le grade existe
+        try:
+            Grade.objects.get(CodeGrade=grade_code)
+            form.instance.grade = grade_code
+        except Grade.DoesNotExist:
+            form.add_error(None, 'Le grade sélectionné n\'existe pas.')
+            return self.form_invalid(form)
+        
+        messages.success(self.request, 'Taux horaire modifié avec succès.')
+        return super().form_valid(form)
+
+
+class TauxDeleteView(OrganisationFilterMixin, SafeDeleteView):
+    """Supprimer un taux horaire"""
+    model = Taux
+    template_name = 'reglage/taux_confirm_delete.html'
+    success_url = reverse_lazy('reglage:taux_list')
+    success_message = 'Taux horaire supprimé avec succès.'

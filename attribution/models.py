@@ -115,3 +115,44 @@ class ScheduleEntry(models.Model):
         if self.creneau:
             return self.creneau.get_format_court()
         return "Non défini"
+
+
+class PaiementHeuresSupplementaires(models.Model):
+    """Modèle pour suivre les paiements des heures supplémentaires"""
+    organisation = models.ForeignKey('accounts.Organisation', on_delete=models.CASCADE, related_name='paiements_heures_sup', verbose_name='Organisation', null=True, blank=True)
+    
+    STATUT_PAIEMENT_CHOICES = [
+        ('EN_ATTENTE', 'En attente'),
+        ('VALIDE', 'Validé'),
+        ('PAYE', 'Payé'),
+        ('ANNULE', 'Annulé'),
+    ]
+    
+    attribution = models.ForeignKey(Attribution, on_delete=models.CASCADE, related_name='paiements', verbose_name="Attribution")
+    enseignant = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='paiements_heures_sup', verbose_name="Enseignant")
+    montant = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant à payer")
+    taux_horaire = models.DecimalField(max_digits=8, decimal_places=2, verbose_name="Taux horaire")
+    nombre_heures = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="Nombre d'heures")
+    statut = models.CharField(max_length=20, choices=STATUT_PAIEMENT_CHOICES, default='EN_ATTENTE', verbose_name="Statut du paiement")
+    date_paiement = models.DateField(null=True, blank=True, verbose_name="Date de paiement")
+    reference_paiement = models.CharField(max_length=100, null=True, blank=True, verbose_name="Référence de paiement")
+    notes = models.TextField(null=True, blank=True, verbose_name="Notes")
+    cree_par = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='paiements_crees', verbose_name="Créé par")
+    date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+    date_modification = models.DateTimeField(auto_now=True, verbose_name="Date de modification")
+    
+    class Meta:
+        verbose_name = "Paiement heures supplémentaires"
+        verbose_name_plural = "Paiements heures supplémentaires"
+        ordering = ['-date_creation']
+        unique_together = [['attribution', 'enseignant', 'date_creation']]
+    
+    def __str__(self):
+        return f"Paiement {self.enseignant.nom_complet} - {self.attribution.code_ue.code_ue} ({self.montant} FCFA)"
+    
+    def calculer_montant(self):
+        """Calcule le montant automatiquement basé sur le taux horaire et le nombre d'heures"""
+        if self.taux_horaire and self.nombre_heures:
+            self.montant = self.taux_horaire * self.nombre_heures
+            self.save()
+        return self.montant

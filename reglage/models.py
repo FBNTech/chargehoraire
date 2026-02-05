@@ -259,3 +259,33 @@ class SemaineCours(models.Model):
         """Retourne le jour de la semaine de date_fin"""
         jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
         return jours[self.date_fin.weekday()]
+
+class TypeCharge(models.Model):
+    """Modèle pour gérer les types de charge"""
+    code_type_charge = models.CharField(max_length=50, unique=True, verbose_name="Code du type de charge")
+    designation_type_charge = models.CharField(max_length=100, verbose_name="Désignation du type de charge")
+    date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+    date_modification = models.DateTimeField(auto_now=True, verbose_name="Date de modification")
+    
+    class Meta:
+        verbose_name = "Type de charge"
+        verbose_name_plural = "Types de charge"
+        ordering = ['code_type_charge']
+    
+    def __str__(self):
+        return f"{self.code_type_charge} - {self.designation_type_charge}"
+
+class Taux(models.Model):
+    """Modèle pour gérer les taux horaires par grade"""
+    grade = models.CharField(max_length=100, unique=True, verbose_name="Grade")
+    montant_par_heure = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant par heure ($)")
+    date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+    date_modification = models.DateTimeField(auto_now=True, verbose_name="Date de modification")
+    
+    class Meta:
+        verbose_name = "Taux horaire"
+        verbose_name_plural = "Taux horaires"
+        ordering = ['grade']
+    
+    def __str__(self):
+        return f"{self.grade} - ${self.montant_par_heure}/h"

@@ -46,15 +46,19 @@
             transition: all 0.3s;
             text-align: center;
         }
-        .sidebar .nav-link:hover {
+        .sidebar .nav-link:hover:not(.active) {
             background-color: #495057;
             color: white;
         }
         .sidebar .nav-link.active {
-            background-color: #007bff !important;
-            color: white !important;
-            box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
-            border-left: 3px solid #0056b3;
+            background-color: #e9ecef !important;
+            color: #000080 !important;
+            box-shadow: 0 0 5px rgba(0, 0, 128, 0.3);
+            border-left: 3px solid #000080;
+        }
+        .sidebar .nav-link.active:hover {
+            background-color: #e9ecef !important;
+            color: #000080 !important;
         }
         .sidebar .sb-nav-link-icon {
             margin-right: 0;
@@ -64,6 +68,9 @@
         .sidebar .sb-nav-link-icon i {
             font-size: 1.5rem; /* Augmente la taille des icônes */
             color: white;
+        }
+        .sidebar .nav-link.active .sb-nav-link-icon i {
+            color: #000080 !important;
         }
         .main-content {
             flex: 1;
@@ -364,9 +371,9 @@
                 </a>
                 {% endif %}
                                 
-                <!-- Paiement des charges vacantes - accessible aux administrateurs et aux utilisateurs d'organisation -->
-                {% if is_admin or is_org_user %}
-                <a class="nav-link" href="{% url 'reglage:gestion_entites' %}" title="Paiement des charges vacantes" data-bs-toggle="tooltip" data-bs-placement="right">
+                <!-- Paiement des charges vacantes - accessible uniquement aux superutilisateurs -->
+                {% if user.is_superuser %}
+                <a class="nav-link" href="{% url 'attribution:paiement_heures_supplementaires' %}" title="Paiement des charges vacantes" data-bs-toggle="tooltip" data-bs-placement="right">
                     <div class="sb-nav-link-icon"><i class="fas fa-money-bill-wave"></i></div>
                 </a>
                 {% endif %}
@@ -492,6 +499,43 @@
                     wrapper.appendChild(table);
                 }
             });
+            
+            // Marquer le menu actif en fonction de l'URL actuelle
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            
+            // D'abord, retirer toutes les classes active
+            navLinks.forEach(link => link.classList.remove('active'));
+            
+            // Trouver le meilleur match (le plus spécifique)
+            let bestMatch = null;
+            let bestMatchLength = 0;
+            
+            navLinks.forEach(link => {
+                const linkPath = new URL(link.href).pathname;
+                
+                // Normaliser les chemins (enlever le slash final s'il existe)
+                const normalizedCurrent = currentPath.endsWith('/') && currentPath.length > 1 
+                    ? currentPath.slice(0, -1) 
+                    : currentPath;
+                const normalizedLink = linkPath.endsWith('/') && linkPath.length > 1 
+                    ? linkPath.slice(0, -1) 
+                    : linkPath;
+                
+                // Vérifier si le chemin actuel commence par le chemin du lien
+                if (normalizedCurrent === normalizedLink || normalizedCurrent.startsWith(normalizedLink + '/')) {
+                    // Garder le match le plus long (le plus spécifique)
+                    if (normalizedLink.length > bestMatchLength) {
+                        bestMatch = link;
+                        bestMatchLength = normalizedLink.length;
+                    }
+                }
+            });
+            
+            // Marquer le meilleur match comme actif
+            if (bestMatch) {
+                bestMatch.classList.add('active');
+            }
         });
     </script>
 </body>

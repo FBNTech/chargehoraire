@@ -30,7 +30,7 @@ class Course(models.Model):
         ('Agrovet', 'Agrovet'),
     ]
     
-    code_ue = models.CharField(max_length=20)
+    code_ue = models.CharField(max_length=20, unique=True)
     intitule_ue = models.CharField(max_length=200)
     intitule_ec = models.CharField(max_length=200, blank=True, null=True)
     credit = models.DecimalField(max_digits=5, decimal_places=2)  # Accepte les décimales (ex: 3.5)

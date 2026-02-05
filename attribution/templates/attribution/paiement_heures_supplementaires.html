@@ -1,0 +1,408 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Paiement des Heures Supplémentaires{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="row">
+        <!-- Section de création de paiement -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-money-bill-wave me-2"></i>
+                        Nouveau Paiement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="paiement-form">
+                        {% csrf_token %}
+                        
+                        <!-- Sélection de l'enseignant -->
+                        <div class="mb-3">
+                            <label for="enseignant-select" class="form-label">Enseignant</label>
+                            <select class="form-select" id="enseignant-select" required>
+                                <option value="">Sélectionner un enseignant...</option>
+                                {% for enseignant in enseignants %}
+                                <option value="{{ enseignant.matricule }}">{{ enseignant.nom_complet }} ({{ enseignant.grade }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Liste des cours (chargée dynamiquement) -->
+                        <div class="mb-3">
+                            <label class="form-label">Cours à payer</label>
+                            <div id="cours-liste" class="border rounded p-3" style="min-height: 150px; background-color: #f8f9fa;">
+                                <p class="text-muted text-center">Sélectionnez d'abord un enseignant</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Infos du cours sélectionné -->
+                        <div class="mb-3" id="cours-selectionne-info" style="display: none;">
+                            <label class="form-label">Cours sélectionné</label>
+                            <div class="alert alert-info mb-0">
+                                <strong id="cours-selectionne-code"></strong> - <span id="cours-selectionne-intitule"></span>
+                                <div class="mt-2">
+                                    <span class="badge bg-secondary me-2">CM: <span id="cours-cmi">0</span>h</span>
+                                    <span class="badge bg-secondary me-2">TP/TD: <span id="cours-td-tp">0</span>h</span>
+                                    <span class="badge bg-primary">Total: <span id="cours-total-heures">0</span>h</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Détails du paiement -->
+                        <div class="mb-3">
+                            <label for="taux-horaire" class="form-label">Taux horaire ($)</label>
+                            <input type="number" class="form-control" id="taux-horaire" step="0.01" min="0" readonly style="background-color: #e9ecef;">
+                            <small class="text-muted" id="grade-info"></small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="nombre-heures" class="form-label">Nombre d'heures à payer</label>
+                            <input type="number" class="form-control" id="nombre-heures" step="0.01" min="0" readonly style="background-color: #e9ecef;">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="montant-total" class="form-label">Montant total ($)</label>
+                            <input type="text" class="form-control" id="montant-total" readonly style="background-color: #e9ecef; font-weight: bold; font-size: 1.2em;">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes-paiement" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes-paiement" rows="3"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>Créer le paiement
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section des paiements existants -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Paiements Existants
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Enseignant</th>
+                                    <th>Cours</th>
+                                    <th>Montant</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for paiement in paiements %}
+                                <tr>
+                                    <td>{{ paiement.enseignant.nom_complet }}</td>
+                                    <td>{{ paiement.attribution.code_ue.code_ue }}</td>
+                                    <td>{{ paiement.montant }} FCFA</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if paiement.statut == 'PAYE' %}bg-success
+                                            {% elif paiement.statut == 'VALIDE' %}bg-primary
+                                            {% elif paiement.statut == 'EN_ATTENTE' %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ paiement.get_statut_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-info btn-sm" onclick="imprimerPaiement({{ paiement.id }})">
+                                                <i class="fas fa-print"></i>
+                                            </button>
+                                            {% if paiement.statut == 'EN_ATTENTE' %}
+                                            <button class="btn btn-success btn-sm" onclick="validerPaiement({{ paiement.id }})">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Aucun paiement enregistré</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Section des rapports -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Rapports de Paiement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-primary w-100" onclick="genererRapportGlobal()">
+                                <i class="fas fa-file-pdf me-2"></i>Rapport Global
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-success w-100" onclick="genererRapportParStatut()">
+                                <i class="fas fa-filter me-2"></i>Rapport par Statut
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-warning w-100" onclick="genererRapportParEnseignant()">
+                                <i class="fas fa-user me-2"></i>Rapport par Enseignant
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour sélectionner les cours -->
+<div class="modal fade" id="cours-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sélectionner les cours à payer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cours-modal-content">
+                    <!-- Contenu chargé dynamiquement -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="validerSelectionCours()">Valider</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let selectedAttribution = null;
+    let currentTauxHoraire = 0;
+    let currentGrade = '';
+    let attributionsData = [];
+    
+    // Réinitialiser le formulaire
+    function resetForm() {
+        selectedAttribution = null;
+        $('#cours-selectionne-info').hide();
+        $('#taux-horaire').val('');
+        $('#nombre-heures').val('');
+        $('#montant-total').val('');
+        $('#grade-info').text('');
+        $('.list-group-item').removeClass('active');
+    }
+    
+    // Calculer et afficher le montant
+    function calculerMontant() {
+        const taux = parseFloat($('#taux-horaire').val()) || 0;
+        const heures = parseFloat($('#nombre-heures').val()) || 0;
+        const montant = taux * heures;
+        $('#montant-total').val('$' + montant.toFixed(2));
+    }
+    
+    // Charger les heures supplémentaires quand un enseignant est sélectionné
+    $('#enseignant-select').on('change', function() {
+        const teacherId = $(this).val();
+        console.log('Enseignant sélectionné:', teacherId);
+        
+        resetForm();
+        
+        if (!teacherId) {
+            $('#cours-liste').html('<p class="text-muted text-center">Sélectionnez d\'abord un enseignant</p>');
+            return;
+        }
+        
+        $('#cours-liste').html('<p class="text-muted text-center"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>');
+        
+        const url = `{% url 'attribution:get_heures_supplementaires_enseignant' 'PLACEHOLDER' %}`.replace('PLACEHOLDER', encodeURIComponent(teacherId));
+        console.log('URL de la requête:', url);
+        
+        $.ajax({
+            url: url,
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(data) {
+                console.log('Données reçues:', data);
+                
+                // Stocker le taux horaire et le grade de l'enseignant
+                if (data.enseignant) {
+                    currentTauxHoraire = data.enseignant.taux_horaire || 0;
+                    currentGrade = data.enseignant.grade || '';
+                    $('#taux-horaire').val(currentTauxHoraire);
+                    if (currentTauxHoraire > 0) {
+                        $('#grade-info').text('Grade: ' + currentGrade + ' → Taux: $' + currentTauxHoraire + '/h');
+                    } else {
+                        $('#grade-info').html('<span class="text-warning">Aucun taux défini pour le grade ' + currentGrade + '</span>');
+                    }
+                }
+                
+                // Stocker les attributions pour référence
+                attributionsData = data.attributions || [];
+                
+                if (attributionsData.length > 0) {
+                    let html = '<div class="list-group">';
+                    attributionsData.forEach(function(attribution, index) {
+                        html += '<div class="list-group-item list-group-item-action cursor-pointer" data-index="' + index + '" style="cursor: pointer;">';
+                        html += '<div class="d-flex justify-content-between align-items-center">';
+                        html += '<div>';
+                        html += '<h6 class="mb-1">' + attribution.code_ue + ' - ' + attribution.intitule_ue + '</h6>';
+                        html += '<small class="text-muted">' + (attribution.intitule_ec || '') + '</small>';
+                        html += '<div class="mt-1">';
+                        html += '<span class="badge bg-secondary me-1">CM: ' + attribution.cmi + 'h</span>';
+                        html += '<span class="badge bg-secondary">TP/TD: ' + attribution.td_tp + 'h</span>';
+                        html += '</div>';
+                        html += '</div>';
+                        html += '<div class="text-end">';
+                        html += '<span class="badge bg-success fs-6">' + attribution.heures_restantes + 'h</span>';
+                        html += '<small class="d-block text-muted">à payer</small>';
+                        html += '</div>';
+                        html += '</div>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    $('#cours-liste').html(html);
+                    
+                    // Ajouter l'événement de clic sur les items
+                    $('.list-group-item').on('click', function() {
+                        const index = $(this).data('index');
+                        selectAttribution(index);
+                    });
+                } else {
+                    $('#cours-liste').html('<p class="text-muted text-center">Aucune heure supplémentaire à payer pour cet enseignant</p>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Erreur AJAX:', status, error);
+                console.error('Réponse:', xhr.responseText);
+                $('#cours-liste').html('<p class="text-danger text-center">Erreur lors du chargement des cours: ' + error + '</p>');
+            }
+        });
+    });
+    
+    // Sélectionner une attribution
+    window.selectAttribution = function(index) {
+        const attribution = attributionsData[index];
+        if (!attribution) return;
+        
+        selectedAttribution = attribution;
+        
+        // Mettre en surbrillance l'item sélectionné
+        $('.list-group-item').removeClass('active');
+        $('.list-group-item[data-index="' + index + '"]').addClass('active');
+        
+        // Afficher les infos du cours sélectionné
+        $('#cours-selectionne-info').show();
+        $('#cours-selectionne-code').text(attribution.code_ue);
+        $('#cours-selectionne-intitule').text(attribution.intitule_ue);
+        $('#cours-cmi').text(attribution.cmi);
+        $('#cours-td-tp').text(attribution.td_tp);
+        $('#cours-total-heures').text(attribution.heures_restantes);
+        
+        // Remplir automatiquement le nombre d'heures
+        $('#nombre-heures').val(attribution.heures_restantes);
+        
+        // Calculer le montant
+        calculerMontant();
+    };
+    
+    // Soumettre le formulaire de paiement
+    $('#paiement-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!selectedAttribution) {
+            alert('Veuillez sélectionner un cours à payer');
+            return;
+        }
+        
+        const data = {
+            enseignant_id: $('#enseignant-select').val(),
+            attribution_id: selectedAttribution.id,
+            nombre_heures: parseFloat($('#nombre-heures').val()),
+            taux_horaire: parseFloat($('#taux-horaire').val()),
+            notes: $('#notes-paiement').val()
+        };
+        
+        $.ajax({
+            url: '{% url "attribution:creer_paiement_heures_sup" %}',
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    alert('Paiement créé avec succès!');
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + response.error);
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur serveur';
+                alert('Erreur: ' + error);
+            }
+        });
+    });
+});
+
+
+function imprimerPaiement(paiementId) {
+    window.open(`/attribution/paiement-pdf/${paiementId}/`, '_blank');
+}
+
+function validerPaiement(paiementId) {
+    if (confirm('Valider ce paiement?')) {
+        // Implémenter la validation
+        location.reload();
+    }
+}
+
+function genererRapportGlobal() {
+    window.open('/attribution/rapport-paiements/global/', '_blank');
+}
+
+function genererRapportParStatut() {
+    window.open('/attribution/rapport-paiements/statut/', '_blank');
+}
+
+function genererRapportParEnseignant() {
+    window.open('/attribution/rapport-paiements/enseignant/', '_blank');
+}
+</script>
+{% endblock %}

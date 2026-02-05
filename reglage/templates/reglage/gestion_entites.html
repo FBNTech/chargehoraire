@@ -192,6 +192,36 @@
         </div>
         {% endif %}
         
+        <!-- TypeCharge - Accessible à tous -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card shadow-sm border-secondary">
+                <div class="card-body text-center py-2">
+                    <div class="mb-2">
+                        <i class="fas fa-tags fa-2x text-secondary"></i>
+                    </div>
+                    <h6 class="card-title mb-2">Types de Charge</h6>
+                    <a href="{% url 'reglage:type_charge_list' %}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-cog me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Taux - Accessible à tous -->
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card shadow-sm border-success">
+                <div class="card-body text-center py-2">
+                    <div class="mb-2">
+                        <i class="fas fa-money-bill-wave fa-2x text-success"></i>
+                    </div>
+                    <h6 class="card-title mb-2">Taux Horaires</h6>
+                    <a href="{% url 'reglage:taux_list' %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-cog me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+        
         <!-- Créneaux - Accessible à tous (filtré par organisation) -->
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card shadow-sm border-warning">

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if object %}
+        Modifier le Taux Horaire
+    {% else %}
+        Ajouter un Taux Horaire
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-money-bill-wave me-2"></i>
+                        {% if object %}
+                            Modifier le Taux Horaire
+                        {% else %}
+                            Ajouter un Taux Horaire
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="grade_select" class="form-label">
+                                        Grade <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="grade_select" name="grade" required>
+                                        <option value="">Sélectionner un grade...</option>
+                                        {% for grade in grades %}
+                                        <option value="{{ grade.CodeGrade }}" {% if object.grade == grade.CodeGrade %}selected{% endif %}>
+                                            {{ grade.DesignationGrade }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        Sélectionnez un grade dans la liste des grades existants
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.montant_par_heure.id_for_label }}" class="form-label">
+                                        Montant par heure ($) <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.montant_par_heure }}
+                                    {% if form.montant_par_heure.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.montant_par_heure.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        Ex: 25.00
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Information :</strong> Le grade doit être unique. Le montant par heure sera utilisé pour calculer les paiements des heures supplémentaires.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'reglage:taux_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                            </a>
+                            <div>
+                                <button type="reset" class="btn btn-outline-warning me-2">
+                                    <i class="fas fa-undo me-2"></i>Réinitialiser
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    {% if object %}
+                                        Mettre à jour
+                                    {% else %}
+                                        Créer
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Personnaliser les champs du formulaire
+    $('#{{ form.montant_par_heure.id_for_label }}').addClass('form-control');
+    
+    // Valider que le montant est positif
+    $('#{{ form.montant_par_heure.id_for_label }}').on('input', function() {
+        if (this.value < 0) {
+            this.value = 0;
+        }
+    });
+});
+</script>
+{% endblock %}

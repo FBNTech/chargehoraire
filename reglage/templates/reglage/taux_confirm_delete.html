@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Supprimer le Taux Horaire{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmation de Suppression
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Attention !</strong> Cette action est irréversible.
+                    </div>
+                    
+                    <p class="mb-3">
+                        Êtes-vous sûr de vouloir supprimer le taux horaire suivant ?
+                    </p>
+                    
+                    <div class="bg-light p-3 rounded mb-4">
+                        <h5 class="text-primary mb-2">
+                            <i class="fas fa-money-bill-wave me-2"></i>
+                            {{ object.grade }}
+                        </h5>
+                        <p class="mb-1">
+                            <strong>Montant par heure :</strong> 
+                            <span class="badge bg-success">${{ object.montant_par_heure }}</span>
+                        </p>
+                        <p class="mb-1">
+                            <strong>Date de création :</strong> {{ object.date_creation|date:"d/m/Y H:i" }}
+                        </p>
+                        <p class="mb-0">
+                            <strong>Dernière modification :</strong> {{ object.date_modification|date:"d/m/Y H:i" }}
+                        </p>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Conséquences :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Ce taux horaire sera définitivement supprimé</li>
+                            <li>Les calculs de paiement qui utilisent ce taux ne pourront plus fonctionner</li>
+                            <li>Cette action ne peut pas être annulée</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'reglage:taux_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Supprimer définitivement
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

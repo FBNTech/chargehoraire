@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Supprimer un Type de Charge{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmation de suppression
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Attention !
+                        </h6>
+                        <p class="mb-0">
+                            Vous êtes sur le point de supprimer le type de charge suivant :
+                        </p>
+                    </div>
+                    
+                    <div class="bg-light p-3 rounded mb-4">
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <th width="40%">Code du type de charge :</th>
+                                <td><strong>{{ object.code_type_charge }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Désignation du type de charge :</th>
+                                <td>{{ object.designation_type_charge }}</td>
+                            </tr>
+                            <tr>
+                                <th>Date de création :</th>
+                                <td>{{ object.date_creation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="alert alert-danger" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Conséquences de cette suppression
+                        </h6>
+                        <ul class="mb-0">
+                            <li>Cette action est <strong>irréversible</strong></li>
+                            <li>Toutes les données associées à ce type de charge pourraient être affectées</li>
+                            <li>Les attributions utilisant ce type de charge pourraient devenir invalides</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'reglage:type_charge_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

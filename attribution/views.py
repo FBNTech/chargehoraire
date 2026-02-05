@@ -3,9 +3,11 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods, require_GET
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Q
+from django.db.models import Q, Sum, Avg
 from django.urls import reverse_lazy
+import json
 from .forms import AttributionForm, ScheduleEntryForm
+from .models import Attribution, PaiementHeuresSupplementaires
 from .views_schedule import get_ues_by_classe
 from teachers.models import Teacher
 from reglage.models import Classe
@@ -166,6 +168,10 @@ def attribution_list(request):
     # Calculer le nombre d'enseignants qui ont une charge (attribution)
     teachers_with_assignments = Attribution.objects.values('matricule').distinct().count()
     
+    # Récupérer les types de charge depuis le modèle TypeCharge
+    from reglage.models import TypeCharge
+    types_charge = TypeCharge.objects.all().order_by('designation_type_charge')
+    
     context = {
         'teachers': teachers,
         'courses': courses,
@@ -177,6 +183,7 @@ def attribution_list(request):
         'total_combined': total_combined,
         'total_courses': total_courses,
         'teachers_with_assignments': teachers_with_assignments,
+        'types_charge': types_charge,
     }
     return render(request, 'attribution/attribution_list.html', context)
 
@@ -435,6 +442,10 @@ def search_attributions(request):
     for attr in attributions:
         print(f"Attribution: {attr.matricule.nom_complet}, {attr.code_ue.code_ue}, {attr.type_charge}")
 
+    # Récupérer les types de charge depuis le modèle TypeCharge
+    from reglage.models import TypeCharge
+    types_charge = TypeCharge.objects.all().order_by('designation_type_charge')
+    
     # Préparer le contexte pour le template
     context = {
         'attributions': attributions,
@@ -443,6 +454,7 @@ def search_attributions(request):
         'selected_type': type_charge,
         'teachers': Teacher.objects.all().order_by('nom_complet'),
         'academic_years': list(set(Attribution.objects.values_list('annee_academique', flat=True))),
+        'types_charge': types_charge,
     }
 
     return render(request, 'attribution/liste_attributions.html', context)
@@ -866,6 +878,10 @@ def search_attributions(request):
         courses = Course.objects.all().order_by('code_ue')
         academic_years = Attribution.objects.values_list('annee_academique', flat=True).distinct().order_by('-annee_academique')
 
+        # Récupérer les types de charge depuis le modèle TypeCharge
+        from reglage.models import TypeCharge
+        types_charge = TypeCharge.objects.all().order_by('designation_type_charge')
+        
         context = {
             'attributions': attributions,
             'teachers': teachers,
@@ -879,7 +895,8 @@ def search_attributions(request):
             'selected_matricule': matricule,
             'selected_year': annee_academique,
             'selected_type': type_charge,
-            'selected_code_ue': code_ue
+            'selected_code_ue': code_ue,
+            'types_charge': types_charge,
         }
 
         if not attributions:
@@ -919,13 +936,26 @@ def liste_charges(request):
     type_charge = request.GET.get('type_charge')
     code_ue = request.GET.get('code_ue')
     
+    # DEBUG: Afficher tous les paramètres reçus
+    print(f"DEBUG liste_charges - Tous les paramètres GET: {request.GET}")
+    print(f"DEBUG liste_charges - teacher_matricule: '{teacher_matricule}'")
+    print(f"DEBUG liste_charges - annee_academique: '{annee_academique}'")
+    print(f"DEBUG liste_charges - type_charge: '{type_charge}'")
+    print(f"DEBUG liste_charges - Attributions avant filtrage: {attributions.count()}")
+    
     # Appliquer les filtres
     if teacher_matricule:
         attributions = attributions.filter(matricule__matricule=teacher_matricule)
+        print(f"DEBUG liste_charges - Après filtre enseignant: {attributions.count()}")
     if annee_academique:
         attributions = attributions.filter(annee_academique=annee_academique)
+        print(f"DEBUG liste_charges - Après filtre année: {attributions.count()}")
     if type_charge:
+        # Vérifier les valeurs de type_charge existantes dans la base
+        types_existants = Attribution.objects.values_list('type_charge', flat=True).distinct()
+        print(f"DEBUG liste_charges - Types de charge existants dans la base: {list(types_existants)}")
         attributions = attributions.filter(type_charge=type_charge)
+        print(f"DEBUG liste_charges - Après filtre type_charge: {attributions.count()}")
     if code_ue:
         # Recherche par code exact ou intitulé partiel
         attributions = attributions.filter(
@@ -982,6 +1012,10 @@ def liste_charges(request):
     if user_org:
         teachers = teachers.filter(section=user_org.code)
     
+    # Récupérer les types de charge depuis le modèle TypeCharge
+    from reglage.models import TypeCharge
+    types_charge = TypeCharge.objects.all().order_by('designation_type_charge')
+    
     context = {
         'attributions': attributions,
         'teachers': teachers,
@@ -994,6 +1028,7 @@ def liste_charges(request):
         'teachers_with_assignments': teachers_with_assignments,
         'cours_ues': cours_ues,
         'ue_enseignants': ue_enseignants,
+        'types_charge': types_charge,
         'annees_modal': annees_modal,
         'sections_modal': sections_modal,
     }
@@ -1024,9 +1059,14 @@ def edit_attribution(request, attribution_id):
     else:
         form = AttributionForm(instance=attribution)
     
+    # Récupérer les types de charge depuis le modèle TypeCharge
+    from reglage.models import TypeCharge
+    types_charge = TypeCharge.objects.all().order_by('designation_type_charge')
+    
     context = {
         'form': form,
         'attribution': attribution,
+        'types_charge': types_charge,
     }
     
     return render(request, 'attribution/edit_attribution.html', context)
@@ -4041,3 +4081,396 @@ def delete_all_attributions(request):
             messages.error(request, f'❌ Erreur lors de la suppression : {str(e)}')
     
     return redirect('attribution:liste_charges')
+
+def paiement_heures_supplementaires(request):
+    """Vue principale pour la gestion des paiements des heures supplémentaires"""
+    from accounts.models import Role
+    
+    # Vérifier les permissions - uniquement les superutilisateurs
+    user = request.user
+    if not (user.is_authenticated and user.is_superuser):
+        messages.error(request, 'Permission refusée. Vous n\'avez pas les droits pour gérer les paiements.')
+        return redirect('home')
+    
+    # Récupérer les enseignants avec des heures supplémentaires
+    enseignants_avec_sup = Teacher.objects.filter(
+        attribution__type_charge='Supplementaire'
+    ).distinct().order_by('nom_complet')
+    
+    # Récupérer les paiements existants
+    paiements = PaiementHeuresSupplementaires.objects.all().order_by('-date_creation')
+    
+    context = {
+        'enseignants': enseignants_avec_sup,
+        'paiements': paiements,
+    }
+    
+    return render(request, 'attribution/paiement_heures_supplementaires.html', context)
+
+def get_heures_supplementaires_enseignant(request, teacher_id):
+    """API pour récupérer les heures supplémentaires d'un enseignant"""
+    from reglage.models import Taux
+    
+    print(f"DEBUG: Requête pour enseignant {teacher_id}")
+    print(f"DEBUG: Headers: {request.headers.get('X-Requested-With')}")
+    
+    if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'error': 'Requête invalide'}, status=400)
+    
+    try:
+        enseignant = Teacher.objects.get(matricule=teacher_id)
+        print(f"DEBUG: Enseignant trouvé: {enseignant.nom_complet}, Grade: {enseignant.grade}")
+        
+        # Récupérer le taux horaire selon le grade de l'enseignant
+        taux_horaire = 0
+        grade_enseignant = enseignant.grade or ''
+        try:
+            # Essayer d'abord une correspondance exacte
+            taux = Taux.objects.get(grade=grade_enseignant)
+            taux_horaire = float(taux.montant_par_heure)
+            print(f"DEBUG: Taux trouvé (exact): {taux_horaire}")
+        except Taux.DoesNotExist:
+            # Essayer une correspondance partielle (ex: ASS1-VAC -> ASS-VAC ou ASS1)
+            taux = Taux.objects.filter(grade__icontains=grade_enseignant.split('-')[0]).first()
+            if not taux:
+                # Chercher si le grade de l'enseignant contient un grade de taux
+                for t in Taux.objects.all():
+                    if t.grade in grade_enseignant or grade_enseignant in t.grade:
+                        taux = t
+                        break
+            if taux:
+                taux_horaire = float(taux.montant_par_heure)
+                print(f"DEBUG: Taux trouvé (partiel): {taux_horaire} pour grade {taux.grade}")
+            else:
+                print(f"DEBUG: Aucun taux trouvé pour le grade {grade_enseignant}")
+        
+        # Récupérer les attributions supplémentaires non encore payées
+        attributions = Attribution.objects.filter(
+            matricule=enseignant,
+            type_charge='Supplementaire'
+        ).exclude(
+            paiements__statut='PAYE'
+        ).select_related('code_ue')
+        
+        print(f"DEBUG: Nombre d'attributions supplémentaires: {attributions.count()}")
+        
+        # Préparer les données
+        data = []
+        for attribution in attributions:
+            # Calculer le nombre d'heures totales (CM + TP/TD)
+            total_heures = attribution.code_ue.cmi + attribution.code_ue.td_tp
+            
+            # Vérifier si déjà partiellement payé
+            deja_paye = PaiementHeuresSupplementaires.objects.filter(
+                attribution=attribution,
+                statut='PAYE'
+            ).aggregate(total=Sum('nombre_heures'))['total'] or 0
+            
+            heures_restantes = total_heures - deja_paye
+            
+            if heures_restantes > 0:
+                data.append({
+                    'id': attribution.id,
+                    'code_ue': attribution.code_ue.code_ue,
+                    'intitule_ue': attribution.code_ue.intitule_ue,
+                    'intitule_ec': attribution.code_ue.intitule_ec,
+                    'cmi': float(attribution.code_ue.cmi),
+                    'td_tp': float(attribution.code_ue.td_tp),
+                    'credit': float(attribution.code_ue.credit) if hasattr(attribution.code_ue, 'credit') else 0,
+                    'total_heures': float(total_heures),
+                    'deja_paye': float(deja_paye),
+                    'heures_restantes': float(heures_restantes),
+                    'annee_academique': attribution.annee_academique,
+                })
+        
+        return JsonResponse({
+            'attributions': data,
+            'enseignant': {
+                'matricule': enseignant.matricule,
+                'nom_complet': enseignant.nom_complet,
+                'grade': enseignant.grade,
+                'taux_horaire': taux_horaire
+            }
+        })
+        
+    except Teacher.DoesNotExist:
+        return JsonResponse({'error': 'Enseignant non trouvé'}, status=404)
+    except Exception as e:
+        import traceback
+        print(f"DEBUG: Erreur: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({'error': str(e)}, status=500)
+
+def creer_paiement_heures_sup(request):
+    """Créer un nouveau paiement pour heures supplémentaires"""
+    from accounts.models import Role
+    
+    # Vérifier les permissions - uniquement les superutilisateurs
+    user = request.user
+    if not (user.is_authenticated and user.is_superuser):
+        return JsonResponse({'error': 'Permission refusée'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Valider les données
+        enseignant_id = data.get('enseignant_id')
+        attribution_id = data.get('attribution_id')
+        nombre_heures = float(data.get('nombre_heures', 0))
+        taux_horaire = float(data.get('taux_horaire', 0))
+        
+        if not all([enseignant_id, attribution_id, nombre_heures > 0, taux_horaire > 0]):
+            return JsonResponse({'error': 'Données invalides'}, status=400)
+        
+        # Récupérer les objets
+        enseignant = Teacher.objects.get(matricule=enseignant_id)
+        attribution = Attribution.objects.get(id=attribution_id)
+        
+        # Calculer le montant
+        montant = nombre_heures * taux_horaire
+        
+        # Créer le paiement
+        paiement = PaiementHeuresSupplementaires.objects.create(
+            attribution=attribution,
+            enseignant=enseignant,
+            montant=montant,
+            taux_horaire=taux_horaire,
+            nombre_heures=nombre_heures,
+            cree_par=user,
+            organisation=get_user_organisation(user)
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'paiement_id': paiement.id,
+            'montant': float(montant),
+            'message': 'Paiement créé avec succès'
+        })
+        
+    except Teacher.DoesNotExist:
+        return JsonResponse({'error': 'Enseignant non trouvé'}, status=404)
+    except Attribution.DoesNotExist:
+        return JsonResponse({'error': 'Attribution non trouvée'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def paiement_pdf(request, paiement_id):
+    """Générer un PDF pour un paiement spécifique"""
+    from accounts.models import Role
+    from datetime import datetime
+    
+    # Vérifier les permissions
+    user = request.user
+    if not (user.is_authenticated and (user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
+        return HttpResponse('Permission refusée', status=403)
+    
+    try:
+        paiement = get_object_or_404(PaiementHeuresSupplementaires, id=paiement_id)
+        
+        # Créer le buffer pour le PDF
+        buffer = BytesIO()
+        
+        # Créer le document PDF
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=20,
+            leftMargin=20,
+            topMargin=20,
+            bottomMargin=20
+        )
+        
+        # Styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=1  # Centre
+        )
+        
+        # Contenu du PDF
+        story = []
+        
+        # Titre
+        story.append(Paragraph("ORDRE DE PAIEMENT", title_style))
+        
+        # Informations du paiement
+        data = [
+            ['Référence', paiement.reference_paiement or f'PAY-{paiement.id:06d}'],
+            ['Date', paiement.date_creation.strftime('%d/%m/%Y')],
+            ['Enseignant', paiement.enseignant.nom_complet],
+            ['Grade', paiement.enseignant.grade],
+            ['Matricule', paiement.enseignant.matricule],
+            ['', ''],
+            ['Cours', paiement.attribution.code_ue.code_ue],
+            ['Intitulé UE', paiement.attribution.code_ue.intitule_ue],
+            ['Intitulé EC', paiement.attribution.code_ue.intitule_ec],
+            ['Année académique', paiement.attribution.annee_academique],
+            ['', ''],
+            ['Nombre d\'heures', f'{paiement.nombre_heures}'],
+            ['Taux horaire', f'{paiement.taux_horaire} FCFA'],
+            ['Montant total', f'{paiement.montant} FCFA'],
+            ['', ''],
+            ['Statut', paiement.get_statut_display()],
+        ]
+        
+        if paiement.notes:
+            data.extend(['', ''])
+            data.extend(['Notes', paiement.notes])
+        
+        # Tableau
+        table = Table(data, colWidths=[120, 300])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('BACKGROUND', (0, 12), (0, 14), colors.lightblue),
+            ('BACKGROUND', (0, 15), (0, 17), colors.lightgreen),
+        ]))
+        
+        story.append(table)
+        story.append(Spacer(1, 50))
+        
+        # Signature
+        signature_data = [
+            ['', 'Fait à , le ' + datetime.now().strftime('%d/%m/%Y')],
+            ['', ''],
+            ['', ''],
+            ['Le gestionnaire', 'L\'enseignant'],
+            ['', ''],
+            ['', ''],
+            ['', ''],
+            ['Signature', 'Signature'],
+        ]
+        
+        signature_table = Table(signature_data, colWidths=[200, 200])
+        signature_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('LINEBELOW', (0, 7), (0, 7), 1, colors.black),
+            ('LINEBELOW', (1, 7), (1, 7), 1, colors.black),
+        ]))
+        
+        story.append(signature_table)
+        
+        # Construire le PDF
+        doc.build(story)
+        
+        # Préparer la réponse HTTP
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="paiement_{paiement.enseignant.matricule}_{paiement.id}.pdf"'
+        
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f'Erreur lors de la génération du PDF: {str(e)}', status=500)
+
+def rapport_paiements(request, type_rapport='global'):
+    """Générer un rapport de paiements"""
+    from accounts.models import Role
+    
+    # Vérifier les permissions
+    user = request.user
+    if not (user.is_authenticated and (user.is_staff or user.profile.roles.filter(name__in=[Role.ADMIN, Role.GESTIONNAIRE]).exists())):
+        return HttpResponse('Permission refusée', status=403)
+    
+    try:
+        # Récupérer les paiements
+        paiements = PaiementHeuresSupplementaires.objects.all()
+        
+        if type_rapport == 'statut':
+            # Grouper par statut
+            data = [['Statut', 'Nombre de paiements', 'Montant total']]
+            for statut, _ in PaiementHeuresSupplementaires.STATUT_PAIEMENT_CHOICES:
+                paiements_statut = paiements.filter(statut=statut)
+                total = paiements_statut.aggregate(total=models.Sum('montant'))['total'] or 0
+                data.append([
+                    statut,
+                    len(paiements_statut),
+                    f'{total} FCFA'
+                ])
+            title = "RAPPORT DES PAIEMENTS PAR STATUT"
+            
+        elif type_rapport == 'enseignant':
+            # Grouper par enseignant
+            data = [['Enseignant', 'Nombre de paiements', 'Montant total']]
+            enseignants = Teacher.objects.filter(paiements_heures_sup__isnull=False).distinct()
+            for enseignant in enseignants:
+                paiements_enseignant = paiements.filter(enseignant=enseignant)
+                total = paiements_enseignant.aggregate(total=models.Sum('montant'))['total'] or 0
+                data.append([
+                    enseignant.nom_complet,
+                    len(paiements_enseignant),
+                    f'{total} FCFA'
+                ])
+            title = "RAPPORT DES PAIEMENTS PAR ENSEIGNANT"
+            
+        else:  # global
+            # Rapport global
+            data = [
+                ['Type', 'Statut', 'Enseignant', 'Cours', 'Montant', 'Date']
+            ]
+            for paiement in paiements.order_by('-date_creation'):
+                data.append([
+                    paiement.attribution.code_ue.code_ue,
+                    paiement.get_statut_display(),
+                    paiement.enseignant.nom_complet,
+                    f'{paiement.nombre_heures}h',
+                    f'{paiement.montant} FCFA',
+                    paiement.date_creation.strftime('%d/%m/%Y')
+                ])
+            title = "RAPPORT GLOBAL DES PAIEMENTS"
+        
+        # Créer le PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=20,
+            alignment=1
+        )
+        
+        story = []
+        story.append(Paragraph(title, title_style))
+        
+        # Tableau
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        story.append(table)
+        
+        doc.build(story)
+        
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="rapport_paiements_{type_rapport}.pdf"'
+        
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f'Erreur lors de la génération du rapport: {str(e)}', status=500)

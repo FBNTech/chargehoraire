@@ -49,4 +49,13 @@ urlpatterns = [
     
     # Supprimer toutes les attributions (superuser uniquement)
     path('delete-all-attributions/', views.delete_all_attributions, name='delete_all_attributions'),
+    
+    # Gestion des paiements des heures supplémentaires
+    path('paiement-heures-supplementaires/', views.paiement_heures_supplementaires, name='paiement_heures_supplementaires'),
+    path('api/heures-supplementaires/<str:teacher_id>/', views.get_heures_supplementaires_enseignant, name='get_heures_supplementaires_enseignant'),
+    path('api/creer-paiement-heures-sup/', views.creer_paiement_heures_sup, name='creer_paiement_heures_sup'),
+    
+    # PDFs et rapports de paiement
+    path('paiement-pdf/<int:paiement_id>/', views.paiement_pdf, name='paiement_pdf'),
+    path('rapport-paiements/<str:type_rapport>/', views.rapport_paiements, name='rapport_paiements'),
 ]

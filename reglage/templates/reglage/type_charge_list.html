@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestion des Types de Charge{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-tags me-2"></i>
+            Gestion des Types de Charge
+        </h2>
+        <a href="{% url 'reglage:type_charge_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Ajouter un type de charge
+        </a>
+    </div>
+    
+    <!-- Barre de recherche -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="search" class="form-control" placeholder="Rechercher par code ou désignation..." value="{{ request.GET.search }}">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i> Rechercher
+                </button>
+                {% if request.GET.search %}
+                <a href="{% url 'reglage:type_charge_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Effacer
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    
+    <!-- Tableau des types de charge -->
+    <div class="card">
+        <div class="card-body">
+            {% if type_charges %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Code du type de charge</th>
+                            <th>Désignation du type de charge</th>
+                            <th>Date de création</th>
+                            <th>Date de modification</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for type_charge in type_charges %}
+                        <tr>
+                            <td><strong>{{ type_charge.code_type_charge }}</strong></td>
+                            <td>{{ type_charge.designation_type_charge }}</td>
+                            <td>{{ type_charge.date_creation|date:"d/m/Y H:i" }}</td>
+                            <td>{{ type_charge.date_modification|date:"d/m/Y H:i" }}</td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'reglage:type_charge_update' type_charge.pk %}" class="btn btn-warning" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'reglage:type_charge_delete' type_charge.pk %}" class="btn btn-danger" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Pagination des types de charge">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Premier</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Précédent</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Suivant</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Dernier</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Aucun type de charge trouvé</h5>
+                <p class="text-muted">Commencez par ajouter un type de charge.</p>
+                <a href="{% url 'reglage:type_charge_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Ajouter le premier type de charge
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Statistiques -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ page_obj.paginator.count }}</h3>
+                    <p class="mb-0">Total des types de charge</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ type_charges|length }}</h3>
+                    <p class="mb-0">Types de charge sur cette page</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ page_obj.paginator.num_pages }}</h3>
+                    <p class="mb-0">Nombre de pages</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
