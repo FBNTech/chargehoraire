@@ -50,9 +50,9 @@
                         <div class="mb-3">
                             <select class="form-control" id="type_charge" name="type_charge">
                                 <option value="">Sélectionner type charge</option>
-                                {% for type_charge in types_charge %}
-                                    <option value="{{ type_charge.code_type_charge }}" {% if selected_type == type_charge.code_type_charge %}selected{% endif %}>
-                                        {{ type_charge.designation_type_charge }}
+                                {% for value, label in type_charge_choices %}
+                                    <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>
+                                        {{ label }}
                                     </option>
                                 {% endfor %}
                             </select>

@@ -1016,6 +1016,9 @@ def liste_charges(request):
     from reglage.models import TypeCharge
     types_charge = TypeCharge.objects.all().order_by('designation_type_charge')
     
+    # Choix de type_charge directement depuis le modèle Attribution (fiable)
+    type_charge_choices = Attribution.TYPE_CHARGE_CHOICES
+    
     context = {
         'attributions': attributions,
         'teachers': teachers,
@@ -1029,6 +1032,7 @@ def liste_charges(request):
         'cours_ues': cours_ues,
         'ue_enseignants': ue_enseignants,
         'types_charge': types_charge,
+        'type_charge_choices': type_charge_choices,
         'annees_modal': annees_modal,
         'sections_modal': sections_modal,
     }
