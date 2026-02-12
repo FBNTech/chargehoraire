@@ -10,6 +10,7 @@ class Attribution(models.Model):
     TYPE_CHARGE_CHOICES = [
         ('Reguliere', 'Régulière'),
         ('Supplementaire', 'Supplémentaire'),
+        ('Speciale', 'Spéciale'),
     ]
     
     matricule = models.ForeignKey(Teacher, on_delete=models.CASCADE, to_field='matricule', verbose_name="Matricule enseignant", null=True)
