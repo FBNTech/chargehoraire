@@ -27,21 +27,21 @@
             flex-direction: column;
         }
         .main-container {
-            display: grid;
-            grid-template-columns: 60px 1fr;
+            display: flex;
             flex: 1;
-            overflow: hidden;
         }
         .sidebar {
             width: 60px;
+            min-width: 60px;
             box-sizing: border-box;
             background-color: #181c34;
             padding: 10px 5px;
             color: white;
             transition: all 0.3s;
             z-index: 1030;
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
             height: 100vh;
             overflow-y: auto;
         }
@@ -83,22 +83,23 @@
             min-width: 0;
             overflow-x: auto;
             padding: 20px;
+            margin-left: 60px;
+            flex: 1;
             background-color: #f8f9fa;
         }
         
         /* Styles responsifs pour la barre latérale et le contenu principal */
         @media (max-width: 768px) {
-            .main-container {
-                grid-template-columns: 45px 1fr;
-            }
             .sidebar {
                 width: 45px;
+                min-width: 45px;
                 padding: 8px 3px;
             }
             .sidebar .sb-nav-link-icon i {
                 font-size: 1.3rem;
             }
             .main-content {
+                margin-left: 45px;
                 padding-left: 5px;
                 padding-right: 5px;
             }
@@ -107,6 +108,7 @@
         @media (max-width: 576px) {
             .sidebar {
                 width: 40px;
+                min-width: 40px;
                 padding: 5px 2px;
             }
             .sidebar .nav-link {
@@ -115,6 +117,9 @@
             }
             .sidebar .sb-nav-link-icon i {
                 font-size: 1.1rem;
+            }
+            .main-content {
+                margin-left: 40px;
             }
         }
         
@@ -137,13 +142,10 @@
             .mobile-menu-toggle {
                 display: block;
             }
-            .main-container {
-                grid-template-columns: 1fr;
+            .main-content {
                 margin-left: 0;
             }
             .sidebar {
-                position: fixed;
-                height: 100%;
                 left: -50px; /* Caché par défaut */
             }
             .sidebar.show {

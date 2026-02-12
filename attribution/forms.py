@@ -20,13 +20,9 @@ class AttributionForm(forms.ModelForm):
         self.fields['annee_academique'].widget.attrs.update({'class': 'form-control'})
         self.fields['type_charge'].widget.attrs.update({'class': 'form-control'})
         
-        # Récupérer les types de charge depuis le modèle TypeCharge
-        from reglage.models import TypeCharge
+        # Utiliser les choix directement depuis le modèle Attribution
         type_charge_choices = [('', 'Sélectionner un type')]
-        type_charge_choices.extend([
-            (type_charge.code_type_charge, type_charge.designation_type_charge)
-            for type_charge in TypeCharge.objects.all().order_by('designation_type_charge')
-        ])
+        type_charge_choices.extend(Attribution.TYPE_CHARGE_CHOICES)
         self.fields['type_charge'].choices = type_charge_choices
 
 
